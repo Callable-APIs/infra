@@ -67,4 +67,5 @@ Thumbs.db
 
 # Generated reports
 reports/
+demo_reports/
 *.html

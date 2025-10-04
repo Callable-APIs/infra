@@ -79,6 +79,16 @@ report:
 
 ## Usage
 
+### Quick Demo (No AWS Required)
+
+Run the example script to see how the tool works without AWS credentials:
+
+```bash
+python example.py
+```
+
+This generates a demo report with mock data in the `demo_reports/` directory.
+
 ### Local Execution
 
 Generate a report locally:
