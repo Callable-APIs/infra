@@ -1,0 +1,30 @@
+# AWS Infrastructure Configuration
+# Copy this file to config.yaml and update with your settings
+
+aws:
+  # AWS region for Cost Explorer API (use us-east-1 for global cost data)
+  region: us-east-1
+  # AWS profile name (optional, uses default if not specified)
+  profile: null
+
+cost_explorer:
+  # Number of days to look back for cost data
+  days_back: 30
+  # Granularity: DAILY, MONTHLY, or HOURLY
+  granularity: DAILY
+  # Metrics to retrieve
+  metrics:
+    - UnblendedCost
+    - UsageQuantity
+  
+report:
+  # Title for the generated report
+  title: "AWS Cost and Usage Report"
+  # Output directory for generated reports
+  output_dir: "reports"
+  # Whether to mask account IDs in reports
+  mask_account_ids: true
+  # Whether to include detailed service breakdown
+  include_service_breakdown: true
+  # Whether to include cost by tag
+  include_tags: false
