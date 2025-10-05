@@ -1,0 +1,99 @@
+name: Terraform Linting
+
+on:
+    push:
+        branches: [main, develop]
+        paths:
+            - "terraform/**"
+            - ".github/workflows/terraform.yml"
+    pull_request:
+        branches: [main, develop]
+        paths:
+            - "terraform/**"
+            - ".github/workflows/terraform.yml"
+
+env:
+    TF_VERSION: "1.6.6"
+
+jobs:
+    terraform-lint:
+        name: Terraform Lint
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Setup Terraform
+              uses: hashicorp/setup-terraform@v3
+              with:
+                  terraform_version: ${{ env.TF_VERSION }}
+
+            - name: Terraform Format Check
+              id: fmt
+              run: |
+                  cd terraform
+                  terraform fmt -check -recursive
+              continue-on-error: true
+
+            - name: Terraform Init
+              id: init
+              run: |
+                  cd terraform
+                  terraform init -backend=false
+
+            - name: Terraform Validate
+              id: validate
+              run: |
+                  cd terraform
+                  terraform validate
+
+            - name: Terraform Security Scan
+              id: security
+              run: |
+                  # Install tfsec
+                  curl -s https://raw.githubusercontent.com/aquasecurity/tfsec/master/scripts/install_linux.sh | bash
+                  cd terraform
+                  ./tfsec --format=json --out=tfsec-results.json || true
+                  ./tfsec --format=table || true
+
+            - name: Upload Security Scan Results
+              if: always()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: tfsec-results
+                  path: terraform/tfsec-results.json
+
+            - name: Comment PR with Security Results
+              if: github.event_name == 'pull_request' && always()
+              uses: actions/github-script@v7
+              with:
+                  script: |
+                      const fs = require('fs');
+                      try {
+                        const results = JSON.parse(fs.readFileSync('terraform/tfsec-results.json', 'utf8'));
+                        const issues = results.results || [];
+                        
+                        if (issues.length === 0) {
+                          github.rest.issues.createComment({
+                            issue_number: context.issue.number,
+                            owner: context.repo.owner,
+                            repo: context.repo.repo,
+                            body: '✅ **Terraform Security Scan**: No security issues found!'
+                          });
+                        } else {
+                          const comment = `⚠️ **Terraform Security Scan**: Found ${issues.length} potential security issues:\n\n` +
+                            issues.map(issue => 
+                              `- **${issue.rule_id}**: ${issue.description}\n  File: \`${issue.location.filename}:${issue.location.start_line}\``
+                            ).join('\n\n');
+                          
+                          github.rest.issues.createComment({
+                            issue_number: context.issue.number,
+                            owner: context.repo.owner,
+                            repo: context.repo.repo,
+                            body: comment
+                          });
+                        }
+                      } catch (error) {
+                        console.log('Could not parse security scan results:', error);
+                      }

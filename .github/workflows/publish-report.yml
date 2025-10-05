@@ -1,0 +1,123 @@
+name: Publish AWS Cost Report to GitHub Pages
+
+on:
+  schedule:
+    # Run daily at 2 AM UTC (adjust timezone as needed)
+    - cron: '0 2 * * *'
+  workflow_dispatch:  # Allow manual triggering
+    inputs:
+      days_back:
+        description: 'Number of days to look back for cost data'
+        required: false
+        default: '30'
+        type: string
+
+jobs:
+  generate-and-publish:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Fetch all history for proper git operations
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.11"
+
+    - name: Install Poetry
+      uses: snok/install-poetry@v1
+      with:
+        version: latest
+        virtualenvs-create: true
+        virtualenvs-in-project: true
+
+    - name: Load cached venv
+      id: cached-poetry-dependencies
+      uses: actions/cache@v3
+      with:
+        path: .venv
+        key: venv-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}
+
+    - name: Install dependencies
+      if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
+      run: poetry install --no-interaction --no-root
+
+    - name: Install project
+      run: poetry install --no-interaction
+
+    - name: Configure AWS credentials
+      run: |
+        mkdir -p ~/.aws
+        echo "[default]" > ~/.aws/credentials
+        echo "aws_access_key_id = ${{ secrets.AWS_ACCESS_KEY_ID }}" >> ~/.aws/credentials
+        echo "aws_secret_access_key = ${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> ~/.aws/credentials
+        echo "[default]" > ~/.aws/config
+        echo "region = us-east-1" >> ~/.aws/config
+
+    - name: Generate AWS Cost Report
+      run: |
+        # Use input parameter or default to 30 days
+        DAYS_BACK="${{ github.event.inputs.days_back || '30' }}"
+        echo "Generating report for last $DAYS_BACK days..."
+        
+        # Generate the public report
+        poetry run aws-infra-report --days $DAYS_BACK --output reports
+        
+        # Verify report was generated
+        if [ ! -f "reports/index.html" ]; then
+          echo "Error: Report not generated successfully"
+          exit 1
+        fi
+        
+        echo "Report generated successfully"
+
+    - name: Setup Pages
+      uses: actions/configure-pages@v3
+
+    - name: Upload artifact
+      uses: actions/upload-pages-artifact@v2
+      with:
+        path: reports
+
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v2
+
+    - name: Create commit with report data
+      if: github.event_name == 'workflow_dispatch'
+      run: |
+        # Only commit on manual runs to avoid cluttering history
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        
+        # Add the generated report
+        git add reports/
+        
+        # Check if there are changes to commit
+        if git diff --staged --quiet; then
+          echo "No changes to commit"
+        else
+          git commit -m "Update AWS cost report - $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+          git push origin HEAD:main
+        fi
+
+  notify:
+    needs: generate-and-publish
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+    - name: Notify on success
+      if: needs.generate-and-publish.result == 'success'
+      run: |
+        echo "✅ AWS Cost Report published successfully to GitHub Pages"
+        echo "📊 Report available at: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}"
+        
+    - name: Notify on failure
+      if: needs.generate-and-publish.result == 'failure'
+      run: |
+        echo "❌ Failed to publish AWS Cost Report"
+        echo "Check the workflow logs for details"

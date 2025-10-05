@@ -1,0 +1,92 @@
+[tool.poetry]
+name = "aws-infra-reporting"
+version = "0.1.0"
+description = "AWS Infrastructure Reporting and Management Tool"
+authors = ["Your Name <your.email@example.com>"]
+readme = "README.md"
+packages = [{include = "src"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+boto3 = "^1.28.0"
+jinja2 = "^3.1.0"
+pyyaml = "^6.0"
+awscli = "^1.42.45"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.4.0"
+pytest-cov = "^4.1.0"
+mypy = "^1.5.0"
+pylint = "^2.17.0"
+black = "^23.0.0"
+isort = "^5.12.0"
+pre-commit = "^3.4.0"
+bandit = "^1.7.5"
+types-PyYAML = "^6.0.12"
+boto3-stubs = "^1.28.0"
+
+[tool.poetry.scripts]
+aws-infra-report = "src.main:main"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
+
+[[tool.mypy.overrides]]
+module = [
+    "boto3.*",
+    "botocore.*",
+]
+ignore_missing_imports = true
+
+[tool.pylint.messages_control]
+disable = [
+    "C0103",  # module name doesn't conform to snake_case
+    "C0114",  # missing module docstring
+    "C0116",  # missing function or method docstring
+    "F0002",  # fatal error (astroid compatibility issues)
+    "E0001",  # syntax error
+]
+
+[tool.pylint.format]
+max-line-length = 88
+
+[tool.pylint.imports]
+ignore-modules = ["boto3", "botocore"]
+
+[tool.black]
+line-length = 88
+target-version = ['py311']
+
+[tool.isort]
+profile = "black"
+line_length = 88
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "--strict-markers",
+    "--strict-config",
+    "--cov=src",
+    "--cov-report=term-missing",
+    "--cov-report=html",
+    "--cov-report=xml",
+]

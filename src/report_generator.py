@@ -1,9 +1,10 @@
 """HTML report generator for AWS cost and usage data."""
+import logging
 import os
 from datetime import datetime
+from typing import Any, Dict, List, Optional
+
 from jinja2 import Template
-from typing import Dict, List, Any
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -266,64 +267,64 @@ HTML_TEMPLATE = """
 
 class ReportGenerator:
     """Generator for HTML reports from AWS cost data."""
-    
+
     def __init__(self, output_dir: str = "reports"):
         """
         Initialize report generator.
-        
+
         Args:
             output_dir: Directory to save generated reports
         """
         self.output_dir = output_dir
         os.makedirs(output_dir, exist_ok=True)
-        
+
     def generate_html_report(
         self,
         title: str,
         summary: Dict[str, Any],
-        services: List[Dict],
+        services: List[Dict[str, Any]],
         days_back: int,
-        account_id: str = None
+        account_id: Optional[str] = None,
     ) -> str:
         """
         Generate HTML report from cost data.
-        
+
         Args:
             title: Report title
             summary: Summary statistics
             services: List of services with costs
             days_back: Number of days the report covers
             account_id: AWS account ID (masked if provided)
-            
+
         Returns:
             Path to generated HTML file
         """
         template = Template(HTML_TEMPLATE)
-        
+
         html_content = template.render(
             title=title,
-            generated_at=datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC'),
+            generated_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC"),
             days_back=days_back,
             account_id=account_id,
             summary=summary,
-            services=services
+            services=services,
         )
-        
+
         # Generate filename with timestamp
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"aws_cost_report_{timestamp}.html"
         filepath = os.path.join(self.output_dir, filename)
-        
-        with open(filepath, 'w', encoding='utf-8') as f:
+
+        with open(filepath, "w", encoding="utf-8") as f:
             f.write(html_content)
-        
+
         logger.info(f"Generated report: {filepath}")
-        
+
         # Also create index.html for GitHub Pages
         index_path = os.path.join(self.output_dir, "index.html")
-        with open(index_path, 'w', encoding='utf-8') as f:
+        with open(index_path, "w", encoding="utf-8") as f:
             f.write(html_content)
-        
+
         logger.info(f"Created index.html: {index_path}")
-        
+
         return filepath

@@ -14,6 +14,7 @@ A comprehensive AWS-based infrastructure reporting and management tool that uses
 ## Prerequisites
 
 - Python 3.11 or higher
+- Poetry (for dependency management)
 - AWS account with Cost Explorer enabled
 - AWS credentials with appropriate permissions
 - GitHub repository with Pages enabled
@@ -47,17 +48,22 @@ git clone https://github.com/Callable-APIs/infra.git
 cd infra
 ```
 
-2. Install Python dependencies:
+2. Install Poetry (if not already installed):
 ```bash
-pip install -r requirements.txt
+curl -sSL https://install.python-poetry.org | python3 -
 ```
 
-3. Create configuration file:
+3. Install dependencies:
+```bash
+poetry install
+```
+
+4. Create configuration file:
 ```bash
 cp config.yaml.example config.yaml
 ```
 
-4. Edit `config.yaml` with your settings:
+5. Edit `config.yaml` with your settings:
 ```yaml
 aws:
   region: us-east-1
@@ -94,38 +100,89 @@ This generates a demo report with mock data in the `demo_reports/` directory.
 Generate a report locally:
 
 ```bash
-cd src
-python main.py
+poetry run aws-infra-report
+```
+
+Or using the module directly:
+
+```bash
+poetry run python -m src.main
 ```
 
 With custom options:
 
 ```bash
-python main.py --days 60 --output ../my-reports
+poetry run aws-infra-report --days 60 --output my-reports
 ```
 
-Command-line options:
+### Report Types
+
+The tool supports two different report types:
+
+#### 1. Public Report (Default)
+```bash
+poetry run aws-infra-report --days 30
+```
+- **Sanitized data** (account ID masked)
+- **HTML format** for web viewing
+- **Safe for public sharing**
+- **GitHub Pages ready**
+
+#### 2. Internal Detailed Report
+```bash
+# Generate detailed internal report
+poetry run aws-infra-report --internal --days 30
+
+# Console-only summary
+poetry run aws-infra-report --internal --console-only --days 7
+```
+- **Full account details** (unmasked)
+- **Resource-level costs** (usage types, instance types)
+- **Granular breakdown** by service and usage type
+- **Text format** for analysis
+- **Contains sensitive information**
+
+### Command-line options:
 - `--config PATH`: Path to configuration file (default: config.yaml)
 - `--days N`: Number of days to look back (overrides config)
 - `--output DIR`: Output directory for reports (overrides config)
 - `--no-mask`: Do not mask account IDs (use with caution)
+- `--internal`: Generate internal detailed report with resource-level costs
+- `--console-only`: Print summary to console only (no file output)
 
 ### GitHub Actions Automation
 
-1. Add AWS credentials as GitHub secrets:
+The project includes automated GitHub Actions workflows for:
+
+1. **CI/CD Pipeline** (`.github/workflows/ci.yml`):
+   - Runs on every push and pull request
+   - Tests code quality, security, and functionality
+
+2. **Automated Report Publishing** (`.github/workflows/github-pages.yml`):
+   - Runs daily at 2 AM UTC
+   - Generates and publishes sanitized reports to GitHub Pages
+   - Can be triggered manually with custom parameters
+
+#### Setup Instructions:
+
+1. **Add AWS credentials as GitHub secrets:**
    - Go to repository Settings → Secrets and variables → Actions
    - Add `AWS_ACCESS_KEY_ID`
    - Add `AWS_SECRET_ACCESS_KEY`
 
-2. Enable GitHub Pages:
+2. **Enable GitHub Pages:**
    - Go to Settings → Pages
-   - Set Source to "Deploy from a branch"
-   - Select `gh-pages` branch
+   - Set Source to "GitHub Actions"
+   - The workflow will automatically deploy to Pages
 
-3. The workflow runs:
-   - Daily at 00:00 UTC (scheduled)
-   - On manual trigger via Actions tab
-   - On push to main branch (optional)
+3. **Manual Report Generation:**
+   - Go to Actions tab → "Deploy AWS Cost Report to GitHub Pages"
+   - Click "Run workflow"
+   - Optionally specify number of days to look back
+
+4. **Access Your Reports:**
+   - Public reports: `https://yourusername.github.io/infra`
+   - Reports are automatically updated daily
 
 ## Security & Privacy
 
@@ -157,16 +214,20 @@ This tool implements multiple security measures:
 infra/
 ├── .github/
 │   └── workflows/
-│       └── generate-report.yml    # GitHub Actions workflow
+│       └── ci.yml                 # GitHub Actions CI/CD workflow
+├── .pre-commit-config.yaml        # Pre-commit hooks configuration
 ├── src/
 │   ├── main.py                    # Main entry point
 │   ├── cost_explorer.py           # AWS Cost Explorer client
 │   ├── sanitizer.py               # Data sanitization utilities
 │   └── report_generator.py        # HTML report generator
+├── tests/
+│   └── test_basic.py              # Test suite
 ├── reports/                       # Generated reports (gitignored)
 ├── config.yaml.example            # Example configuration
 ├── config.yaml                    # Your configuration (gitignored)
-├── requirements.txt               # Python dependencies
+├── pyproject.toml                 # Poetry configuration and dependencies
+├── poetry.lock                    # Poetry lock file (auto-generated)
 ├── .gitignore                     # Git ignore rules
 └── README.md                      # This file
 ```
@@ -182,13 +243,79 @@ The generated HTML reports include:
 
 ## Development
 
+### Setup Development Environment
+
+1. Install development dependencies:
+```bash
+poetry install --with dev
+```
+
+2. Install pre-commit hooks:
+```bash
+poetry run pre-commit install
+```
+
 ### Running Tests
 
-(Add test framework as needed)
+```bash
+# Run all tests
+poetry run pytest
+
+# Run tests with coverage
+poetry run pytest --cov=src --cov-report=html
+
+# Run specific test file
+poetry run pytest tests/test_basic.py
+```
+
+### Code Quality
+
+The project uses several tools to maintain code quality:
 
 ```bash
-pytest tests/
+# Type checking
+poetry run mypy src/
+
+# Linting
+poetry run pylint src/
+
+# Code formatting
+poetry run black src/ tests/
+poetry run isort src/ tests/
+
+# Security scanning
+poetry run bandit -r src/
 ```
+
+### Pre-commit Hooks
+
+Pre-commit hooks are configured to run automatically on git commit:
+
+- Black (code formatting)
+- isort (import sorting)
+- pylint (linting)
+- mypy (type checking)
+- bandit (security scanning)
+- Various git hooks (trailing whitespace, large files, etc.)
+
+### CI/CD Pipeline
+
+The project includes a comprehensive GitHub Actions workflow that runs on every push and pull request:
+
+**Test Job:**
+- Runs on Python 3.11 and 3.12
+- Installs dependencies with Poetry
+- Runs mypy for type checking
+- Runs pylint for code linting
+- Runs black and isort for code formatting checks
+- Runs pytest with coverage reporting
+- Uploads coverage reports to Codecov
+
+**Security Job:**
+- Runs bandit for security vulnerability scanning
+- Uploads security reports as artifacts
+
+The pipeline ensures code quality and security before merging changes.
 
 ### Contributing
 
