@@ -324,41 +324,7 @@ resource "aws_elastic_beanstalk_environment" "callableapis_env" {
   }
 }
 
-# Standalone API Instance (replacing us-east-2 instance)
-resource "aws_instance" "api_instance" {
-  provider = aws.us_west_2
-
-  ami                    = data.aws_ami.amazon_linux.id
-  instance_type          = "t2.micro"
-  key_name               = aws_key_pair.callableapis_key.key_name
-  vpc_security_group_ids = [aws_security_group.api_security_group.id]
-  subnet_id              = aws_subnet.public_1.id
-
-  user_data = base64encode(templatefile("${path.module}/user_data/api_user_data.sh", {
-    # Add any variables needed for user data
-  }))
-
-  tags = {
-    Name        = "callableapis-api"
-    Environment = "production"
-    ManagedBy   = "terraform"
-    Role        = "api"
-  }
-}
-
-# Elastic IP for API instance
-resource "aws_eip" "api_eip" {
-  provider = aws.us_west_2
-
-  instance = aws_instance.api_instance.id
-  domain   = "vpc"
-
-  tags = {
-    Name        = "callableapis-api-eip"
-    Environment = "production"
-    ManagedBy   = "terraform"
-  }
-}
+# Standalone API Instance removed - using Elastic Beanstalk instead
 
 # IAM Role for Elastic Beanstalk Service
 resource "aws_iam_role" "eb_service_role" {
@@ -460,7 +426,7 @@ resource "aws_route53_record" "website_record" {
 
   alias {
     name                   = aws_elastic_beanstalk_environment.callableapis_env.cname
-    zone_id                = aws_elastic_beanstalk_environment.callableapis_env.cname_prefix
+    zone_id                = "Z1H1FL5HABSF5"  # us-west-2 ELB zone ID
     evaluate_target_health = false
   }
 }
@@ -474,7 +440,7 @@ resource "aws_route53_record" "www_record" {
 
   alias {
     name                   = aws_elastic_beanstalk_environment.callableapis_env.cname
-    zone_id                = aws_elastic_beanstalk_environment.callableapis_env.cname_prefix
+    zone_id                = "Z1H1FL5HABSF5"  # us-west-2 ELB zone ID
     evaluate_target_health = false
   }
 }
@@ -487,5 +453,5 @@ resource "aws_route53_record" "api_record" {
   type    = "A"
   ttl     = 300
 
-  records = [aws_eip.api_eip.public_ip]
+  records = [aws_elastic_beanstalk_environment.callableapis_env.cname]
 }
