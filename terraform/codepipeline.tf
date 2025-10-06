@@ -1,6 +1,7 @@
 # CodePipeline Infrastructure for us-west-2
 # Generated for migrating from us-east-2
 
+
 # IAM Role for CodePipeline
 resource "aws_iam_role" "codepipeline_role" {
   provider = aws.us_west_2
@@ -335,11 +336,11 @@ resource "aws_codedeploy_deployment_group" "callableapis_service" {
   deployment_group_name = "callableapis-service-deploymentgroup"
   service_role_arn      = aws_iam_role.codedeploy_role.arn
 
-  ec2_tag_filter {
-    key   = "elasticbeanstalk:environment-name"
-    type  = "KEY_AND_VALUE"
-    value = "callableapis-env"
-  }
+      ec2_tag_filter {
+        key   = "elasticbeanstalk:environment-name"
+        type  = "KEY_AND_VALUE"
+        value = "callableapis-java-env"
+      }
 
   auto_rollback_configuration {
     enabled = true
@@ -442,13 +443,13 @@ resource "aws_codepipeline" "callableapis" {
       name            = "callableapis-service-deploy"
       category        = "Deploy"
       owner           = "AWS"
-      provider        = "CodeDeploy"
+      provider        = "ElasticBeanstalk"
       version         = "1"
       input_artifacts = ["service-build"]
 
       configuration = {
-        ApplicationName     = aws_codedeploy_app.callableapis_service.name
-        DeploymentGroupName = aws_codedeploy_deployment_group.callableapis_service.deployment_group_name
+        ApplicationName = "callableapis"
+        EnvironmentName = "callableapis-java-env"
       }
     }
   }

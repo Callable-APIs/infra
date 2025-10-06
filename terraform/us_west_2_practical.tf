@@ -50,37 +50,6 @@ resource "aws_internet_gateway" "main" {
   }
 }
 
-# Public Subnets
-resource "aws_subnet" "public_1" {
-  provider = aws.us_west_2
-
-  vpc_id                  = aws_vpc.main.id
-  cidr_block              = "172.31.1.0/24"
-  availability_zone       = "us-west-2a"
-  map_public_ip_on_launch = true
-
-  tags = {
-    Name        = "callableapis-public-1"
-    Environment = "production"
-    ManagedBy   = "terraform"
-  }
-}
-
-resource "aws_subnet" "public_2" {
-  provider = aws.us_west_2
-
-  vpc_id                  = aws_vpc.main.id
-  cidr_block              = "172.31.2.0/24"
-  availability_zone       = "us-west-2b"
-  map_public_ip_on_launch = true
-
-  tags = {
-    Name        = "callableapis-public-2"
-    Environment = "production"
-    ManagedBy   = "terraform"
-  }
-}
-
 # Route Table
 resource "aws_route_table" "public" {
   provider = aws.us_west_2
@@ -112,6 +81,37 @@ resource "aws_route_table_association" "public_2" {
 
   subnet_id      = aws_subnet.public_2.id
   route_table_id = aws_route_table.public.id
+}
+
+# Public Subnets
+resource "aws_subnet" "public_1" {
+  provider = aws.us_west_2
+
+  vpc_id                  = aws_vpc.main.id
+  cidr_block              = "172.31.1.0/24"
+  availability_zone       = "us-west-2a"
+  map_public_ip_on_launch = true
+
+  tags = {
+    Name        = "callableapis-public-1"
+    Environment = "production"
+    ManagedBy   = "terraform"
+  }
+}
+
+resource "aws_subnet" "public_2" {
+  provider = aws.us_west_2
+
+  vpc_id                  = aws_vpc.main.id
+  cidr_block              = "172.31.2.0/24"
+  availability_zone       = "us-west-2b"
+  map_public_ip_on_launch = true
+
+  tags = {
+    Name        = "callableapis-public-2"
+    Environment = "production"
+    ManagedBy   = "terraform"
+  }
 }
 
 # Security Group for Elastic Beanstalk
@@ -246,9 +246,9 @@ resource "aws_elastic_beanstalk_application" "callableapis" {
 resource "aws_elastic_beanstalk_environment" "callableapis_env" {
   provider = aws.us_west_2
 
-  name                = "callableapis-env"
+  name                = "callableapis-java-env"
   application         = aws_elastic_beanstalk_application.callableapis.name
-  solution_stack_name = "64bit Amazon Linux 2023 v4.7.2 running Python 3.11"
+  solution_stack_name = "64bit Amazon Linux 2023 v5.7.5 running Tomcat 11 Corretto 21"
 
   setting {
     namespace = "aws:ec2:vpc"

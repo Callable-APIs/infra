@@ -141,6 +141,27 @@ test_reports/
 bandit-report.json
 *.zip
 
+# Temporary build and deployment files
+appspec.yml
+build.gradle
+buildspec.yml
+settings.gradle
+gradle/
+gradlew
+gradlew.bat
+src/main/
+src/test/
+test-app/
+python-service/
+cleanup-*.sh
+remove-*.sh
+codedeploy-*.sh
+
+# SSH keys
+*.pub
+*.pem
+id_rsa*
+
 # Terraform working files (but keep the configs)
 terraform_output/
 terraform/.terraform/

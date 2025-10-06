@@ -144,8 +144,9 @@ class TerraformGenerator:
 
     def generate_main_tf(self):
         """Generate main.tf file."""
+        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')
         content = f"""# Main Terraform configuration
-# Generated on {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}
+# Generated on {timestamp}
 # 
 # This file contains the main infrastructure configuration
 # generated from your current AWS deployment.
@@ -236,8 +237,9 @@ variable "common_tags" {
 
     def generate_outputs_tf(self):
         """Generate outputs.tf file."""
+        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')
         content = f"""# Output definitions
-# Generated on {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}
+# Generated on {timestamp}
 
 {self._generate_output_blocks()}
 """
@@ -859,8 +861,9 @@ output "module_output" {
 
     def generate_providers_tf(self):
         """Generate multi-region provider configuration."""
-        content = """# Multi-region AWS provider configuration
-# Generated on {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}
+        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')
+        content = f"""# Multi-region AWS provider configuration
+# Generated on {timestamp}
 
 # Default provider (us-east-1)
 provider "aws" {{
@@ -906,7 +909,7 @@ provider "aws" {{
     }}
   }}
 }}
-""".format(datetime=datetime)
+"""
         
         with open(f"{self.output_dir}/providers.tf", 'w') as f:
             f.write(content)
@@ -920,8 +923,9 @@ provider "aws" {{
         """Generate a Terraform file for a specific region."""
         region_alias = region.replace('-', '_')
         
+        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')
         content = f"""# {region.upper()} Region Configuration
-# Generated on {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}
+# Generated on {timestamp}
 # 
 # This file contains resources specific to the {region} region.
 # All resources in this file use the aws.{region_alias} provider.

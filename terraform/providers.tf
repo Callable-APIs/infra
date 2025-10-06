@@ -1,11 +1,11 @@
 # Multi-region AWS provider configuration
-# Generated on 2025-01-05 16:57:00 UTC
+# Generated on 2025-10-06 04:34:42 UTC
 
 # Default provider (us-east-1)
 provider "aws" {
   region = "us-east-1"
   alias  = "us_east_1"
-
+  
   default_tags {
     tags = {
       ManagedBy = "terraform"
@@ -20,7 +20,7 @@ provider "aws" {
 provider "aws" {
   region = "us-east-2"
   alias  = "us_east_2"
-
+  
   default_tags {
     tags = {
       ManagedBy = "terraform"
@@ -35,7 +35,7 @@ provider "aws" {
 provider "aws" {
   region = "us-west-2"
   alias  = "us_west_2"
-
+  
   default_tags {
     tags = {
       ManagedBy = "terraform"
