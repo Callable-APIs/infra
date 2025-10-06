@@ -89,18 +89,7 @@ resource "aws_iam_user_policy" "infra_reporter_discovery" {
   })
 }
 
-# Access keys for infra-deployer (2 active keys)
-resource "aws_iam_access_key" "infra_deployer_key_1" {
-  provider = aws.us_west_2
-  
-  user = aws_iam_user.infra_deployer.name
-}
-
-resource "aws_iam_access_key" "infra_deployer_key_2" {
-  provider = aws.us_west_2
-  
-  user = aws_iam_user.infra_deployer.name
-}
+# Access keys for infra-deployer (managed outside Terraform to avoid conflicts)
 
 # Access key for infra-reporter (1 active key)
 resource "aws_iam_access_key" "infra_reporter_key" {

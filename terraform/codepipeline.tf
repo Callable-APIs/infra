@@ -264,19 +264,7 @@ resource "aws_iam_role_policy" "codedeploy_ec2_policy" {
   })
 }
 
-# IAM Instance Profile for CodeDeploy EC2
-resource "aws_iam_instance_profile" "codedeploy_ec2_profile" {
-  provider = aws.us_west_2
-
-  name = "codedeploy-ec2-profile-role"
-  role = aws_iam_role.codedeploy_ec2_role.name
-
-  tags = {
-    Name        = "codedeploy-ec2-profile-role"
-    Environment = "production"
-    ManagedBy   = "terraform"
-  }
-}
+# IAM Instance Profile for CodeDeploy EC2 (managed outside Terraform to avoid conflicts)
 
 # CodeBuild project
 resource "aws_codebuild_project" "callableapis_service" {
@@ -425,19 +413,19 @@ resource "aws_codepipeline" "callableapis" {
   stage {
     name = "Deploy"
 
-    action {
-      name            = "callableapis-website-deploy"
-      category        = "Deploy"
-      owner           = "AWS"
-      provider        = "S3"
-      version         = "1"
-      input_artifacts = ["website-source"]
+        action {
+          name            = "callableapis-website-deploy"
+          category        = "Deploy"
+          owner           = "AWS"
+          provider        = "S3"
+          version         = "1"
+          input_artifacts = ["website-source"]
 
-      configuration = {
-        BucketName = "callableapis.com"
-        Extract    = "true"
-      }
-    }
+          configuration = {
+            BucketName = "callableapis-usw2.com"
+            Extract    = "true"
+          }
+        }
 
     action {
       name            = "callableapis-service-deploy"
@@ -465,10 +453,10 @@ resource "aws_codepipeline" "callableapis" {
 resource "aws_s3_bucket" "website" {
   provider = aws.us_west_2
 
-  bucket = "callableapis.com"
+  bucket = "callableapis-usw2.com"
 
   tags = {
-    Name        = "callableapis-website"
+    Name        = "callableapis-website-usw2"
     Environment = "production"
     ManagedBy   = "terraform"
   }
