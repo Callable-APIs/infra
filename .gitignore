@@ -131,11 +131,15 @@ dmypy.json
 # Project specific
 config.yaml
 env.sh
+env-deployer.sh
+env.example
 reports/
 demo_reports/
 internal_reports/
+test_reports/
 *.html
 bandit-report.json
+*.zip
 
 # Terraform working files (but keep the configs)
 terraform_output/

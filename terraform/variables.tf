@@ -17,6 +17,13 @@ variable "environment" {
   default     = "production"
 }
 
+# Route53 zone ID for callableapis.com
+variable "route53_zone_id" {
+  description = "Route53 hosted zone ID for callableapis.com"
+  type        = string
+  default     = "ZJ57N2O5R20OE"
+}
+
 # Add more variables as needed
 variable "common_tags" {
   description = "Common tags to apply to all resources"
