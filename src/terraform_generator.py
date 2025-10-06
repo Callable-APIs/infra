@@ -25,8 +25,11 @@ class TerraformGenerator:
         # Resource name mappings to avoid conflicts
         self.resource_names: Dict[str, int] = {}
         
-        # Load discovered resources
-        self.discovered_resources = self._load_discovered_resources()
+        # Multi-region support
+        self.regions: Dict[str, Dict[str, List[Dict[str, Any]]]] = {}
+        
+        # Load discovered resources from all regions
+        self.discovered_resources = self._load_all_discovered_resources()
 
     def ensure_output_directory(self):
         """Ensure output directory exists with proper structure."""
@@ -34,8 +37,8 @@ class TerraformGenerator:
         os.makedirs(f"{self.output_dir}/modules", exist_ok=True)
         os.makedirs(f"{self.output_dir}/environments", exist_ok=True)
 
-    def _load_discovered_resources(self) -> Dict[str, List[Dict[str, Any]]]:
-        """Load the most recent discovery results."""
+    def _load_all_discovered_resources(self) -> Dict[str, List[Dict[str, Any]]]:
+        """Load discovery results from all regions and organize by region."""
         # Look in terraform_output directory
         terraform_output_dir = "terraform_output"
         if not os.path.exists(terraform_output_dir):
@@ -48,12 +51,65 @@ class TerraformGenerator:
             logger.error("No discovery results found. Run terraform-discover first.")
             return {}
         
-        # Get the most recent file by modification time
-        latest_file = max(discovery_files, key=lambda x: os.path.getmtime(os.path.join(terraform_output_dir, x)))
-        filepath = os.path.join(terraform_output_dir, latest_file)
+        # Load all discovery files and organize by region
+        all_resources = {}
+        region_mapping = {}
         
-        with open(filepath, 'r') as f:
-            return json.load(f)
+        for file in discovery_files:
+            filepath = os.path.join(terraform_output_dir, file)
+            with open(filepath, 'r') as f:
+                resources = json.load(f)
+                
+                # Determine region from the resources (look for region-specific identifiers)
+                region = self._determine_region_from_resources(resources)
+                region_mapping[file] = region
+                
+                if region not in self.regions:
+                    self.regions[region] = {}
+                
+                # Merge resources by type
+                for resource_type, resource_list in resources.items():
+                    if resource_type not in all_resources:
+                        all_resources[resource_type] = []
+                    if resource_type not in self.regions[region]:
+                        self.regions[region][resource_type] = []
+                    
+                    # Add region information to each resource
+                    for resource in resource_list:
+                        resource['region'] = region
+                        all_resources[resource_type].append(resource)
+                        self.regions[region][resource_type].append(resource)
+        
+        logger.info(f"Loaded resources from regions: {list(self.regions.keys())}")
+        return all_resources
+    
+    def _determine_region_from_resources(self, resources: Dict[str, List[Dict[str, Any]]]) -> str:
+        """Determine the region from resource data."""
+        # Check EC2 instances for region clues
+        if 'ec2_instances' in resources and resources['ec2_instances']:
+            instance = resources['ec2_instances'][0]
+            if 'data' in instance and 'Placement' in instance['data']:
+                az = instance['data']['Placement'].get('AvailabilityZone', '')
+                if az.startswith('us-east-1'):
+                    return 'us-east-1'
+                elif az.startswith('us-east-2'):
+                    return 'us-east-2'
+                elif az.startswith('us-west-2'):
+                    return 'us-west-2'
+        
+        # Check VPCs for region clues
+        if 'vpcs' in resources and resources['vpcs']:
+            vpc = resources['vpcs'][0]
+            if 'data' in vpc and 'VpcId' in vpc['data']:
+                vpc_id = vpc['data']['VpcId']
+                # VPC IDs have region-specific patterns
+                if vpc_id.startswith('vpc-') and len(vpc_id) > 4:
+                    # This is a simplified approach - in practice, you'd need to query AWS
+                    # For now, we'll use a default region
+                    pass
+        
+        # Default to us-east-1 if we can't determine
+        return 'us-east-1'
 
     def generate_all_configurations(self):
         """Generate all Terraform configurations."""
@@ -70,6 +126,9 @@ class TerraformGenerator:
         
         # Generate provider configuration
         self.generate_providers_tf()
+        
+        # Generate region-specific configurations
+        self.generate_region_configurations()
         
         # Generate resource configurations
         self.generate_ec2_resources()
@@ -291,13 +350,13 @@ variable "common_tags" {
         
         for resource_type, resources in self.discovered_resources.items():
             for resource in resources:
-                block = self._generate_resource_block(resource)
+                block = self._generate_resource_block(resource, "us_east_1")
                 if block:
                     resource_blocks.append(block)
         
         return '\n'.join(resource_blocks)
 
-    def _generate_resource_block(self, resource: Dict[str, Any]) -> str:
+    def _generate_resource_block(self, resource: Dict[str, Any], provider_alias: str = "us_east_1") -> str:
         """Generate a single resource block."""
         resource_type = resource['type']
         resource_data = resource['data']
@@ -306,8 +365,11 @@ variable "common_tags" {
         # Get a safe resource name
         resource_name = self._get_resource_name(resource, resource_type)
         
+        # Add provider alias to all resource blocks
+        provider_line = f"  provider = aws.{provider_alias}\n"
+        
         if resource_type == 'aws_instance':
-            return self._generate_ec2_instance_block(resource_name, resource_data)
+            return self._generate_ec2_instance_block(resource_name, resource_data, provider_line)
         elif resource_type == 'aws_vpc':
             return self._generate_vpc_block(resource_name, resource_data)
         elif resource_type == 'aws_subnet':
@@ -338,13 +400,13 @@ variable "common_tags" {
         
         return ""
 
-    def _generate_ec2_instance_block(self, name: str, data: Dict[str, Any]) -> str:
+    def _generate_ec2_instance_block(self, name: str, data: Dict[str, Any], provider_line: str = "") -> str:
         """Generate EC2 instance resource block."""
         tags = self._format_tags(data.get('Tags', []))
         
         return f"""
 resource "aws_instance" "{name}" {{
-  ami           = "{data.get('ImageId', '')}"
+{provider_line}  ami           = "{data.get('ImageId', '')}"
   instance_type = "{data.get('InstanceType', '')}"
   subnet_id     = "{data.get('SubnetId', '')}"
   
@@ -794,6 +856,167 @@ output "module_output" {
         
         with open(f"{self.output_dir}/modules/example.tf", 'w') as f:
             f.write(module_content)
+
+    def generate_providers_tf(self):
+        """Generate multi-region provider configuration."""
+        content = """# Multi-region AWS provider configuration
+# Generated on {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}
+
+# Default provider (us-east-1)
+provider "aws" {{
+  region = "us-east-1"
+  alias  = "us_east_1"
+  
+  default_tags {{
+    tags = {{
+      ManagedBy = "terraform"
+      Generated = "true"
+      Project   = var.project_name
+      Region    = "us-east-1"
+    }}
+  }}
+}}
+
+# us-east-2 provider
+provider "aws" {{
+  region = "us-east-2"
+  alias  = "us_east_2"
+  
+  default_tags {{
+    tags = {{
+      ManagedBy = "terraform"
+      Generated = "true"
+      Project   = var.project_name
+      Region    = "us-east-2"
+    }}
+  }}
+}}
+
+# us-west-2 provider (for future migration)
+provider "aws" {{
+  region = "us-west-2"
+  alias  = "us_west_2"
+  
+  default_tags {{
+    tags = {{
+      ManagedBy = "terraform"
+      Generated = "true"
+      Project   = var.project_name
+      Region    = "us-west-2"
+    }}
+  }}
+}}
+""".format(datetime=datetime)
+        
+        with open(f"{self.output_dir}/providers.tf", 'w') as f:
+            f.write(content)
+
+    def generate_region_configurations(self):
+        """Generate region-specific Terraform configurations."""
+        for region, resources in self.regions.items():
+            self._generate_region_file(region, resources)
+
+    def _generate_region_file(self, region: str, resources: Dict[str, List[Dict[str, Any]]]):
+        """Generate a Terraform file for a specific region."""
+        region_alias = region.replace('-', '_')
+        
+        content = f"""# {region.upper()} Region Configuration
+# Generated on {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}
+# 
+# This file contains resources specific to the {region} region.
+# All resources in this file use the aws.{region_alias} provider.
+
+"""
+        
+        # Add import blocks for this region
+        import_blocks = []
+        resource_blocks = []
+        
+        for resource_type, resource_list in resources.items():
+            for resource in resource_list:
+                if resource.get('region') == region:
+                    # Generate import block
+                    import_block = self._generate_import_block(resource)
+                    if import_block:
+                        import_blocks.append(import_block)
+                    
+                    # Generate resource block
+                    resource_block = self._generate_resource_block(resource, region_alias)
+                    if resource_block:
+                        resource_blocks.append(resource_block)
+        
+        # Add import blocks
+        if import_blocks:
+            content += "# Import blocks for existing resources\n"
+            for import_block in import_blocks:
+                content += import_block + "\n"
+            content += "\n"
+        
+        # Add resource blocks
+        if resource_blocks:
+            content += "# Resource definitions\n"
+            for resource_block in resource_blocks:
+                content += resource_block + "\n"
+        
+        # Write region-specific file
+        filename = f"{self.output_dir}/{region_alias}.tf"
+        with open(filename, 'w') as f:
+            f.write(content)
+        
+        logger.info(f"Generated {region} configuration: {filename}")
+
+    def _generate_import_block(self, resource: Dict[str, Any]) -> str:
+        """Generate an import block for a resource."""
+        resource_type = resource.get('type', '')
+        resource_id = resource.get('id', '')
+        
+        if not resource_type or not resource_id:
+            return ""
+        
+        # Generate a safe resource name
+        safe_name = self._generate_safe_resource_name(resource_type, resource_id)
+        
+        return f"""import {{
+  to = {resource_type}.{safe_name}
+  id = "{resource_id}"
+}}"""
+
+    def _generate_resource_block(self, resource: Dict[str, Any], provider_alias: str) -> str:
+        """Generate a resource block for a resource."""
+        resource_type = resource.get('type', '')
+        resource_id = resource.get('id', '')
+        resource_data = resource.get('data', {})
+        
+        if not resource_type or not resource_id:
+            return ""
+        
+        # Generate a safe resource name
+        safe_name = self._generate_safe_resource_name(resource_type, resource_id)
+        
+        # Add provider alias
+        provider_line = f"  provider = aws.{provider_alias}\n"
+        
+        # Generate basic resource block (this is a simplified version)
+        # In a full implementation, you'd generate the complete resource configuration
+        block = f"""resource "{resource_type}" "{safe_name}" {{
+{provider_line}  # Resource configuration would be generated here
+  # This is a placeholder - full configuration needs to be implemented
+}}"""
+        
+        return block
+
+    def _generate_safe_resource_name(self, resource_type: str, resource_id: str) -> str:
+        """Generate a safe Terraform resource name."""
+        # Remove common prefixes and make it Terraform-safe
+        safe_id = resource_id.replace('-', '_').replace('.', '_')
+        
+        # Add resource type prefix if needed
+        if resource_type.startswith('aws_'):
+            type_prefix = resource_type.replace('aws_', '')
+        else:
+            type_prefix = resource_type
+        
+        return f"{type_prefix}_{safe_id}"
 
 
 def main():

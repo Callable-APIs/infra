@@ -393,9 +393,12 @@ class TerraformDiscovery:
 
 def main():
     """Main function for Terraform discovery."""
+    import os
     logging.basicConfig(level=logging.INFO)
     
-    discovery = TerraformDiscovery()
+    # Use AWS_DEFAULT_REGION environment variable if set, otherwise default to us-east-1
+    region = os.environ.get('AWS_DEFAULT_REGION', 'us-east-1')
+    discovery = TerraformDiscovery(region=region)
     resources = discovery.discover_all_resources()
     
     # Print summary

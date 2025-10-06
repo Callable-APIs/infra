@@ -53,6 +53,20 @@ ENV AWS_DEFAULT_REGION=us-east-1
 COPY docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
+# Create a flexible entrypoint that allows AWS CLI commands
+RUN echo '#!/bin/bash\n\
+if [ "$1" = "aws" ]; then\n\
+    shift\n\
+    exec aws "$@"\n\
+elif [ "$1" = "terraform" ]; then\n\
+    shift\n\
+    exec terraform "$@"\n\
+elif [ "$1" = "bash" ] || [ "$1" = "sh" ]; then\n\
+    exec "$@"\n\
+else\n\
+    exec /usr/local/bin/docker-entrypoint.sh "$@"\n\
+fi' > /usr/local/bin/flexible-entrypoint.sh && chmod +x /usr/local/bin/flexible-entrypoint.sh
+
 # Default command
-ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
+ENTRYPOINT ["/usr/local/bin/flexible-entrypoint.sh"]
 CMD ["help"]
