@@ -370,7 +370,7 @@ resource "aws_codepipeline" "callableapis" {
         Repo                 = "website"
         Branch               = "main"
         OAuthToken           = var.github_token
-        PollForSourceChanges = "false"
+        PollForSourceChanges = "true"
       }
     }
 
@@ -387,7 +387,7 @@ resource "aws_codepipeline" "callableapis" {
         Repo                 = "services"
         Branch               = "main"
         OAuthToken           = var.github_token
-        PollForSourceChanges = "false"
+        PollForSourceChanges = "true"
       }
     }
   }
