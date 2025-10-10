@@ -426,7 +426,7 @@ resource "aws_route53_record" "website_record" {
   type    = "A"
 
   alias {
-    name                   = "callableapis-usw2.com.s3-website.us-west-2.amazonaws.com"
+    name                   = "callableapis.com.s3-website.us-west-2.amazonaws.com"
     zone_id                = "Z3BJ6K6RIION7M"  # us-west-2 S3 website zone ID
     evaluate_target_health = false
   }
@@ -440,7 +440,7 @@ resource "aws_route53_record" "www_record" {
   type    = "A"
 
   alias {
-    name                   = "callableapis-usw2.com.s3-website.us-west-2.amazonaws.com"
+    name                   = "www.callableapis.com.s3-website.us-west-2.amazonaws.com"
     zone_id                = "Z3BJ6K6RIION7M"  # us-west-2 S3 website zone ID
     evaluate_target_health = false
   }
