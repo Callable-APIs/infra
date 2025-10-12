@@ -8,10 +8,10 @@ from typing import Any, Dict
 
 import yaml
 
-from .cost_explorer import CostExplorerClient
-from .report_generator import ReportGenerator
-from .internal_report_generator import InternalReportGenerator
-from .sanitizer import generate_summary_stats, mask_account_id
+from src.cost_explorer import CostExplorerClient
+from src.internal_report_generator import InternalReportGenerator
+from src.report_generator import ReportGenerator
+from src.sanitizer import generate_summary_stats, mask_account_id
 
 # Configure logging
 logging.basicConfig(
@@ -129,30 +129,28 @@ def main() -> int:
         if args.internal:
             # Generate internal detailed report
             logger.info("Generating internal detailed report...")
-            
+
             # Get detailed cost breakdown
             detailed_costs = ce_client.get_detailed_cost_breakdown(days_back=days_back)
             tag_costs = ce_client.get_cost_by_tag(days_back=days_back)
-            
+
             # Get billing cycle information
             logger.info("Analyzing billing cycle...")
             billing_info = ce_client.get_billing_cycle_info()
-            
+
             # Get current and previous billing cycle costs
             current_cycle_costs = ce_client.get_billing_cycle_costs(
-                billing_info["current_cycle_start"], 
-                datetime.now().strftime("%Y-%m-%d")
+                billing_info["current_cycle_start"], datetime.now().strftime("%Y-%m-%d")
             )
             previous_cycle_costs = ce_client.get_billing_cycle_costs(
-                billing_info["previous_cycle_start"], 
-                billing_info["previous_cycle_end"]
+                billing_info["previous_cycle_start"], billing_info["previous_cycle_end"]
             )
-            
+
             # Create internal report generator
             internal_generator = InternalReportGenerator(
                 output_dir=args.output or "internal_reports"
             )
-            
+
             if args.console_only:
                 # Print console summary only
                 internal_generator.print_console_summary(
@@ -175,7 +173,7 @@ def main() -> int:
                     previous_cycle_costs=previous_cycle_costs,
                 )
                 logger.info(f"✅ Internal report generated: {report_path}")
-                
+
                 # Also print console summary
                 internal_generator.print_console_summary(
                     summary=summary,

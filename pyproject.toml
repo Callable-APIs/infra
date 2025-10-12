@@ -51,6 +51,13 @@ strict_equality = true
 module = [
     "boto3.*",
     "botocore.*",
+    "cost_explorer",
+    "internal_report_generator", 
+    "report_generator",
+    "sanitizer",
+    "terraform_discovery",
+    "terraform_generator",
+    "main",
 ]
 ignore_missing_imports = true
 
@@ -67,7 +74,7 @@ disable = [
 max-line-length = 88
 
 [tool.pylint.imports]
-ignore-modules = ["boto3", "botocore"]
+ignored-modules = ["boto3", "botocore"]
 
 [tool.black]
 line-length = 88

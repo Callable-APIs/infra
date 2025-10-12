@@ -18,6 +18,7 @@ class InternalReportGenerator:
         """
         self.output_dir = output_dir
         import os
+
         os.makedirs(output_dir, exist_ok=True)
 
     def generate_detailed_report(
@@ -51,13 +52,20 @@ class InternalReportGenerator:
         """
         # Generate HTML report
         html_content = self._generate_html_report(
-            title, summary, detailed_costs, tag_costs, days_back, 
-            account_id, billing_info, current_cycle_costs, previous_cycle_costs
+            title,
+            summary,
+            detailed_costs,
+            tag_costs,
+            days_back,
+            account_id,
+            billing_info,
+            current_cycle_costs,
+            previous_cycle_costs,
         )
-        
+
         # Save as index.html for easy access
         filepath = f"{self.output_dir}/index.html"
-        
+
         with open(filepath, "w", encoding="utf-8") as f:
             f.write(html_content)
 
@@ -77,13 +85,21 @@ class InternalReportGenerator:
         previous_cycle_costs: List[Dict[str, Any]],
     ) -> str:
         """Generate HTML content for internal report."""
-        
+
         # Calculate totals
-        current_total = sum(item['cost'] for item in current_cycle_costs) if current_cycle_costs else 0
-        previous_total = sum(item['cost'] for item in previous_cycle_costs) if previous_cycle_costs else 0
+        current_total = (
+            sum(item["cost"] for item in current_cycle_costs)
+            if current_cycle_costs
+            else 0
+        )
+        previous_total = (
+            sum(item["cost"] for item in previous_cycle_costs)
+            if previous_cycle_costs
+            else 0
+        )
         change = current_total - previous_total
         change_pct = (change / previous_total * 100) if previous_total > 0 else 0
-        
+
         html = f"""
 <!DOCTYPE html>
 <html lang="en">
@@ -97,7 +113,7 @@ class InternalReportGenerator:
             padding: 0;
             box-sizing: border-box;
         }}
-        
+
         body {{
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             line-height: 1.6;
@@ -105,7 +121,7 @@ class InternalReportGenerator:
             background: #f5f5f5;
             padding: 20px;
         }}
-        
+
         .container {{
             max-width: 1400px;
             margin: 0 auto;
@@ -114,24 +130,24 @@ class InternalReportGenerator:
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }}
-        
+
         header {{
             border-bottom: 3px solid #dc3545;
             padding-bottom: 20px;
             margin-bottom: 30px;
         }}
-        
+
         h1 {{
             color: #dc3545;
             font-size: 2.5em;
             margin-bottom: 10px;
         }}
-        
+
         .meta {{
             color: #666;
             font-size: 0.9em;
         }}
-        
+
         .alert {{
             background: #f8d7da;
             border: 1px solid #f5c6cb;
@@ -140,21 +156,21 @@ class InternalReportGenerator:
             margin: 20px 0;
             color: #721c24;
         }}
-        
+
         .summary {{
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
             gap: 20px;
             margin: 30px 0;
         }}
-        
+
         .summary-card {{
             background: #f8f9fa;
             padding: 20px;
             border-radius: 6px;
             border-left: 4px solid #dc3545;
         }}
-        
+
         .summary-card h3 {{
             color: #666;
             font-size: 0.9em;
@@ -162,57 +178,57 @@ class InternalReportGenerator:
             letter-spacing: 0.5px;
             margin-bottom: 10px;
         }}
-        
+
         .summary-card .value {{
             font-size: 2em;
             font-weight: bold;
             color: #333;
         }}
-        
+
         .billing-comparison {{
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 30px;
             margin: 40px 0;
         }}
-        
+
         .billing-card {{
             background: #f8f9fa;
             padding: 25px;
             border-radius: 8px;
             border: 2px solid #e9ecef;
         }}
-        
+
         .billing-card.current {{
             border-color: #28a745;
         }}
-        
+
         .billing-card.previous {{
             border-color: #6c757d;
         }}
-        
+
         .billing-card h3 {{
             color: #333;
             font-size: 1.4em;
             margin-bottom: 15px;
             text-align: center;
         }}
-        
+
         .billing-total {{
             font-size: 2.5em;
             font-weight: bold;
             text-align: center;
             margin: 20px 0;
         }}
-        
+
         .current .billing-total {{
             color: #28a745;
         }}
-        
+
         .previous .billing-total {{
             color: #6c757d;
         }}
-        
+
         .change-indicator {{
             text-align: center;
             font-size: 1.2em;
@@ -221,21 +237,21 @@ class InternalReportGenerator:
             padding: 15px;
             border-radius: 6px;
         }}
-        
+
         .change-positive {{
             background: #d4edda;
             color: #155724;
         }}
-        
+
         .change-negative {{
             background: #f8d7da;
             color: #721c24;
         }}
-        
+
         .section {{
             margin: 40px 0;
         }}
-        
+
         .section h2 {{
             color: #333;
             font-size: 1.8em;
@@ -243,13 +259,13 @@ class InternalReportGenerator:
             padding-bottom: 10px;
             border-bottom: 2px solid #eee;
         }}
-        
+
         table {{
             width: 100%;
             border-collapse: collapse;
             margin: 20px 0;
         }}
-        
+
         th {{
             background: #333;
             color: white;
@@ -257,26 +273,26 @@ class InternalReportGenerator:
             text-align: left;
             font-weight: 600;
         }}
-        
+
         td {{
             padding: 12px;
             border-bottom: 1px solid #eee;
         }}
-        
+
         tr:hover {{
             background: #f8f9fa;
         }}
-        
+
         .cost {{
             font-weight: 600;
             color: #dc3545;
         }}
-        
+
         .percentage {{
             color: #666;
             font-size: 0.9em;
         }}
-        
+
         .bar-container {{
             background: #eee;
             border-radius: 4px;
@@ -284,17 +300,17 @@ class InternalReportGenerator:
             overflow: hidden;
             margin-top: 5px;
         }}
-        
+
         .bar {{
             background: linear-gradient(90deg, #dc3545, #c82333);
             height: 100%;
             transition: width 0.3s ease;
         }}
-        
+
         .current .bar {{
             background: linear-gradient(90deg, #28a745, #1e7e34);
         }}
-        
+
         footer {{
             margin-top: 40px;
             padding-top: 20px;
@@ -303,14 +319,14 @@ class InternalReportGenerator:
             color: #666;
             font-size: 0.9em;
         }}
-        
+
         .no-data {{
             text-align: center;
             padding: 40px;
             color: #999;
             font-style: italic;
         }}
-        
+
         @media (max-width: 768px) {{
             .billing-comparison {{
                 grid-template-columns: 1fr;
@@ -328,74 +344,74 @@ class InternalReportGenerator:
                 <strong>Account:</strong> {account_id}
             </div>
         </header>
-        
+
         <div class="alert">
-            <strong>⚠️ INTERNAL REPORT:</strong> This report contains sensitive AWS resource information. 
+            <strong>⚠️ INTERNAL REPORT:</strong> This report contains sensitive AWS resource information.
             Do not share this report outside your organization.
         </div>
-        
-        <div class="summary">
-            <div class="summary-card">
-                <h3>Total Cost (30 days)</h3>
-                <div class="value">${summary['total_cost']:.2f}</div>
+
+            <div class="summary">
+                <div class="summary-card">
+                    <h3>Total Cost (30 days)</h3>
+                    <div class="value">${summary['total_cost']:.2f}</div>
+                </div>
+                <div class="summary-card">
+                    <h3>Active Services</h3>
+                    <div class="value">{summary['service_count']}</div>
+                </div>
+                <div class="summary-card">
+                    <h3>Current Cycle</h3>
+                    <div class="value">{billing_info.get('current_cycle_days', 0) if billing_info else 0} days</div>
+                </div>
             </div>
-            <div class="summary-card">
-                <h3>Active Services</h3>
-                <div class="value">{summary['service_count']}</div>
-            </div>
-            <div class="summary-card">
-                <h3>Current Cycle</h3>
-                <div class="value">{billing_info.get('current_cycle_days', 0)} days</div>
-            </div>
-        </div>
-        
+
         <div class="billing-comparison">
-            <div class="billing-card current">
-                <h3>Current Billing Cycle</h3>
-                <div class="billing-total">${current_total:.2f}</div>
-                <p style="text-align: center; color: #666;">
-                    {billing_info.get('current_cycle_start', 'Unknown')} 
-                    (Day {billing_info.get('current_cycle_days', 0)})
-                </p>
-                <p style="text-align: center; color: #666;">
-                    Daily Average: ${current_total / billing_info.get('current_cycle_days', 1):.2f}
-                </p>
-            </div>
-            
-            <div class="billing-card previous">
-                <h3>Previous Billing Cycle</h3>
-                <div class="billing-total">${previous_total:.2f}</div>
-                <p style="text-align: center; color: #666;">
-                    {billing_info.get('previous_cycle_start', 'Unknown')} to 
-                    {billing_info.get('previous_cycle_end', 'Unknown')}
-                </p>
-                <p style="text-align: center; color: #666;">
-                    Daily Average: ${previous_total / billing_info.get('previous_cycle_days', 1):.2f}
-                </p>
-            </div>
+                <div class="billing-card current">
+                    <h3>Current Billing Cycle</h3>
+                    <div class="billing-total">${current_total:.2f}</div>
+                    <p style="text-align: center; color: #666;">
+                        {billing_info.get('current_cycle_start', 'Unknown') if billing_info else 'Unknown'}
+                        (Day {billing_info.get('current_cycle_days', 0) if billing_info else 0})
+                    </p>
+                    <p style="text-align: center; color: #666;">
+                        Daily Average: ${current_total / (billing_info.get('current_cycle_days', 1) if billing_info else 1):.2f}
+                    </p>
+                </div>
+
+                <div class="billing-card previous">
+                    <h3>Previous Billing Cycle</h3>
+                    <div class="billing-total">${previous_total:.2f}</div>
+                    <p style="text-align: center; color: #666;">
+                        {billing_info.get('previous_cycle_start', 'Unknown') if billing_info else 'Unknown'} to
+                        {billing_info.get('previous_cycle_end', 'Unknown') if billing_info else 'Unknown'}
+                    </p>
+                    <p style="text-align: center; color: #666;">
+                        Daily Average: ${previous_total / (billing_info.get('previous_cycle_days', 1) if billing_info else 1):.2f}
+                    </p>
+                </div>
         </div>
-        
+
         <div class="change-indicator {'change-negative' if change < 0 else 'change-positive'}">
             Change: ${change:+.2f} ({change_pct:+.1f}%)
         </div>
-        
+
         <div class="section">
             <h2>Current Cycle Service Breakdown</h2>
             {self._generate_service_table(current_cycle_costs, current_total)}
         </div>
-        
+
         <div class="section">
             <h2>Previous Cycle Service Breakdown</h2>
             {self._generate_service_table(previous_cycle_costs, previous_total)}
         </div>
-        
+
         <div class="section">
             <h2>Detailed Resource Costs (Last {days_back} Days)</h2>
             {self._generate_detailed_table(detailed_costs)}
         </div>
-        
+
         {self._generate_tag_section(tag_costs)}
-        
+
         <footer>
             <p>Generated by AWS Infrastructure Reporting Tool</p>
             <p>Data source: AWS Cost Explorer API</p>
@@ -407,11 +423,13 @@ class InternalReportGenerator:
 """
         return html
 
-    def _generate_service_table(self, services: List[Dict[str, Any]], total: float) -> str:
+    def _generate_service_table(
+        self, services: List[Dict[str, Any]], total: float
+    ) -> str:
         """Generate HTML table for service costs."""
         if not services:
             return '<div class="no-data">No service data available</div>'
-        
+
         html = f"""
         <table>
             <thead>
@@ -424,9 +442,9 @@ class InternalReportGenerator:
             </thead>
             <tbody>
         """
-        
+
         for service in services[:10]:  # Top 10 services
-            percentage = (service['cost'] / total * 100) if total > 0 else 0
+            percentage = (service["cost"] / total * 100) if total > 0 else 0
             html += f"""
                 <tr>
                     <td>{service['service']}</td>
@@ -439,7 +457,7 @@ class InternalReportGenerator:
                     </td>
                 </tr>
             """
-        
+
         html += """
             </tbody>
         </table>
@@ -450,9 +468,9 @@ class InternalReportGenerator:
         """Generate HTML table for detailed resource costs."""
         if not detailed_costs:
             return '<div class="no-data">No detailed cost data available</div>'
-        
-        total_cost = sum(item['cost'] for item in detailed_costs)
-        
+
+        total_cost = sum(item["cost"] for item in detailed_costs)
+
         html = f"""
         <table>
             <thead>
@@ -465,9 +483,9 @@ class InternalReportGenerator:
             </thead>
             <tbody>
         """
-        
+
         for item in detailed_costs[:50]:  # Top 50 resources
-            percentage = (item['cost'] / total_cost * 100) if total_cost > 0 else 0
+            percentage = (item["cost"] / total_cost * 100) if total_cost > 0 else 0
             html += f"""
                 <tr>
                     <td>{item['service']}</td>
@@ -476,7 +494,7 @@ class InternalReportGenerator:
                     <td class="percentage">{percentage:.1f}%</td>
                 </tr>
             """
-        
+
         if len(detailed_costs) > 50:
             html += f"""
                 <tr>
@@ -485,7 +503,7 @@ class InternalReportGenerator:
                     </td>
                 </tr>
             """
-        
+
         html += """
             </tbody>
         </table>
@@ -496,7 +514,7 @@ class InternalReportGenerator:
         """Generate HTML section for tag-based costs."""
         if not tag_costs:
             return ""
-        
+
         html = f"""
         <div class="section">
             <h2>Cost by Tags</h2>
@@ -510,7 +528,7 @@ class InternalReportGenerator:
                 </thead>
                 <tbody>
         """
-        
+
         for item in tag_costs[:30]:  # Top 30 tagged resources
             html += f"""
                 <tr>
@@ -519,7 +537,7 @@ class InternalReportGenerator:
                     <td class="cost">${item['cost']:.2f}</td>
                 </tr>
             """
-        
+
         if len(tag_costs) > 30:
             html += f"""
                 <tr>
@@ -528,7 +546,7 @@ class InternalReportGenerator:
                     </td>
                 </tr>
             """
-        
+
         html += """
                 </tbody>
             </table>
@@ -554,63 +572,83 @@ class InternalReportGenerator:
         f.write(f"Total Cost: ${summary['total_cost']:.2f}\n")
         f.write(f"Active Services: {summary['service_count']}\n")
         f.write(f"Top Services by Cost:\n")
-        
-        for i, service in enumerate(summary.get('top_services', [])[:10], 1):
-            f.write(f"  {i:2d}. {service['service']:<40} ${service['cost']:>8.2f} ({service['percentage']:>5.1f}%)\n")
+
+        for i, service in enumerate(summary.get("top_services", [])[:10], 1):
+            f.write(
+                f"  {i:2d}. {service['service']:<40} ${service['cost']:>8.2f} ({service['percentage']:>5.1f}%)\n"
+            )
         f.write("\n")
 
-    def _write_billing_cycle_section(self, f, billing_info: Dict[str, Any], current_cycle_costs: List[Dict[str, Any]], previous_cycle_costs: List[Dict[str, Any]]):
+    def _write_billing_cycle_section(
+        self,
+        f,
+        billing_info: Dict[str, Any],
+        current_cycle_costs: List[Dict[str, Any]],
+        previous_cycle_costs: List[Dict[str, Any]],
+    ):
         """Write billing cycle section."""
         if not billing_info:
             return
-            
+
         f.write("BILLING CYCLE ANALYSIS\n")
         f.write("-" * 60 + "\n")
-        f.write(f"Billing Cycle Day: {billing_info.get('billing_start_day', 'Unknown')}\n")
-        f.write(f"Current Cycle: {billing_info.get('current_cycle_start', 'Unknown')} (Day {billing_info.get('current_cycle_days', 0)})\n")
-        f.write(f"Previous Cycle: {billing_info.get('previous_cycle_start', 'Unknown')} to {billing_info.get('previous_cycle_end', 'Unknown')} ({billing_info.get('previous_cycle_days', 0)} days)\n")
+        f.write(
+            f"Billing Cycle Day: {billing_info.get('billing_start_day', 'Unknown')}\n"
+        )
+        f.write(
+            f"Current Cycle: {billing_info.get('current_cycle_start', 'Unknown')} (Day {billing_info.get('current_cycle_days', 0)})\n"
+        )
+        f.write(
+            f"Previous Cycle: {billing_info.get('previous_cycle_start', 'Unknown')} to {billing_info.get('previous_cycle_end', 'Unknown')} ({billing_info.get('previous_cycle_days', 0)} days)\n"
+        )
         f.write("\n")
-        
+
         # Current billing cycle costs
         if current_cycle_costs:
-            current_total = sum(item['cost'] for item in current_cycle_costs)
+            current_total = sum(item["cost"] for item in current_cycle_costs)
             f.write("CURRENT BILLING CYCLE COSTS\n")
             f.write("-" * 40 + "\n")
             f.write(f"Total Current Cycle: ${current_total:.2f}\n")
-            f.write(f"Daily Average: ${current_total / billing_info.get('current_cycle_days', 1):.2f}\n")
-            f.write(f"Projected Monthly: ${current_total * 30 / billing_info.get('current_cycle_days', 1):.2f}\n")
+            f.write(
+                f"Daily Average: ${current_total / billing_info.get('current_cycle_days', 1):.2f}\n"
+            )
+            f.write(
+                f"Projected Monthly: ${current_total * 30 / billing_info.get('current_cycle_days', 1):.2f}\n"
+            )
             f.write("\n")
             f.write(f"{'Service':<40} {'Cost':<10} {'%':<6}\n")
             f.write("-" * 56 + "\n")
-            
+
             for item in current_cycle_costs[:10]:  # Top 10 services
-                service = item['service'][:39]
-                cost = item['cost']
+                service = item["service"][:39]
+                cost = item["cost"]
                 percentage = (cost / current_total * 100) if current_total > 0 else 0
                 f.write(f"{service:<40} ${cost:>8.2f} {percentage:>5.1f}%\n")
             f.write("\n")
-        
+
         # Previous billing cycle costs
         if previous_cycle_costs:
-            prev_total = sum(item['cost'] for item in previous_cycle_costs)
+            prev_total = sum(item["cost"] for item in previous_cycle_costs)
             f.write("PREVIOUS BILLING CYCLE COSTS\n")
             f.write("-" * 40 + "\n")
             f.write(f"Total Previous Cycle: ${prev_total:.2f}\n")
-            f.write(f"Daily Average: ${prev_total / billing_info.get('previous_cycle_days', 1):.2f}\n")
+            f.write(
+                f"Daily Average: ${prev_total / billing_info.get('previous_cycle_days', 1):.2f}\n"
+            )
             f.write("\n")
             f.write(f"{'Service':<40} {'Cost':<10} {'%':<6}\n")
             f.write("-" * 56 + "\n")
-            
+
             for item in previous_cycle_costs[:10]:  # Top 10 services
-                service = item['service'][:39]
-                cost = item['cost']
+                service = item["service"][:39]
+                cost = item["cost"]
                 percentage = (cost / prev_total * 100) if prev_total > 0 else 0
                 f.write(f"{service:<40} ${cost:>8.2f} {percentage:>5.1f}%\n")
             f.write("\n")
-            
+
             # Comparison
             if current_cycle_costs:
-                current_total = sum(item['cost'] for item in current_cycle_costs)
+                current_total = sum(item["cost"] for item in current_cycle_costs)
                 change = current_total - prev_total
                 change_pct = (change / prev_total * 100) if prev_total > 0 else 0
                 f.write("CYCLE-TO-CYCLE COMPARISON\n")
@@ -626,17 +664,23 @@ class InternalReportGenerator:
         f.write("-" * 80 + "\n")
         f.write(f"{'Service':<40} {'Resource ID':<30} {'Cost':<10}\n")
         f.write("-" * 80 + "\n")
-        
-        total_detailed_cost = sum(item['cost'] for item in detailed_costs)
-        
+
+        total_detailed_cost = sum(item["cost"] for item in detailed_costs)
+
         for item in detailed_costs[:50]:  # Top 50 resources
-            service = item['service'][:39]
-            resource_id = item['resource_id'][:29] if item['resource_id'] != 'N/A' else 'N/A'
-            cost = item['cost']
-            percentage = (cost / total_detailed_cost * 100) if total_detailed_cost > 0 else 0
-            
-            f.write(f"{service:<40} {resource_id:<30} ${cost:>8.2f} ({percentage:>5.1f}%)\n")
-        
+            service = item["service"][:39]
+            resource_id = (
+                item["resource_id"][:29] if item["resource_id"] != "N/A" else "N/A"
+            )
+            cost = item["cost"]
+            percentage = (
+                (cost / total_detailed_cost * 100) if total_detailed_cost > 0 else 0
+            )
+
+            f.write(
+                f"{service:<40} {resource_id:<30} ${cost:>8.2f} ({percentage:>5.1f}%)\n"
+            )
+
         if len(detailed_costs) > 50:
             f.write(f"\n... and {len(detailed_costs) - 50} more resources\n")
         f.write("\n")
@@ -648,19 +692,19 @@ class InternalReportGenerator:
             f.write("-" * 40 + "\n")
             f.write("No tag-based cost data available\n\n")
             return
-            
+
         f.write("TAG-BASED COST BREAKDOWN\n")
         f.write("-" * 60 + "\n")
         f.write(f"{'Service':<30} {'Tag Value':<20} {'Cost':<10}\n")
         f.write("-" * 60 + "\n")
-        
+
         for item in tag_costs[:30]:  # Top 30 tagged resources
-            service = item['service'][:29]
-            tag_value = item['tag_value'][:19]
-            cost = item['cost']
-            
+            service = item["service"][:29]
+            tag_value = item["tag_value"][:19]
+            cost = item["cost"]
+
             f.write(f"{service:<30} {tag_value:<20} ${cost:>8.2f}\n")
-        
+
         if len(tag_costs) > 30:
             f.write(f"\n... and {len(tag_costs) - 30} more tagged resources\n")
         f.write("\n")
@@ -689,16 +733,18 @@ class InternalReportGenerator:
         print(f"Period: Last {days_back} days")
         print(f"Total Cost: ${summary['total_cost']:.2f}")
         print(f"Active Services: {summary['service_count']}")
-        
+
         print(f"\nTop 10 Most Expensive Resources:")
         print("-" * 60)
         print(f"{'Service':<30} {'Resource ID':<25} {'Cost':<8}")
         print("-" * 60)
-        
+
         for item in detailed_costs[:10]:
-            service = item['service'][:29]
-            resource_id = item['resource_id'][:24] if item['resource_id'] != 'N/A' else 'N/A'
-            cost = item['cost']
+            service = item["service"][:29]
+            resource_id = (
+                item["resource_id"][:24] if item["resource_id"] != "N/A" else "N/A"
+            )
+            cost = item["cost"]
             print(f"{service:<30} {resource_id:<25} ${cost:>6.2f}")
-        
+
         print("=" * 60)
