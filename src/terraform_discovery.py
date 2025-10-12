@@ -470,19 +470,19 @@ def main():
     resources = discovery.discover_all_resources()
 
     # Print summary
-    print("\n" + "=" * 60)
-    print("AWS INFRASTRUCTURE DISCOVERY SUMMARY")
-    print("=" * 60)
+    logger.info("\n" + "=" * 60)
+    logger.info("AWS INFRASTRUCTURE DISCOVERY SUMMARY")
+    logger.info("=" * 60)
 
     total_resources = 0
     for resource_type, resources_list in resources.items():
         count = len(resources_list)
         total_resources += count
-        print(f"{resource_type.replace('_', ' ').title():<30} {count:>6}")
+        logger.info(f"{resource_type.replace('_', ' ').title():<30} {count:>6}")
 
-    print("-" * 60)
-    print(f"{'Total Resources':<30} {total_resources:>6}")
-    print("=" * 60)
+    logger.info("-" * 60)
+    logger.info(f"{'Total Resources':<30} {total_resources:>6}")
+    logger.info("=" * 60)
 
 
 if __name__ == "__main__":

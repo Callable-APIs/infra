@@ -1,7 +1,7 @@
 """Internal report generator for detailed, granular cost analysis."""
 import logging
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -29,9 +29,9 @@ class InternalReportGenerator:
         tag_costs: List[Dict[str, Any]],
         days_back: int,
         account_id: str,
-        billing_info: Dict[str, Any] = None,
-        current_cycle_costs: List[Dict[str, Any]] = None,
-        previous_cycle_costs: List[Dict[str, Any]] = None,
+        billing_info: Optional[Dict[str, Any]] = None,
+        current_cycle_costs: Optional[List[Dict[str, Any]]] = None,
+        previous_cycle_costs: Optional[List[Dict[str, Any]]] = None,
     ) -> str:
         """
         Generate detailed internal HTML report with granular cost data.
@@ -58,9 +58,9 @@ class InternalReportGenerator:
             tag_costs,
             days_back,
             account_id,
-            billing_info,
-            current_cycle_costs,
-            previous_cycle_costs,
+            billing_info or {},
+            current_cycle_costs or [],
+            previous_cycle_costs or [],
         )
 
         # Save as index.html for easy access
@@ -726,18 +726,18 @@ class InternalReportGenerator:
         account_id: str,
     ):
         """Print a summary to console for quick review."""
-        print("\n" + "=" * 60)
-        print("AWS COST ANALYSIS - INTERNAL SUMMARY")
-        print("=" * 60)
-        print(f"Account: {account_id}")
-        print(f"Period: Last {days_back} days")
-        print(f"Total Cost: ${summary['total_cost']:.2f}")
-        print(f"Active Services: {summary['service_count']}")
+        logger.info("\n" + "=" * 60)
+        logger.info("AWS COST ANALYSIS - INTERNAL SUMMARY")
+        logger.info("=" * 60)
+        logger.info(f"Account: {account_id}")
+        logger.info(f"Period: Last {days_back} days")
+        logger.info(f"Total Cost: ${summary['total_cost']:.2f}")
+        logger.info(f"Active Services: {summary['service_count']}")
 
-        print(f"\nTop 10 Most Expensive Resources:")
-        print("-" * 60)
-        print(f"{'Service':<30} {'Resource ID':<25} {'Cost':<8}")
-        print("-" * 60)
+        logger.info(f"\nTop 10 Most Expensive Resources:")
+        logger.info("-" * 60)
+        logger.info(f"{'Service':<30} {'Resource ID':<25} {'Cost':<8}")
+        logger.info("-" * 60)
 
         for item in detailed_costs[:10]:
             service = item["service"][:29]
@@ -745,6 +745,6 @@ class InternalReportGenerator:
                 item["resource_id"][:24] if item["resource_id"] != "N/A" else "N/A"
             )
             cost = item["cost"]
-            print(f"{service:<30} {resource_id:<25} ${cost:>6.2f}")
+            logger.info(f"{service:<30} {resource_id:<25} ${cost:>6.2f}")
 
-        print("=" * 60)
+        logger.info("=" * 60)

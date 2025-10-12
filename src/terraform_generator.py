@@ -58,7 +58,7 @@ class TerraformGenerator:
             return {}
 
         # Load all discovery files and organize by region
-        all_resources = {}
+        all_resources: Dict[str, List[Dict[str, Any]]] = {}
         region_mapping = {}
 
         for file in discovery_files:
@@ -888,61 +888,6 @@ output "module_output" {
         with open(f"{self.output_dir}/modules/example.tf", "w") as f:
             f.write(module_content)
 
-    def generate_providers_tf(self):
-        """Generate multi-region provider configuration."""
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC")
-        content = f"""# Multi-region AWS provider configuration
-# Generated on {timestamp}
-
-# Default provider (us-east-1)
-provider "aws" {{
-  region = "us-east-1"
-  alias  = "us_east_1"
-
-  default_tags {{
-    tags = {{
-      ManagedBy = "terraform"
-      Generated = "true"
-      Project   = var.project_name
-      Region    = "us-east-1"
-    }}
-  }}
-}}
-
-# us-east-2 provider
-provider "aws" {{
-  region = "us-east-2"
-  alias  = "us_east_2"
-
-  default_tags {{
-    tags = {{
-      ManagedBy = "terraform"
-      Generated = "true"
-      Project   = var.project_name
-      Region    = "us-east-2"
-    }}
-  }}
-}}
-
-# us-west-2 provider (for future migration)
-provider "aws" {{
-  region = "us-west-2"
-  alias  = "us_west_2"
-
-  default_tags {{
-    tags = {{
-      ManagedBy = "terraform"
-      Generated = "true"
-      Project   = var.project_name
-      Region    = "us-west-2"
-    }}
-  }}
-}}
-"""
-
-        with open(f"{self.output_dir}/providers.tf", "w") as f:
-            f.write(content)
-
     def generate_region_configurations(self):
         """Generate region-specific Terraform configurations."""
         for region, resources in self.regions.items():
@@ -1002,22 +947,6 @@ provider "aws" {{
 
         logger.info(f"Generated {region} configuration: {filename}")
 
-    def _generate_import_block(self, resource: Dict[str, Any]) -> str:
-        """Generate an import block for a resource."""
-        resource_type = resource.get("type", "")
-        resource_id = resource.get("id", "")
-
-        if not resource_type or not resource_id:
-            return ""
-
-        # Generate a safe resource name
-        safe_name = self._generate_safe_resource_name(resource_type, resource_id)
-
-        return f"""import {{
-  to = {resource_type}.{safe_name}
-  id = "{resource_id}"
-}}"""
-
     def _generate_safe_resource_name(self, resource_type: str, resource_id: str) -> str:
         """Generate a safe Terraform resource name."""
         # Remove common prefixes and make it Terraform-safe
@@ -1039,16 +968,16 @@ def main():
     generator = TerraformGenerator()
     generator.generate_all_configurations()
 
-    print("\n" + "=" * 60)
-    print("TERRAFORM CONFIGURATION GENERATION COMPLETE")
-    print("=" * 60)
-    print(f"Generated files in: {generator.output_dir}/")
-    print("\nNext steps:")
-    print("1. Review the generated Terraform files")
-    print("2. Run 'terraform init' in the terraform/ directory")
-    print("3. Run 'terraform plan' to see what would change")
-    print("4. Run 'terraform apply' to apply the configuration")
-    print("=" * 60)
+    logger.info("\n" + "=" * 60)
+    logger.info("TERRAFORM CONFIGURATION GENERATION COMPLETE")
+    logger.info("=" * 60)
+    logger.info(f"Generated files in: {generator.output_dir}/")
+    logger.info("\nNext steps:")
+    logger.info("1. Review the generated Terraform files")
+    logger.info("2. Run 'terraform init' in the terraform/ directory")
+    logger.info("3. Run 'terraform plan' to see what would change")
+    logger.info("4. Run 'terraform apply' to apply the configuration")
+    logger.info("=" * 60)
 
 
 if __name__ == "__main__":

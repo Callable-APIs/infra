@@ -151,7 +151,7 @@ class TestTerraformGenerator:
                 with open(providers_tf_path, "r") as f:
                     content = f.read()
                     assert 'provider "aws"' in content
-                    assert 'region = "us-east-1"' in content
+                    assert 'region = var.aws_region' in content
 
     def test_generate_variables_tf(self):
         """Test variables.tf file generation."""
@@ -211,7 +211,7 @@ class TestTerraformGenerator:
                 result = generator._generate_import_block(resource)
 
                 assert "import {" in result
-                assert "to = aws_instance.instance_i_1234567890abcdef0" in result
+                assert "to = aws_instance.test_instance" in result
                 assert 'id = "i-1234567890abcdef0"' in result
 
     def test_generate_import_block_vpc(self):
@@ -231,7 +231,7 @@ class TestTerraformGenerator:
                 result = generator._generate_import_block(resource)
 
                 assert "import {" in result
-                assert "to = aws_vpc.vpc_vpc_12345678" in result
+                assert "to = aws_vpc.test_vpc" in result
                 assert 'id = "vpc-12345678"' in result
 
     def test_generate_import_block_route53_record(self):
@@ -254,10 +254,7 @@ class TestTerraformGenerator:
                 result = generator._generate_import_block(resource)
 
                 assert "import {" in result
-                assert (
-                    "to = aws_route53_record.route53_record_Z1234567890_www_example_com__A"
-                    in result
-                )
+                assert "to = aws_route53_record.test_record" in result
                 assert 'id = "Z1234567890_www.example.com._A"' in result
 
     def test_generate_resource_block_ec2_instance(self):
