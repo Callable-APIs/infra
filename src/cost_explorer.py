@@ -144,10 +144,7 @@ class CostExplorerClient:
                     service_totals[service] = cost
 
             # Convert to list and sort by cost
-            result = [
-                {"service": service, "cost": cost}
-                for service, cost in service_totals.items()
-            ]
+            result = [{"service": service, "cost": cost} for service, cost in service_totals.items()]
             result.sort(key=lambda x: x["cost"], reverse=True)
 
             return result
@@ -187,9 +184,7 @@ class CostExplorerClient:
             for result in response.get("ResultsByTime", []):
                 for group in result.get("Groups", []):
                     service = group["Keys"][0]
-                    usage_type = (
-                        group["Keys"][1] if len(group["Keys"]) > 1 else "General"
-                    )
+                    usage_type = group["Keys"][1] if len(group["Keys"]) > 1 else "General"
                     cost = float(group["Metrics"]["UnblendedCost"]["Amount"])
 
                     if cost > 0:  # Only include resources with costs
@@ -210,9 +205,7 @@ class CostExplorerClient:
             logger.error(f"Error retrieving detailed cost breakdown: {e}")
             return []
 
-    def get_cost_by_tag(
-        self, days_back: int = 30, tag_key: str = "Name"
-    ) -> List[Dict[str, Any]]:
+    def get_cost_by_tag(self, days_back: int = 30, tag_key: str = "Name") -> List[Dict[str, Any]]:
         """
         Get cost breakdown by tag.
 
@@ -244,9 +237,7 @@ class CostExplorerClient:
             for result in response.get("ResultsByTime", []):
                 for group in result.get("Groups", []):
                     service = group["Keys"][0]
-                    tag_value = (
-                        group["Keys"][1] if len(group["Keys"]) > 1 else "Untagged"
-                    )
+                    tag_value = group["Keys"][1] if len(group["Keys"]) > 1 else "Untagged"
                     cost = float(group["Metrics"]["UnblendedCost"]["Amount"])
 
                     if cost > 0:
@@ -285,14 +276,10 @@ class CostExplorerClient:
             # Previous billing cycle
             if current_cycle_start.month == 1:
                 # If current month is January, previous cycle was December of last year
-                prev_cycle_start = current_cycle_start.replace(
-                    year=current_cycle_start.year - 1, month=12
-                )
+                prev_cycle_start = current_cycle_start.replace(year=current_cycle_start.year - 1, month=12)
             else:
                 # Previous cycle was last month
-                prev_cycle_start = current_cycle_start.replace(
-                    month=current_cycle_start.month - 1
-                )
+                prev_cycle_start = current_cycle_start.replace(month=current_cycle_start.month - 1)
 
             # Calculate end dates
             prev_cycle_end = current_cycle_start - timedelta(days=1)
@@ -327,9 +314,7 @@ class CostExplorerClient:
                 "previous_cycle_days": (prev_cycle_end - prev_cycle_start).days + 1,
             }
 
-    def get_billing_cycle_costs(
-        self, cycle_start: str, cycle_end: str
-    ) -> List[Dict[str, Any]]:
+    def get_billing_cycle_costs(self, cycle_start: str, cycle_end: str) -> List[Dict[str, Any]]:
         """
         Get cost data for a specific billing cycle period.
 

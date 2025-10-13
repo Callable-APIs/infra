@@ -87,16 +87,8 @@ class InternalReportGenerator:
         """Generate HTML content for internal report."""
 
         # Calculate totals
-        current_total = (
-            sum(item["cost"] for item in current_cycle_costs)
-            if current_cycle_costs
-            else 0
-        )
-        previous_total = (
-            sum(item["cost"] for item in previous_cycle_costs)
-            if previous_cycle_costs
-            else 0
-        )
+        current_total = sum(item["cost"] for item in current_cycle_costs) if current_cycle_costs else 0
+        previous_total = sum(item["cost"] for item in previous_cycle_costs) if previous_cycle_costs else 0
         change = current_total - previous_total
         change_pct = (change / previous_total * 100) if previous_total > 0 else 0
 
@@ -423,9 +415,7 @@ class InternalReportGenerator:
 """
         return html
 
-    def _generate_service_table(
-        self, services: List[Dict[str, Any]], total: float
-    ) -> str:
+    def _generate_service_table(self, services: List[Dict[str, Any]], total: float) -> str:
         """Generate HTML table for service costs."""
         if not services:
             return '<div class="no-data">No service data available</div>'
@@ -574,9 +564,7 @@ class InternalReportGenerator:
         f.write(f"Top Services by Cost:\n")
 
         for i, service in enumerate(summary.get("top_services", [])[:10], 1):
-            f.write(
-                f"  {i:2d}. {service['service']:<40} ${service['cost']:>8.2f} ({service['percentage']:>5.1f}%)\n"
-            )
+            f.write(f"  {i:2d}. {service['service']:<40} ${service['cost']:>8.2f} ({service['percentage']:>5.1f}%)\n")
         f.write("\n")
 
     def _write_billing_cycle_section(
@@ -592,9 +580,7 @@ class InternalReportGenerator:
 
         f.write("BILLING CYCLE ANALYSIS\n")
         f.write("-" * 60 + "\n")
-        f.write(
-            f"Billing Cycle Day: {billing_info.get('billing_start_day', 'Unknown')}\n"
-        )
+        f.write(f"Billing Cycle Day: {billing_info.get('billing_start_day', 'Unknown')}\n")
         f.write(
             f"Current Cycle: {billing_info.get('current_cycle_start', 'Unknown')} (Day {billing_info.get('current_cycle_days', 0)})\n"
         )
@@ -609,12 +595,8 @@ class InternalReportGenerator:
             f.write("CURRENT BILLING CYCLE COSTS\n")
             f.write("-" * 40 + "\n")
             f.write(f"Total Current Cycle: ${current_total:.2f}\n")
-            f.write(
-                f"Daily Average: ${current_total / billing_info.get('current_cycle_days', 1):.2f}\n"
-            )
-            f.write(
-                f"Projected Monthly: ${current_total * 30 / billing_info.get('current_cycle_days', 1):.2f}\n"
-            )
+            f.write(f"Daily Average: ${current_total / billing_info.get('current_cycle_days', 1):.2f}\n")
+            f.write(f"Projected Monthly: ${current_total * 30 / billing_info.get('current_cycle_days', 1):.2f}\n")
             f.write("\n")
             f.write(f"{'Service':<40} {'Cost':<10} {'%':<6}\n")
             f.write("-" * 56 + "\n")
@@ -632,9 +614,7 @@ class InternalReportGenerator:
             f.write("PREVIOUS BILLING CYCLE COSTS\n")
             f.write("-" * 40 + "\n")
             f.write(f"Total Previous Cycle: ${prev_total:.2f}\n")
-            f.write(
-                f"Daily Average: ${prev_total / billing_info.get('previous_cycle_days', 1):.2f}\n"
-            )
+            f.write(f"Daily Average: ${prev_total / billing_info.get('previous_cycle_days', 1):.2f}\n")
             f.write("\n")
             f.write(f"{'Service':<40} {'Cost':<10} {'%':<6}\n")
             f.write("-" * 56 + "\n")
@@ -669,17 +649,11 @@ class InternalReportGenerator:
 
         for item in detailed_costs[:50]:  # Top 50 resources
             service = item["service"][:39]
-            resource_id = (
-                item["resource_id"][:29] if item["resource_id"] != "N/A" else "N/A"
-            )
+            resource_id = item["resource_id"][:29] if item["resource_id"] != "N/A" else "N/A"
             cost = item["cost"]
-            percentage = (
-                (cost / total_detailed_cost * 100) if total_detailed_cost > 0 else 0
-            )
+            percentage = (cost / total_detailed_cost * 100) if total_detailed_cost > 0 else 0
 
-            f.write(
-                f"{service:<40} {resource_id:<30} ${cost:>8.2f} ({percentage:>5.1f}%)\n"
-            )
+            f.write(f"{service:<40} {resource_id:<30} ${cost:>8.2f} ({percentage:>5.1f}%)\n")
 
         if len(detailed_costs) > 50:
             f.write(f"\n... and {len(detailed_costs) - 50} more resources\n")
@@ -741,9 +715,7 @@ class InternalReportGenerator:
 
         for item in detailed_costs[:10]:
             service = item["service"][:29]
-            resource_id = (
-                item["resource_id"][:24] if item["resource_id"] != "N/A" else "N/A"
-            )
+            resource_id = item["resource_id"][:24] if item["resource_id"] != "N/A" else "N/A"
             cost = item["cost"]
             logger.info(f"{service:<30} {resource_id:<25} ${cost:>6.2f}")
 

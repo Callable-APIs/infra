@@ -57,9 +57,7 @@ class TestMainModule:
     @patch("src.main.CostExplorerClient")
     @patch("src.main.ReportGenerator")
     @patch("src.main.load_config")
-    def test_main_public_report_success(
-        self, mock_load_config, mock_report_generator, mock_cost_explorer
-    ):
+    def test_main_public_report_success(self, mock_load_config, mock_report_generator, mock_cost_explorer):
         """Test successful public report generation."""
         # Setup mocks
         mock_config = {
@@ -75,9 +73,7 @@ class TestMainModule:
 
         mock_ce_client = Mock()
         mock_ce_client.get_account_id.return_value = "123456789012"
-        mock_ce_client.get_services_cost_summary.return_value = [
-            {"service": "Amazon EC2", "cost": 100.0}
-        ]
+        mock_ce_client.get_services_cost_summary.return_value = [{"service": "Amazon EC2", "cost": 100.0}]
         mock_cost_explorer.return_value = mock_ce_client
 
         mock_generator = Mock()
@@ -89,9 +85,7 @@ class TestMainModule:
             mock_generate_summary.return_value = {
                 "total_cost": 100.0,
                 "service_count": 1,
-                "top_services": [
-                    {"service": "Amazon EC2", "cost": 100.0, "percentage": 100.0}
-                ],
+                "top_services": [{"service": "Amazon EC2", "cost": 100.0, "percentage": 100.0}],
             }
 
             # Mock mask_account_id
@@ -101,17 +95,13 @@ class TestMainModule:
                     result = main()
 
                     assert result == 0
-                    mock_ce_client.get_services_cost_summary.assert_called_once_with(
-                        days_back=30
-                    )
+                    mock_ce_client.get_services_cost_summary.assert_called_once_with(days_back=30)
                     mock_generator.generate_html_report.assert_called_once()
 
     @patch("src.main.CostExplorerClient")
     @patch("src.main.InternalReportGenerator")
     @patch("src.main.load_config")
-    def test_main_internal_report_success(
-        self, mock_load_config, mock_internal_generator, mock_cost_explorer
-    ):
+    def test_main_internal_report_success(self, mock_load_config, mock_internal_generator, mock_cost_explorer):
         """Test successful internal report generation."""
         # Setup mocks
         mock_config = {
@@ -127,9 +117,7 @@ class TestMainModule:
 
         mock_ce_client = Mock()
         mock_ce_client.get_account_id.return_value = "123456789012"
-        mock_ce_client.get_services_cost_summary.return_value = [
-            {"service": "Amazon EC2", "cost": 100.0}
-        ]
+        mock_ce_client.get_services_cost_summary.return_value = [{"service": "Amazon EC2", "cost": 100.0}]
         mock_ce_client.get_detailed_cost_breakdown.return_value = [
             {
                 "service": "Amazon EC2",
@@ -153,15 +141,11 @@ class TestMainModule:
             "previous_cycle_end": "2022-12-31",
             "previous_cycle_days": 31,
         }
-        mock_ce_client.get_billing_cycle_costs.return_value = [
-            {"service": "Amazon EC2", "cost": 200.0}
-        ]
+        mock_ce_client.get_billing_cycle_costs.return_value = [{"service": "Amazon EC2", "cost": 200.0}]
         mock_cost_explorer.return_value = mock_ce_client
 
         mock_generator = Mock()
-        mock_generator.generate_detailed_report.return_value = (
-            "internal_reports/index.html"
-        )
+        mock_generator.generate_detailed_report.return_value = "internal_reports/index.html"
         mock_internal_generator.return_value = mock_generator
 
         # Mock generate_summary_stats
@@ -169,9 +153,7 @@ class TestMainModule:
             mock_generate_summary.return_value = {
                 "total_cost": 100.0,
                 "service_count": 1,
-                "top_services": [
-                    {"service": "Amazon EC2", "cost": 100.0, "percentage": 100.0}
-                ],
+                "top_services": [{"service": "Amazon EC2", "cost": 100.0, "percentage": 100.0}],
             }
 
             # Test with --internal flag
@@ -179,9 +161,7 @@ class TestMainModule:
                 result = main()
 
                 assert result == 0
-                mock_ce_client.get_detailed_cost_breakdown.assert_called_once_with(
-                    days_back=30
-                )
+                mock_ce_client.get_detailed_cost_breakdown.assert_called_once_with(days_back=30)
                 mock_ce_client.get_cost_by_tag.assert_called_once_with(days_back=30)
                 mock_ce_client.get_billing_cycle_info.assert_called_once()
                 mock_generator.generate_detailed_report.assert_called_once()
@@ -189,9 +169,7 @@ class TestMainModule:
     @patch("src.main.CostExplorerClient")
     @patch("src.main.InternalReportGenerator")
     @patch("src.main.load_config")
-    def test_main_internal_console_only(
-        self, mock_load_config, mock_internal_generator, mock_cost_explorer
-    ):
+    def test_main_internal_console_only(self, mock_load_config, mock_internal_generator, mock_cost_explorer):
         """Test internal report with console-only output."""
         # Setup mocks
         mock_config = {
@@ -270,23 +248,17 @@ class TestMainModule:
 
                 with patch("src.main.ReportGenerator") as mock_report_class:
                     mock_generator = Mock()
-                    mock_generator.generate_html_report.return_value = (
-                        "reports/test.html"
-                    )
+                    mock_generator.generate_html_report.return_value = "reports/test.html"
                     mock_report_class.return_value = mock_generator
 
-                    with patch(
-                        "src.main.generate_summary_stats"
-                    ) as mock_generate_summary:
+                    with patch("src.main.generate_summary_stats") as mock_generate_summary:
                         mock_generate_summary.return_value = {
                             "total_cost": 0.0,
                             "service_count": 0,
                             "top_services": [],
                         }
 
-                        with patch(
-                            "main.mask_account_id", return_value="****-****-9012"
-                        ):
+                        with patch("main.mask_account_id", return_value="****-****-9012"):
                             # Test with custom arguments
                             with patch(
                                 "sys.argv",
@@ -303,9 +275,7 @@ class TestMainModule:
 
                                 assert result == 0
                                 # Verify config was overridden
-                                mock_ce_client.get_services_cost_summary.assert_called_once_with(
-                                    days_back=7
-                                )
+                                mock_ce_client.get_services_cost_summary.assert_called_once_with(days_back=7)
 
 
 if __name__ == "__main__":

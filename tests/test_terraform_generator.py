@@ -19,9 +19,7 @@ class TestTerraformGenerator:
     def test_init_default_output_dir(self):
         """Test TerraformGenerator initialization with default output directory."""
         with patch("os.makedirs") as mock_makedirs:
-            with patch.object(
-                TerraformGenerator, "_load_all_discovered_resources", return_value={}
-            ):
+            with patch.object(TerraformGenerator, "_load_all_discovered_resources", return_value={}):
                 generator = TerraformGenerator()
 
                 assert generator.output_dir == "terraform"
@@ -34,9 +32,7 @@ class TestTerraformGenerator:
     def test_init_custom_output_dir(self):
         """Test TerraformGenerator initialization with custom output directory."""
         with patch("os.makedirs") as mock_makedirs:
-            with patch.object(
-                TerraformGenerator, "_load_all_discovered_resources", return_value={}
-            ):
+            with patch.object(TerraformGenerator, "_load_all_discovered_resources", return_value={}):
                 generator = TerraformGenerator("custom_terraform")
 
                 assert generator.output_dir == "custom_terraform"
@@ -62,9 +58,7 @@ class TestTerraformGenerator:
     def test_load_all_discovered_resources_success(self):
         """Test successful loading of discovered resources."""
         with patch("os.path.exists", return_value=True):
-            with patch(
-                "os.listdir", return_value=["discovered_resources_20230101_120000.json"]
-            ):
+            with patch("os.listdir", return_value=["discovered_resources_20230101_120000.json"]):
                 mock_resources = {
                     "ec2_instances": [
                         {
@@ -79,9 +73,7 @@ class TestTerraformGenerator:
                     ]
                 }
 
-                with patch(
-                    "builtins.open", mock_open(read_data=json.dumps(mock_resources))
-                ):
+                with patch("builtins.open", mock_open(read_data=json.dumps(mock_resources))):
                     generator = TerraformGenerator()
                     result = generator._load_all_discovered_resources()
 
@@ -94,11 +86,7 @@ class TestTerraformGenerator:
         generator = TerraformGenerator()
 
         # Test with EC2 instances
-        resources_with_ec2 = {
-            "ec2_instances": [
-                {"data": {"Placement": {"AvailabilityZone": "us-west-2a"}}}
-            ]
-        }
+        resources_with_ec2 = {"ec2_instances": [{"data": {"Placement": {"AvailabilityZone": "us-west-2a"}}}]}
         region = generator._determine_region_from_resources(resources_with_ec2)
         assert region == "us-west-2"
 
@@ -110,14 +98,10 @@ class TestTerraformGenerator:
     def test_generate_main_tf(self):
         """Test main.tf file generation."""
         with tempfile.TemporaryDirectory() as temp_dir:
-            with patch.object(
-                TerraformGenerator, "_load_all_discovered_resources", return_value={}
-            ):
+            with patch.object(TerraformGenerator, "_load_all_discovered_resources", return_value={}):
                 generator = TerraformGenerator(temp_dir)
 
-                with patch.object(
-                    generator, "_generate_import_blocks", return_value="# Import blocks"
-                ):
+                with patch.object(generator, "_generate_import_blocks", return_value="# Import blocks"):
                     with patch.object(
                         generator,
                         "_generate_resource_blocks",
@@ -139,9 +123,7 @@ class TestTerraformGenerator:
     def test_generate_providers_tf(self):
         """Test providers.tf file generation."""
         with tempfile.TemporaryDirectory() as temp_dir:
-            with patch.object(
-                TerraformGenerator, "_load_all_discovered_resources", return_value={}
-            ):
+            with patch.object(TerraformGenerator, "_load_all_discovered_resources", return_value={}):
                 generator = TerraformGenerator(temp_dir)
                 generator.generate_providers_tf()
 
@@ -151,14 +133,12 @@ class TestTerraformGenerator:
                 with open(providers_tf_path, "r") as f:
                     content = f.read()
                     assert 'provider "aws"' in content
-                    assert 'region = var.aws_region' in content
+                    assert "region = var.aws_region" in content
 
     def test_generate_variables_tf(self):
         """Test variables.tf file generation."""
         with tempfile.TemporaryDirectory() as temp_dir:
-            with patch.object(
-                TerraformGenerator, "_load_all_discovered_resources", return_value={}
-            ):
+            with patch.object(TerraformGenerator, "_load_all_discovered_resources", return_value={}):
                 generator = TerraformGenerator(temp_dir)
                 generator.generate_variables_tf()
 
@@ -174,14 +154,10 @@ class TestTerraformGenerator:
     def test_generate_outputs_tf(self):
         """Test outputs.tf file generation."""
         with tempfile.TemporaryDirectory() as temp_dir:
-            with patch.object(
-                TerraformGenerator, "_load_all_discovered_resources", return_value={}
-            ):
+            with patch.object(TerraformGenerator, "_load_all_discovered_resources", return_value={}):
                 generator = TerraformGenerator(temp_dir)
 
-                with patch.object(
-                    generator, "_generate_output_blocks", return_value="# Output blocks"
-                ):
+                with patch.object(generator, "_generate_output_blocks", return_value="# Output blocks"):
                     generator.generate_outputs_tf()
 
                     outputs_tf_path = os.path.join(temp_dir, "outputs.tf")
@@ -194,9 +170,7 @@ class TestTerraformGenerator:
 
     def test_generate_import_block_ec2_instance(self):
         """Test import block generation for EC2 instance."""
-        with patch.object(
-            TerraformGenerator, "_load_all_discovered_resources", return_value={}
-        ):
+        with patch.object(TerraformGenerator, "_load_all_discovered_resources", return_value={}):
             generator = TerraformGenerator()
 
             resource = {
@@ -205,9 +179,7 @@ class TestTerraformGenerator:
                 "data": {"InstanceId": "i-1234567890abcdef0"},
             }
 
-            with patch.object(
-                generator, "_get_resource_name", return_value="test_instance"
-            ):
+            with patch.object(generator, "_get_resource_name", return_value="test_instance"):
                 result = generator._generate_import_block(resource)
 
                 assert "import {" in result
@@ -216,9 +188,7 @@ class TestTerraformGenerator:
 
     def test_generate_import_block_vpc(self):
         """Test import block generation for VPC."""
-        with patch.object(
-            TerraformGenerator, "_load_all_discovered_resources", return_value={}
-        ):
+        with patch.object(TerraformGenerator, "_load_all_discovered_resources", return_value={}):
             generator = TerraformGenerator()
 
             resource = {
@@ -236,9 +206,7 @@ class TestTerraformGenerator:
 
     def test_generate_import_block_route53_record(self):
         """Test import block generation for Route53 record."""
-        with patch.object(
-            TerraformGenerator, "_load_all_discovered_resources", return_value={}
-        ):
+        with patch.object(TerraformGenerator, "_load_all_discovered_resources", return_value={}):
             generator = TerraformGenerator()
 
             resource = {
@@ -248,9 +216,7 @@ class TestTerraformGenerator:
                 "zone_id": "/hostedzone/Z1234567890",
             }
 
-            with patch.object(
-                generator, "_get_resource_name", return_value="test_record"
-            ):
+            with patch.object(generator, "_get_resource_name", return_value="test_record"):
                 result = generator._generate_import_block(resource)
 
                 assert "import {" in result
@@ -259,9 +225,7 @@ class TestTerraformGenerator:
 
     def test_generate_resource_block_ec2_instance(self):
         """Test resource block generation for EC2 instance."""
-        with patch.object(
-            TerraformGenerator, "_load_all_discovered_resources", return_value={}
-        ):
+        with patch.object(TerraformGenerator, "_load_all_discovered_resources", return_value={}):
             generator = TerraformGenerator()
 
             resource = {
@@ -277,9 +241,7 @@ class TestTerraformGenerator:
                 },
             }
 
-            with patch.object(
-                generator, "_get_resource_name", return_value="test_instance"
-            ):
+            with patch.object(generator, "_get_resource_name", return_value="test_instance"):
                 result = generator._generate_resource_block(resource, "us_east_1")
 
                 assert 'resource "aws_instance" "test_instance"' in result
@@ -289,9 +251,7 @@ class TestTerraformGenerator:
 
     def test_generate_resource_block_vpc(self):
         """Test resource block generation for VPC."""
-        with patch.object(
-            TerraformGenerator, "_load_all_discovered_resources", return_value={}
-        ):
+        with patch.object(TerraformGenerator, "_load_all_discovered_resources", return_value={}):
             generator = TerraformGenerator()
 
             resource = {
@@ -316,41 +276,31 @@ class TestTerraformGenerator:
 
     def test_get_resource_name_from_tags(self):
         """Test resource name generation from tags."""
-        with patch.object(
-            TerraformGenerator, "_load_all_discovered_resources", return_value={}
-        ):
+        with patch.object(TerraformGenerator, "_load_all_discovered_resources", return_value={}):
             generator = TerraformGenerator()
 
             resource = {"tags": {"Name": "test-resource"}, "id": "i-1234567890abcdef0"}
 
-            with patch.object(
-                generator, "_sanitize_name", return_value="test_resource"
-            ):
+            with patch.object(generator, "_sanitize_name", return_value="test_resource"):
                 result = generator._get_resource_name(resource, "aws_instance")
 
                 assert result == "test_resource"
 
     def test_get_resource_name_from_id(self):
         """Test resource name generation from ID when no tags."""
-        with patch.object(
-            TerraformGenerator, "_load_all_discovered_resources", return_value={}
-        ):
+        with patch.object(TerraformGenerator, "_load_all_discovered_resources", return_value={}):
             generator = TerraformGenerator()
 
             resource = {"tags": {}, "id": "i-1234567890abcdef0"}
 
-            with patch.object(
-                generator, "_sanitize_name", return_value="i_1234567890abcdef0"
-            ):
+            with patch.object(generator, "_sanitize_name", return_value="i_1234567890abcdef0"):
                 result = generator._get_resource_name(resource, "aws_instance")
 
                 assert result == "i_1234567890abcdef0"
 
     def test_sanitize_name(self):
         """Test name sanitization for Terraform."""
-        with patch.object(
-            TerraformGenerator, "_load_all_discovered_resources", return_value={}
-        ):
+        with patch.object(TerraformGenerator, "_load_all_discovered_resources", return_value={}):
             generator = TerraformGenerator()
 
             # Test various name sanitizations
@@ -362,9 +312,7 @@ class TestTerraformGenerator:
 
     def test_format_tags(self):
         """Test tag formatting for Terraform."""
-        with patch.object(
-            TerraformGenerator, "_load_all_discovered_resources", return_value={}
-        ):
+        with patch.object(TerraformGenerator, "_load_all_discovered_resources", return_value={}):
             generator = TerraformGenerator()
 
             tags = [
@@ -381,9 +329,7 @@ class TestTerraformGenerator:
 
     def test_format_list(self):
         """Test list formatting for Terraform."""
-        with patch.object(
-            TerraformGenerator, "_load_all_discovered_resources", return_value={}
-        ):
+        with patch.object(TerraformGenerator, "_load_all_discovered_resources", return_value={}):
             generator = TerraformGenerator()
 
             # Test with items
@@ -402,30 +348,18 @@ class TestTerraformGenerator:
     def test_generate_all_configurations(self):
         """Test generating all configurations."""
         with tempfile.TemporaryDirectory() as temp_dir:
-            with patch.object(
-                TerraformGenerator, "_load_all_discovered_resources", return_value={}
-            ):
+            with patch.object(TerraformGenerator, "_load_all_discovered_resources", return_value={}):
                 generator = TerraformGenerator(temp_dir)
 
                 with patch.object(generator, "generate_main_tf"):
                     with patch.object(generator, "generate_variables_tf"):
                         with patch.object(generator, "generate_outputs_tf"):
                             with patch.object(generator, "generate_providers_tf"):
-                                with patch.object(
-                                    generator, "generate_region_configurations"
-                                ):
-                                    with patch.object(
-                                        generator, "generate_ec2_resources"
-                                    ):
-                                        with patch.object(
-                                            generator, "generate_vpc_resources"
-                                        ):
-                                            with patch.object(
-                                                generator, "generate_route53_resources"
-                                            ):
-                                                with patch.object(
-                                                    generator, "generate_s3_resources"
-                                                ):
+                                with patch.object(generator, "generate_region_configurations"):
+                                    with patch.object(generator, "generate_ec2_resources"):
+                                        with patch.object(generator, "generate_vpc_resources"):
+                                            with patch.object(generator, "generate_route53_resources"):
+                                                with patch.object(generator, "generate_s3_resources"):
                                                     with patch.object(
                                                         generator,
                                                         "generate_iam_resources",
@@ -445,9 +379,7 @@ class TestTerraformGenerator:
     def test_generate_modules(self):
         """Test module generation."""
         with tempfile.TemporaryDirectory() as temp_dir:
-            with patch.object(
-                TerraformGenerator, "_load_all_discovered_resources", return_value={}
-            ):
+            with patch.object(TerraformGenerator, "_load_all_discovered_resources", return_value={}):
                 generator = TerraformGenerator(temp_dir)
                 generator.generate_modules()
 

@@ -84,10 +84,7 @@ class TerraformDiscovery:
                                 "type": "aws_instance",
                                 "id": instance["InstanceId"],
                                 "data": instance,
-                                "tags": {
-                                    tag["Key"]: tag["Value"]
-                                    for tag in instance.get("Tags", [])
-                                },
+                                "tags": {tag["Key"]: tag["Value"] for tag in instance.get("Tags", [])},
                             }
                         )
 
@@ -109,9 +106,7 @@ class TerraformDiscovery:
                         "type": "aws_vpc",
                         "id": vpc["VpcId"],
                         "data": vpc,
-                        "tags": {
-                            tag["Key"]: tag["Value"] for tag in vpc.get("Tags", [])
-                        },
+                        "tags": {tag["Key"]: tag["Value"] for tag in vpc.get("Tags", [])},
                     }
                 )
 
@@ -133,9 +128,7 @@ class TerraformDiscovery:
                         "type": "aws_subnet",
                         "id": subnet["SubnetId"],
                         "data": subnet,
-                        "tags": {
-                            tag["Key"]: tag["Value"] for tag in subnet.get("Tags", [])
-                        },
+                        "tags": {tag["Key"]: tag["Value"] for tag in subnet.get("Tags", [])},
                     }
                 )
 
@@ -157,9 +150,7 @@ class TerraformDiscovery:
                         "type": "aws_security_group",
                         "id": sg["GroupId"],
                         "data": sg,
-                        "tags": {
-                            tag["Key"]: tag["Value"] for tag in sg.get("Tags", [])
-                        },
+                        "tags": {tag["Key"]: tag["Value"] for tag in sg.get("Tags", [])},
                     }
                 )
 
@@ -181,9 +172,7 @@ class TerraformDiscovery:
                         "type": "aws_route_table",
                         "id": rt["RouteTableId"],
                         "data": rt,
-                        "tags": {
-                            tag["Key"]: tag["Value"] for tag in rt.get("Tags", [])
-                        },
+                        "tags": {tag["Key"]: tag["Value"] for tag in rt.get("Tags", [])},
                     }
                 )
 
@@ -205,9 +194,7 @@ class TerraformDiscovery:
                         "type": "aws_internet_gateway",
                         "id": igw["InternetGatewayId"],
                         "data": igw,
-                        "tags": {
-                            tag["Key"]: tag["Value"] for tag in igw.get("Tags", [])
-                        },
+                        "tags": {tag["Key"]: tag["Value"] for tag in igw.get("Tags", [])},
                     }
                 )
 
@@ -230,9 +217,7 @@ class TerraformDiscovery:
                             "type": "aws_nat_gateway",
                             "id": ngw["NatGatewayId"],
                             "data": ngw,
-                            "tags": {
-                                tag["Key"]: tag["Value"] for tag in ngw.get("Tags", [])
-                            },
+                            "tags": {tag["Key"]: tag["Value"] for tag in ngw.get("Tags", [])},
                         }
                     )
 
@@ -252,13 +237,9 @@ class TerraformDiscovery:
                 eips.append(
                     {
                         "type": "aws_eip",
-                        "id": eip["AllocationId"]
-                        if "AllocationId" in eip
-                        else eip["PublicIp"],
+                        "id": eip["AllocationId"] if "AllocationId" in eip else eip["PublicIp"],
                         "data": eip,
-                        "tags": {
-                            tag["Key"]: tag["Value"] for tag in eip.get("Tags", [])
-                        },
+                        "tags": {tag["Key"]: tag["Value"] for tag in eip.get("Tags", [])},
                     }
                 )
 
@@ -281,10 +262,7 @@ class TerraformDiscovery:
                             "type": "aws_ebs_volume",
                             "id": volume["VolumeId"],
                             "data": volume,
-                            "tags": {
-                                tag["Key"]: tag["Value"]
-                                for tag in volume.get("Tags", [])
-                            },
+                            "tags": {tag["Key"]: tag["Value"] for tag in volume.get("Tags", [])},
                         }
                     )
 
@@ -308,10 +286,7 @@ class TerraformDiscovery:
                             "type": "aws_ebs_snapshot",
                             "id": snapshot["SnapshotId"],
                             "data": snapshot,
-                            "tags": {
-                                tag["Key"]: tag["Value"]
-                                for tag in snapshot.get("Tags", [])
-                            },
+                            "tags": {tag["Key"]: tag["Value"] for tag in snapshot.get("Tags", [])},
                         }
                     )
 
@@ -351,9 +326,7 @@ class TerraformDiscovery:
             # Get records for each hosted zone
             for zone in self.discovered_resources.get("route53_zones", []):
                 zone_id = zone["data"]["Id"]
-                response = self.clients["r53"].list_resource_record_sets(
-                    HostedZoneId=zone_id
-                )
+                response = self.clients["r53"].list_resource_record_sets(HostedZoneId=zone_id)
 
                 for record in response.get("ResourceRecordSets", []):
                     # Skip NS and SOA records as they're managed by the zone
@@ -408,9 +381,7 @@ class TerraformDiscovery:
                         "type": "aws_iam_role",
                         "id": role["RoleName"],
                         "data": role,
-                        "tags": {
-                            tag["Key"]: tag["Value"] for tag in role.get("Tags", [])
-                        },
+                        "tags": {tag["Key"]: tag["Value"] for tag in role.get("Tags", [])},
                     }
                 )
 
@@ -432,9 +403,7 @@ class TerraformDiscovery:
                         "type": "aws_iam_policy",
                         "id": policy["PolicyName"],
                         "data": policy,
-                        "tags": {
-                            tag["Key"]: tag["Value"] for tag in policy.get("Tags", [])
-                        },
+                        "tags": {tag["Key"]: tag["Value"] for tag in policy.get("Tags", [])},
                     }
                 )
 

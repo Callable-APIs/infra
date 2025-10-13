@@ -42,9 +42,7 @@ class TestCostExplorerClient:
 
             client = CostExplorerClient(region="us-west-2", profile="test-profile")
 
-            mock_session.assert_called_once_with(
-                region_name="us-west-2", profile_name="test-profile"
-            )
+            mock_session.assert_called_once_with(region_name="us-west-2", profile_name="test-profile")
 
     def test_get_account_id_success(self):
         """Test successful account ID retrieval."""
@@ -56,9 +54,7 @@ class TestCostExplorerClient:
                 mock_sts_client,
             ]
 
-            mock_sts_client.get_caller_identity.return_value = {
-                "Account": "123456789012"
-            }
+            mock_sts_client.get_caller_identity.return_value = {"Account": "123456789012"}
 
             client = CostExplorerClient()
             account_id = client.get_account_id()

@@ -143,9 +143,7 @@ class TestTerraformDiscovery:
             discovery.discover_ec2_instances()
 
             assert len(discovery.discovered_resources["ec2_instances"]) == 1
-            assert (
-                discovery.discovered_resources["ec2_instances"][0]["id"] == "i-running"
-            )
+            assert discovery.discovered_resources["ec2_instances"][0]["id"] == "i-running"
 
     def test_discover_ec2_instances_error_handling(self):
         """Test EC2 instances discovery error handling."""
@@ -338,9 +336,7 @@ class TestTerraformDiscovery:
             discovery.discover_route53_records()
 
             assert "route53_records" in discovery.discovered_resources
-            assert (
-                len(discovery.discovered_resources["route53_records"]) == 1
-            )  # NS record should be skipped
+            assert len(discovery.discovered_resources["route53_records"]) == 1  # NS record should be skipped
 
             record = discovery.discovered_resources["route53_records"][0]
             assert record["type"] == "aws_route53_record"
@@ -388,9 +384,7 @@ class TestTerraformDiscovery:
                     os.chdir(original_cwd)
 
                 # Check file content
-                with open(
-                    os.path.join(temp_dir, "terraform_output", output_files[0]), "r"
-                ) as f:
+                with open(os.path.join(temp_dir, "terraform_output", output_files[0]), "r") as f:
                     data = json.load(f)
                     assert "ec2_instances" in data
                     assert len(data["ec2_instances"]) == 1
@@ -426,13 +420,9 @@ class TestTerraformDiscovery:
             mock_ec2_client.describe_instances.return_value = {"Reservations": []}
             mock_ec2_client.describe_vpcs.return_value = {"Vpcs": []}
             mock_ec2_client.describe_subnets.return_value = {"Subnets": []}
-            mock_ec2_client.describe_security_groups.return_value = {
-                "SecurityGroups": []
-            }
+            mock_ec2_client.describe_security_groups.return_value = {"SecurityGroups": []}
             mock_ec2_client.describe_route_tables.return_value = {"RouteTables": []}
-            mock_ec2_client.describe_internet_gateways.return_value = {
-                "InternetGateways": []
-            }
+            mock_ec2_client.describe_internet_gateways.return_value = {"InternetGateways": []}
             mock_ec2_client.describe_nat_gateways.return_value = {"NatGateways": []}
             mock_ec2_client.describe_addresses.return_value = {"Addresses": []}
             mock_ec2_client.describe_volumes.return_value = {"Volumes": []}

@@ -14,9 +14,7 @@ from src.report_generator import ReportGenerator
 from src.sanitizer import generate_summary_stats, mask_account_id
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
 
@@ -54,20 +52,14 @@ def load_config(config_path: str = "config.yaml") -> Dict[str, Any]:
 
 def main() -> int:
     """Main function to generate AWS cost reports."""
-    parser = argparse.ArgumentParser(
-        description="AWS Infrastructure Reporting and Management Tool"
-    )
+    parser = argparse.ArgumentParser(description="AWS Infrastructure Reporting and Management Tool")
     parser.add_argument(
         "--config",
         default="config.yaml",
         help="Path to configuration file (default: config.yaml)",
     )
-    parser.add_argument(
-        "--days", type=int, help="Number of days to look back (overrides config)"
-    )
-    parser.add_argument(
-        "--output", help="Output directory for reports (overrides config)"
-    )
+    parser.add_argument("--days", type=int, help="Number of days to look back (overrides config)")
+    parser.add_argument("--output", help="Output directory for reports (overrides config)")
     parser.add_argument(
         "--no-mask",
         action="store_true",
@@ -147,9 +139,7 @@ def main() -> int:
             )
 
             # Create internal report generator
-            internal_generator = InternalReportGenerator(
-                output_dir=args.output or "internal_reports"
-            )
+            internal_generator = InternalReportGenerator(output_dir=args.output or "internal_reports")
 
             if args.console_only:
                 # Print console summary only
@@ -185,16 +175,12 @@ def main() -> int:
             # Generate public GitHub Pages report
             logger.info("Generating public HTML report...")
             report_config = config.get("report", {})
-            generator = ReportGenerator(
-                output_dir=report_config.get("output_dir", "reports")
-            )
+            generator = ReportGenerator(output_dir=report_config.get("output_dir", "reports"))
 
             report_path = generator.generate_html_report(
                 title=report_config.get("title", "AWS Cost and Usage Report"),
                 summary=summary,
-                services=services_data
-                if report_config.get("include_service_breakdown", True)
-                else [],
+                services=services_data if report_config.get("include_service_breakdown", True) else [],
                 days_back=days_back,
                 account_id=display_account_id,
             )

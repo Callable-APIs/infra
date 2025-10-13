@@ -42,15 +42,11 @@ class TerraformGenerator:
         # Look in terraform_output directory
         terraform_output_dir = "terraform_output"
         if not os.path.exists(terraform_output_dir):
-            logger.error(
-                "terraform_output directory not found. Run terraform-discover first."
-            )
+            logger.error("terraform_output directory not found. Run terraform-discover first.")
             return {}
 
         discovery_files = [
-            f
-            for f in os.listdir(terraform_output_dir)
-            if f.startswith("discovered_resources_") and f.endswith(".json")
+            f for f in os.listdir(terraform_output_dir) if f.startswith("discovered_resources_") and f.endswith(".json")
         ]
 
         if not discovery_files:
@@ -89,9 +85,7 @@ class TerraformGenerator:
         logger.info(f"Loaded resources from regions: {list(self.regions.keys())}")
         return all_resources
 
-    def _determine_region_from_resources(
-        self, resources: Dict[str, List[Dict[str, Any]]]
-    ) -> str:
+    def _determine_region_from_resources(self, resources: Dict[str, List[Dict[str, Any]]]) -> str:
         """Determine the region from resource data."""
         # Check EC2 instances for region clues
         if "ec2_instances" in resources and resources["ec2_instances"]:
@@ -303,9 +297,7 @@ variable "common_tags" {
 }}"""
         elif resource_type == "aws_route53_record":
             # Route53 records need special handling for the ID format
-            zone_id = resource.get("zone_id", "").split("/")[
-                -1
-            ]  # Remove /hostedzone/ prefix
+            zone_id = resource.get("zone_id", "").split("/")[-1]  # Remove /hostedzone/ prefix
             record_name = resource_data.get("Name", "")
             record_type = resource_data.get("Type", "")
             record_id = f"{zone_id}_{record_name}_{record_type}"
@@ -368,9 +360,7 @@ variable "common_tags" {
 
         return "\n".join(resource_blocks)
 
-    def _generate_resource_block(
-        self, resource: Dict[str, Any], provider_alias: str = "us_east_1"
-    ) -> str:
+    def _generate_resource_block(self, resource: Dict[str, Any], provider_alias: str = "us_east_1") -> str:
         """Generate a single resource block."""
         resource_type = resource["type"]
         resource_data = resource["data"]
@@ -383,9 +373,7 @@ variable "common_tags" {
         provider_line = f"  provider = aws.{provider_alias}\n"
 
         if resource_type == "aws_instance":
-            return self._generate_ec2_instance_block(
-                resource_name, resource_data, provider_line
-            )
+            return self._generate_ec2_instance_block(resource_name, resource_data, provider_line)
         elif resource_type == "aws_vpc":
             return self._generate_vpc_block(resource_name, resource_data)
         elif resource_type == "aws_subnet":
@@ -416,9 +404,7 @@ variable "common_tags" {
 
         return ""
 
-    def _generate_ec2_instance_block(
-        self, name: str, data: Dict[str, Any], provider_line: str = ""
-    ) -> str:
+    def _generate_ec2_instance_block(self, name: str, data: Dict[str, Any], provider_line: str = "") -> str:
         """Generate EC2 instance resource block."""
         tags = self._format_tags(data.get("Tags", []))
 
@@ -541,9 +527,7 @@ resource "aws_route53_zone" "{name}" {{
 }}
 """
 
-    def _generate_route53_record_block(
-        self, name: str, resource: Dict[str, Any]
-    ) -> str:
+    def _generate_route53_record_block(self, name: str, resource: Dict[str, Any]) -> str:
         """Generate Route53 record resource block."""
         # Get zone_id from the resource data
         zone_id = resource.get("zone_id", "")
@@ -552,9 +536,7 @@ resource "aws_route53_zone" "{name}" {{
 
         # Get the actual record data
         record_data = resource.get("data", {})
-        records = [
-            record.get("Value", "") for record in record_data.get("ResourceRecords", [])
-        ]
+        records = [record.get("Value", "") for record in record_data.get("ResourceRecords", [])]
 
         # Handle alias records differently
         if "AliasTarget" in record_data:
@@ -785,9 +767,7 @@ output "{name}_cidr_block" {{
             name = self._sanitize_name(tags["Name"])
         else:
             # Use resource ID as fallback
-            name = self._sanitize_name(
-                resource.get("id", f"{resource_type}_{len(self.resource_names)}")
-            )
+            name = self._sanitize_name(resource.get("id", f"{resource_type}_{len(self.resource_names)}"))
 
         # Ensure uniqueness
         if name in self.resource_names:
@@ -893,9 +873,7 @@ output "module_output" {
         for region, resources in self.regions.items():
             self._generate_region_file(region, resources)
 
-    def _generate_region_file(
-        self, region: str, resources: Dict[str, List[Dict[str, Any]]]
-    ):
+    def _generate_region_file(self, region: str, resources: Dict[str, List[Dict[str, Any]]]):
         """Generate a Terraform file for a specific region."""
         region_alias = region.replace("-", "_")
 
@@ -921,9 +899,7 @@ output "module_output" {
                         import_blocks.append(import_block)
 
                     # Generate resource block
-                    resource_block = self._generate_resource_block(
-                        resource, region_alias
-                    )
+                    resource_block = self._generate_resource_block(resource, region_alias)
                     if resource_block:
                         resource_blocks.append(resource_block)
 

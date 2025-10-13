@@ -29,9 +29,7 @@ class TestInternalReportGenerator:
             generator = InternalReportGenerator("custom_internal_reports")
 
             assert generator.output_dir == "custom_internal_reports"
-            mock_makedirs.assert_called_once_with(
-                "custom_internal_reports", exist_ok=True
-            )
+            mock_makedirs.assert_called_once_with("custom_internal_reports", exist_ok=True)
 
     def test_generate_detailed_report_success(self):
         """Test successful detailed report generation."""
@@ -102,9 +100,7 @@ class TestInternalReportGenerator:
             ]
 
             with patch("datetime.datetime") as mock_datetime:
-                mock_datetime.now.return_value.strftime.return_value = (
-                    "2023-01-01 12:00:00 UTC"
-                )
+                mock_datetime.now.return_value.strftime.return_value = "2023-01-01 12:00:00 UTC"
 
                 result = generator.generate_detailed_report(
                     title="Internal Test Report",
@@ -141,9 +137,7 @@ class TestInternalReportGenerator:
             summary = {"total_cost": 0.0, "service_count": 0, "top_services": []}
 
             with patch("datetime.datetime") as mock_datetime:
-                mock_datetime.now.return_value.strftime.return_value = (
-                    "2023-01-01 12:00:00 UTC"
-                )
+                mock_datetime.now.return_value.strftime.return_value = "2023-01-01 12:00:00 UTC"
 
                 result = generator.generate_detailed_report(
                     title="Empty Report",
@@ -229,9 +223,7 @@ class TestInternalReportGenerator:
             previous_cycle_costs = [{"service": "Amazon EC2", "cost": 100.0}]
 
             with patch("datetime.datetime") as mock_datetime:
-                mock_datetime.now.return_value.strftime.return_value = (
-                    "2023-01-01 12:00:00 UTC"
-                )
+                mock_datetime.now.return_value.strftime.return_value = "2023-01-01 12:00:00 UTC"
 
                 result = generator.generate_detailed_report(
                     title="Billing Test Report",
@@ -273,9 +265,7 @@ class TestInternalReportGenerator:
             tag_costs = []
 
             with patch("datetime.datetime") as mock_datetime:
-                mock_datetime.now.return_value.strftime.return_value = (
-                    "2023-01-01 12:00:00 UTC"
-                )
+                mock_datetime.now.return_value.strftime.return_value = "2023-01-01 12:00:00 UTC"
 
                 result = generator.generate_detailed_report(
                     title="No Billing Report",
@@ -317,9 +307,7 @@ class TestInternalReportGenerator:
             ]
 
             with patch("datetime.datetime") as mock_datetime:
-                mock_datetime.now.return_value.strftime.return_value = (
-                    "2023-01-01 12:00:00 UTC"
-                )
+                mock_datetime.now.return_value.strftime.return_value = "2023-01-01 12:00:00 UTC"
 
                 result = generator.generate_detailed_report(
                     title="Tagged Report",
@@ -350,9 +338,7 @@ class TestInternalReportGenerator:
             tag_costs = []
 
             with patch("datetime.datetime") as mock_datetime:
-                mock_datetime.now.return_value.strftime.return_value = (
-                    "2023-01-01 12:00:00 UTC"
-                )
+                mock_datetime.now.return_value.strftime.return_value = "2023-01-01 12:00:00 UTC"
 
                 result = generator.generate_detailed_report(
                     title="No Tags Report",

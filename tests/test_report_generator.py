@@ -121,9 +121,7 @@ class TestReportGenerator:
             summary = {
                 "total_cost": 50.0,
                 "service_count": 1,
-                "top_services": [
-                    {"service": "Amazon EC2", "cost": 50.0, "percentage": 100.0}
-                ],
+                "top_services": [{"service": "Amazon EC2", "cost": 50.0, "percentage": 100.0}],
             }
 
             with patch("src.report_generator.datetime") as mock_datetime:
@@ -153,9 +151,7 @@ class TestReportGenerator:
             summary = {
                 "total_cost": 100.0,
                 "service_count": 1,
-                "top_services": [
-                    {"service": "Amazon EC2", "cost": 100.0, "percentage": 100.0}
-                ],
+                "top_services": [{"service": "Amazon EC2", "cost": 100.0, "percentage": 100.0}],
             }
 
             with patch("src.report_generator.datetime") as mock_datetime:
@@ -173,9 +169,7 @@ class TestReportGenerator:
                 )
 
                 # Check that both files exist and have same content
-                timestamped_file = os.path.join(
-                    temp_dir, "aws_cost_report_20230101_120000.html"
-                )
+                timestamped_file = os.path.join(temp_dir, "aws_cost_report_20230101_120000.html")
                 index_file = os.path.join(temp_dir, "index.html")
 
                 assert os.path.exists(timestamped_file)

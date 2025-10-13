@@ -64,18 +64,18 @@ disable = [
 ]
 
 [tool.pylint.format]
-max-line-length = 88
+max-line-length = 120
 
 [tool.pylint.imports]
 ignored-modules = ["boto3", "botocore"]
 
 [tool.black]
-line-length = 88
+line-length = 120
 target-version = ['py311']
 
 [tool.isort]
 profile = "black"
-line_length = 88
+line_length = 120
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
