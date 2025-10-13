@@ -84,7 +84,7 @@ jobs:
         # Generate reports based on type
         if [ "$REPORT_TYPE" = "public" ] || [ "$REPORT_TYPE" = "both" ]; then
           echo "Generating public report..."
-          poetry run aws-infra-report --days $DAYS_BACK --output reports --public
+          poetry run aws-infra-report --days $DAYS_BACK --output reports
         fi
         
         if [ "$REPORT_TYPE" = "internal" ] || [ "$REPORT_TYPE" = "both" ]; then
