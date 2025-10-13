@@ -6,9 +6,9 @@
 # infra-deployer user
 resource "aws_iam_user" "infra_deployer" {
   provider = aws.us_west_2
-  
+
   name = "infra-deployer"
-  
+
   tags = {
     Name        = "infra-deployer"
     Purpose     = "Infrastructure deployment"
@@ -20,9 +20,9 @@ resource "aws_iam_user" "infra_deployer" {
 # infra-reporter user
 resource "aws_iam_user" "infra_reporter" {
   provider = aws.us_west_2
-  
+
   name = "infra-reporter"
-  
+
   tags = {
     Name        = "infra-reporter"
     Purpose     = "Cost reporting and analysis"
@@ -34,7 +34,7 @@ resource "aws_iam_user" "infra_reporter" {
 # Attach AWS managed policy to infra-reporter
 resource "aws_iam_user_policy_attachment" "infra_reporter_cost_policy" {
   provider = aws.us_west_2
-  
+
   user       = aws_iam_user.infra_reporter.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSCostAndUsageReportAutomationPolicy"
 }
@@ -42,7 +42,7 @@ resource "aws_iam_user_policy_attachment" "infra_reporter_cost_policy" {
 # Inline policy for Cost Explorer access
 resource "aws_iam_user_policy" "infra_reporter_cost_explorer" {
   provider = aws.us_west_2
-  
+
   name = "AllowCostExplorerServiceAccess"
   user = aws_iam_user.infra_reporter.name
 
@@ -50,9 +50,9 @@ resource "aws_iam_user_policy" "infra_reporter_cost_explorer" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid    = "VisualEditor0"
-        Effect = "Allow"
-        Action = "ce:*"
+        Sid      = "VisualEditor0"
+        Effect   = "Allow"
+        Action   = "ce:*"
         Resource = "*"
       }
     ]
@@ -62,7 +62,7 @@ resource "aws_iam_user_policy" "infra_reporter_cost_explorer" {
 # Inline policy for infrastructure discovery
 resource "aws_iam_user_policy" "infra_reporter_discovery" {
   provider = aws.us_west_2
-  
+
   name = "InfrastructureDisccovery"
   user = aws_iam_user.infra_reporter.name
 
@@ -94,6 +94,6 @@ resource "aws_iam_user_policy" "infra_reporter_discovery" {
 # Access key for infra-reporter (1 active key)
 resource "aws_iam_access_key" "infra_reporter_key" {
   provider = aws.us_west_2
-  
+
   user = aws_iam_user.infra_reporter.name
 }

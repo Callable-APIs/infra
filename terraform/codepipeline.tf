@@ -324,11 +324,11 @@ resource "aws_codedeploy_deployment_group" "callableapis_service" {
   deployment_group_name = "callableapis-service-deploymentgroup"
   service_role_arn      = aws_iam_role.codedeploy_role.arn
 
-      ec2_tag_filter {
-        key   = "elasticbeanstalk:environment-name"
-        type  = "KEY_AND_VALUE"
-        value = "callableapis-java-env"
-      }
+  ec2_tag_filter {
+    key   = "elasticbeanstalk:environment-name"
+    type  = "KEY_AND_VALUE"
+    value = "callableapis-java-env"
+  }
 
   auto_rollback_configuration {
     enabled = true
@@ -413,19 +413,19 @@ resource "aws_codepipeline" "callableapis" {
   stage {
     name = "Deploy"
 
-        action {
-          name            = "callableapis-website-deploy"
-          category        = "Deploy"
-          owner           = "AWS"
-          provider        = "S3"
-          version         = "1"
-          input_artifacts = ["website-source"]
+    action {
+      name            = "callableapis-website-deploy"
+      category        = "Deploy"
+      owner           = "AWS"
+      provider        = "S3"
+      version         = "1"
+      input_artifacts = ["website-source"]
 
-          configuration = {
-            BucketName = "callableapis-usw2.com"
-            Extract    = "true"
-          }
-        }
+      configuration = {
+        BucketName = "callableapis-usw2.com"
+        Extract    = "true"
+      }
+    }
 
     action {
       name            = "callableapis-service-deploy"

@@ -415,7 +415,7 @@ resource "aws_route53_record" "website_record" {
 
   alias {
     name                   = "s3-website-us-west-2.amazonaws.com"
-    zone_id                = "Z3BJ6K6RIION7M"  # us-west-2 S3 website zone ID
+    zone_id                = "Z3BJ6K6RIION7M" # us-west-2 S3 website zone ID
     evaluate_target_health = false
   }
 }
