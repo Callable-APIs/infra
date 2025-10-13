@@ -120,23 +120,8 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
 
-      - name: Create commit with report data
-        if: github.event_name == 'workflow_dispatch'
-        run: |
-          # Only commit on manual runs to avoid cluttering history
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-
-          # Add the generated report
-          git add reports/
-
-          # Check if there are changes to commit
-          if git diff --staged --quiet; then
-            echo "No changes to commit"
-          else
-            git commit -m "Update AWS cost report - $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
-            git push origin HEAD:main
-          fi
+       # Note: Reports are deployed to GitHub Pages directly from artifacts
+       # No need to commit reports to repository as they're in .gitignore
 
   notify:
     needs: generate-and-deploy
