@@ -35,9 +35,7 @@ def sanitize_arn(arn: str) -> str:
     """
     # ARN format: arn:partition:service:region:account-id:resource
     pattern = r"arn:aws:[^:]+:[^:]*:(\d{12}):"
-    return re.sub(
-        pattern, lambda m: f"arn:aws:***:***:{mask_account_id(m.group(1))}:", arn
-    )
+    return re.sub(pattern, lambda m: f"arn:aws:***:***:{mask_account_id(m.group(1))}:", arn)
 
 
 def sanitize_service_name(service_name: str) -> str:
@@ -54,9 +52,7 @@ def sanitize_service_name(service_name: str) -> str:
     return service_name
 
 
-def sanitize_cost_data(
-    data: Dict[str, Any], mask_accounts: bool = True
-) -> Dict[str, Any]:
+def sanitize_cost_data(data: Dict[str, Any], mask_accounts: bool = True) -> Dict[str, Any]:
     """
     Sanitize cost and usage data to prevent leaking sensitive information.
 
@@ -72,9 +68,7 @@ def sanitize_cost_data(
     # Remove or mask potentially sensitive fields
     if "ResponseMetadata" in sanitized:
         # Keep only status code, remove request IDs and other metadata
-        sanitized["ResponseMetadata"] = {
-            "HTTPStatusCode": sanitized["ResponseMetadata"].get("HTTPStatusCode", 200)
-        }
+        sanitized["ResponseMetadata"] = {"HTTPStatusCode": sanitized["ResponseMetadata"].get("HTTPStatusCode", 200)}
 
     # Process ResultsByTime
     if "ResultsByTime" in sanitized:
@@ -111,9 +105,7 @@ def generate_summary_stats(cost_data: List[Dict[str, Any]]) -> Dict[str, Any]:
             {
                 "service": item["service"],
                 "cost": round(item["cost"], 2),
-                "percentage": round(
-                    (item["cost"] / total_cost * 100) if total_cost > 0 else 0, 1
-                ),
+                "percentage": round((item["cost"] / total_cost * 100) if total_cost > 0 else 0, 1),
             }
             for item in top_services
         ],
@@ -141,10 +133,7 @@ def sanitize_dict(data: Dict[str, Any], mask_accounts: bool = True) -> Dict[str,
         if isinstance(value, dict):
             sanitized[key] = sanitize_dict(value, mask_accounts)
         elif isinstance(value, list):
-            sanitized[key] = [
-                sanitize_dict(item, mask_accounts) if isinstance(item, dict) else item
-                for item in value
-            ]
+            sanitized[key] = [sanitize_dict(item, mask_accounts) if isinstance(item, dict) else item for item in value]
         elif isinstance(value, str) and mask_accounts:
             # Check if value looks like an account ID
             if re.match(r"^\d{12}$", value):

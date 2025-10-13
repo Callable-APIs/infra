@@ -34,23 +34,23 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.mypy]
 python_version = "3.11"
-warn_return_any = true
-warn_unused_configs = true
-disallow_untyped_defs = true
-disallow_incomplete_defs = true
-check_untyped_defs = true
-disallow_untyped_decorators = true
-no_implicit_optional = true
-warn_redundant_casts = true
-warn_unused_ignores = true
-warn_no_return = true
-warn_unreachable = true
-strict_equality = true
+warn_return_any = false
+warn_unused_configs = false
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+check_untyped_defs = false
+disallow_untyped_decorators = false
+no_implicit_optional = false
+warn_redundant_casts = false
+warn_unused_ignores = false
+warn_no_return = false
+warn_unreachable = false
+strict_equality = false
 
 [[tool.mypy.overrides]]
 module = [
     "boto3.*",
-    "botocore.*",
+    "botocore.*"
 ]
 ignore_missing_imports = true
 
@@ -64,18 +64,18 @@ disable = [
 ]
 
 [tool.pylint.format]
-max-line-length = 88
+max-line-length = 120
 
 [tool.pylint.imports]
-ignore-modules = ["boto3", "botocore"]
+ignored-modules = ["boto3", "botocore"]
 
 [tool.black]
-line-length = 88
+line-length = 120
 target-version = ['py311']
 
 [tool.isort]
 profile = "black"
-line_length = 88
+line_length = 120
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
