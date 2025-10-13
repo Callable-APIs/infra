@@ -43,7 +43,7 @@ resource "aws_ssm_parameter" "github_redirect_uri" {
 
   name  = "/callableapis/github/redirect-uri"
   type  = "String"
-  value = "http://api.callableapis.com/auth/callback"
+  value = "http://api.callableapis.com/api/auth/callback"
 
   description = "GitHub OAuth Redirect URI for CallableAPIs"
 
@@ -61,7 +61,7 @@ resource "aws_ssm_parameter" "github_oauth_scope" {
 
   name  = "/callableapis/github/oauth-scope"
   type  = "String"
-  value = "user:email"
+  value = "user:email,read:user"
 
   description = "GitHub OAuth scope for CallableAPIs"
 

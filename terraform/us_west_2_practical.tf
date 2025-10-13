@@ -13,12 +13,22 @@ data "aws_ami" "amazon_linux" {
 
   filter {
     name   = "name"
-    values = ["amzn2-ami-hvm-*-x86_64-gp2"]
+    values = ["amzn2-ami-hvm-*-arm64-gp2"]
   }
 
   filter {
     name   = "virtualization-type"
     values = ["hvm"]
+  }
+}
+
+# Use the specific AMI that's currently running
+data "aws_ami" "current_instance" {
+  provider = aws.us_west_2
+
+  filter {
+    name   = "image-id"
+    values = ["ami-001cfb1564f24ce79"]
   }
 }
 
@@ -271,7 +281,7 @@ resource "aws_elastic_beanstalk_environment" "callableapis_env" {
   setting {
     namespace = "aws:autoscaling:launchconfiguration"
     name      = "InstanceType"
-    value     = "t2.micro"
+    value     = "t4g.micro"
   }
 
   setting {
@@ -287,33 +297,9 @@ resource "aws_elastic_beanstalk_environment" "callableapis_env" {
   }
 
   setting {
-    namespace = "aws:autoscaling:launchconfiguration"
-    name      = "InstanceType"
-    value     = "t2.micro"
-  }
-
-  setting {
-    namespace = "aws:autoscaling:asg"
-    name      = "MinSize"
-    value     = "1"
-  }
-
-  setting {
-    namespace = "aws:autoscaling:asg"
-    name      = "MaxSize"
-    value     = "2"
-  }
-
-  setting {
     namespace = "aws:elasticbeanstalk:environment"
     name      = "EnvironmentType"
-    value     = "LoadBalanced"
-  }
-
-  setting {
-    namespace = "aws:elasticbeanstalk:environment"
-    name      = "LoadBalancerType"
-    value     = "application"
+    value     = "SingleInstance"
   }
 
 
@@ -416,6 +402,8 @@ resource "aws_iam_role_policy_attachment" "eb_codedeploy_policy" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEC2RoleforAWSCodeDeploy"
 }
 
+# API service is now handled by Elastic Beanstalk environment
+
 # Route53 Records for us-west-2
 # Point callableapis.com to the correct us-west-2 S3 bucket
 resource "aws_route53_record" "website_record" {
@@ -426,7 +414,7 @@ resource "aws_route53_record" "website_record" {
   type    = "A"
 
   alias {
-    name                   = "callableapis.com.s3-website.us-west-2.amazonaws.com"
+    name                   = "s3-website-us-west-2.amazonaws.com"
     zone_id                = "Z3BJ6K6RIION7M"  # us-west-2 S3 website zone ID
     evaluate_target_health = false
   }
@@ -437,13 +425,10 @@ resource "aws_route53_record" "www_record" {
 
   zone_id = var.route53_zone_id
   name    = "www.callableapis.com"
-  type    = "A"
+  type    = "CNAME"
+  ttl     = 300
 
-  alias {
-    name                   = "www.callableapis.com.s3-website.us-west-2.amazonaws.com"
-    zone_id                = "Z3BJ6K6RIION7M"  # us-west-2 S3 website zone ID
-    evaluate_target_health = false
-  }
+  records = ["callableapis-usw2.com.s3-website.us-west-2.amazonaws.com"]
 }
 
 resource "aws_route53_record" "api_record" {

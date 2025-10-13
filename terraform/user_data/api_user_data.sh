@@ -69,10 +69,7 @@ RestartSec=10
 WantedBy=multi-user.target
 EOF
 
-# Start and enable the API service
-systemctl daemon-reload
-systemctl start callableapis-api
-systemctl enable callableapis-api
+# Don't start the service yet - we'll do it after creating the app file
 
 # Configure log rotation
 cat > /etc/logrotate.d/callableapis << 'EOF'
@@ -112,7 +109,7 @@ chmod +x /opt/callableapis/monitor.sh
 echo "*/5 * * * * /opt/callableapis/monitor.sh" | crontab -
 
 # Create a simple test endpoint
-cat > /opt/callableapis/test.py << 'EOF'
+cat > /opt/callableapis/app.py << 'EOF'
 #!/usr/bin/env python3
 
 from flask import Flask, jsonify
@@ -144,8 +141,10 @@ EOF
 # Install Flask for the test endpoint
 pip3 install flask
 
-# Start the test API
+# Start and enable the API service
+systemctl daemon-reload
 systemctl start callableapis-api
+systemctl enable callableapis-api
 
 # Log completion
 echo "$(date): CallableAPIs API instance setup completed" >> /var/log/callableapis-setup.log
