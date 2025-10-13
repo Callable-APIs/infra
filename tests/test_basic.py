@@ -14,13 +14,7 @@ import shutil
 import tempfile
 
 from report_generator import ReportGenerator
-from sanitizer import (
-    generate_summary_stats,
-    mask_account_id,
-    sanitize_arn,
-    sanitize_dict,
-    sanitize_service_name,
-)
+from sanitizer import generate_summary_stats, mask_account_id, sanitize_arn, sanitize_dict, sanitize_service_name
 
 
 def test_mask_account_id():

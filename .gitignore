@@ -184,3 +184,68 @@ terraform/*.tfplan
 # OS
 .DS_Store
 Thumbs.db
+
+# Additional development artifacts
+*.log
+*.tmp
+*.temp
+.pytest_cache/
+.mypy_cache/
+.coverage
+coverage.xml
+htmlcov/
+bandit-report.json
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.tox/
+.nox/
+.cache
+.hypothesis/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.#*
+#*#
+
+# Docker
+.dockerignore
+
+# AWS credentials and config
+.aws/
+aws-credentials.json
+
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+*.tfplan
+*.tfplan.*
+
+# Reports and outputs
+reports/
+internal_reports/
+demo_reports/
+test_reports/
+terraform_output/
+*.html
+*.json
+*.csv
+*.xlsx
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.backup
