@@ -404,40 +404,5 @@ resource "aws_iam_role_policy_attachment" "eb_codedeploy_policy" {
 
 # API service is now handled by Elastic Beanstalk environment
 
-# Route53 Records for us-west-2
-# Point callableapis.com to the correct us-west-2 S3 bucket
-resource "aws_route53_record" "website_record" {
-  provider = aws.us_west_2
-
-  zone_id = var.route53_zone_id
-  name    = "callableapis.com"
-  type    = "A"
-
-  alias {
-    name                   = "s3-website-us-west-2.amazonaws.com"
-    zone_id                = "Z3BJ6K6RIION7M" # us-west-2 S3 website zone ID
-    evaluate_target_health = false
-  }
-}
-
-resource "aws_route53_record" "www_record" {
-  provider = aws.us_west_2
-
-  zone_id = var.route53_zone_id
-  name    = "www.callableapis.com"
-  type    = "CNAME"
-  ttl     = 300
-
-  records = ["callableapis-usw2.com.s3-website.us-west-2.amazonaws.com"]
-}
-
-resource "aws_route53_record" "api_record" {
-  provider = aws.us_west_2
-
-  zone_id = var.route53_zone_id
-  name    = "api.callableapis.com"
-  type    = "CNAME"
-  ttl     = 300
-
-  records = [aws_elastic_beanstalk_environment.callableapis_env.cname]
-}
+# DNS Records are now managed by Cloudflare
+# See cloudflare.tf for DNS configuration
