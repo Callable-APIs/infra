@@ -24,6 +24,19 @@ variable "route53_zone_id" {
   default     = "ZJ57N2O5R20OE"
 }
 
+# Cloudflare configuration
+variable "cloudflare_api_token" {
+  description = "Cloudflare API token"
+  type        = string
+  sensitive   = true
+}
+
+variable "cloudflare_zone_id" {
+  description = "Cloudflare zone ID for callableapis.com"
+  type        = string
+  default     = "c9b61ba12197864c7e0236bfb9abdcba"
+}
+
 # Add more variables as needed
 variable "common_tags" {
   description = "Common tags to apply to all resources"
