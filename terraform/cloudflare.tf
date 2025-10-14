@@ -45,34 +45,34 @@ resource "cloudflare_record" "api" {
 # SSL/TLS Settings
 resource "cloudflare_zone_settings_override" "ssl" {
   zone_id = data.cloudflare_zone.callableapis.id
-  
+
   settings {
-    ssl                = "full"
-    always_use_https   = "on"
-    min_tls_version    = "1.2"
-    tls_1_3           = "on"
+    ssl              = "full"
+    always_use_https = "on"
+    min_tls_version  = "1.2"
+    tls_1_3          = "on"
   }
 }
 
 # Security Settings
 resource "cloudflare_zone_settings_override" "security" {
   zone_id = data.cloudflare_zone.callableapis.id
-  
+
   settings {
-    security_level     = "medium"
-    browser_check      = "on"
-    challenge_ttl      = 1800
-    privacy_pass       = "on"
+    security_level = "medium"
+    browser_check  = "on"
+    challenge_ttl  = 1800
+    privacy_pass   = "on"
   }
 }
 
 # Caching Settings
 resource "cloudflare_zone_settings_override" "caching" {
   zone_id = data.cloudflare_zone.callableapis.id
-  
+
   settings {
-    cache_level        = "aggressive"
-    browser_cache_ttl  = 14400
-    development_mode   = "off"
+    cache_level       = "aggressive"
+    browser_cache_ttl = 14400
+    development_mode  = "off"
   }
 }
