@@ -33,8 +33,6 @@ resource "google_compute_network" "callableapis_vpc" {
   name                    = "callableapis-vpc"
   auto_create_subnetworks = false
   mtu                     = 1460
-
-  tags = ["callableapis", "production"]
 }
 
 # Subnet
@@ -43,8 +41,6 @@ resource "google_compute_subnetwork" "callableapis_subnet" {
   ip_cidr_range = "10.1.0.0/24"
   region        = var.region
   network       = google_compute_network.callableapis_vpc.id
-
-  tags = ["callableapis", "production"]
 }
 
 # Firewall rules
