@@ -98,7 +98,7 @@ class MultiCloudCostExplorer:
                     ]
                 }],
                 'total_cost': 0.0,
-                'note': 'Free tier - 2x ARM instances (4 OCPU, 24GB RAM each)'
+                'note': 'Free tier - 1x VM.Standard.E5.Flex (1 OCPU, 12GB RAM) - node1 deployed'
             }
         except Exception as e:
             logger.error(f"Error getting Oracle Cloud costs: {e}")
@@ -196,10 +196,10 @@ PROVIDER BREAKDOWN:
         summary += f"""
 FREE TIER RESOURCES:
 -------------------
-- Oracle Cloud: 2x ARM instances (4 OCPU, 24GB RAM each)
-- Google Cloud: 1x e2-micro (1 vCPU, 1GB RAM)
-- IBM Cloud: 1x VSI instance
-- AWS: 1x t4g.micro (free tier eligible)
+- Oracle Cloud: 1x VM.Standard.E5.Flex (1 OCPU, 12GB RAM) - node1.callableapis.com
+- Google Cloud: 1x e2-micro (1 vCPU, 1GB RAM) - pending billing setup
+- IBM Cloud: 1x VSI instance - pending deployment
+- AWS: 1x t4g.micro (free tier eligible) - callableapis-java-env
 
 Generated: {costs_data['generated_at']}
 """

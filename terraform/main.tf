@@ -50,6 +50,15 @@ resource "cloudflare_record" "api" {
   comment = "Elastic Beanstalk API endpoint"
 }
 
+resource "cloudflare_record" "node1" {
+  zone_id = data.cloudflare_zone.callableapis.id
+  name    = "node1"
+  type    = "A"
+  content = "159.54.170.237"
+  proxied = false
+  comment = "Oracle Cloud node1 instance"
+}
+
 # SSL/TLS Settings
 resource "cloudflare_zone_settings_override" "ssl" {
   zone_id = data.cloudflare_zone.callableapis.id

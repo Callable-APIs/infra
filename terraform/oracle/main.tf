@@ -25,10 +25,10 @@ data "oci_identity_availability_domains" "ads" {
   compartment_id = var.compartment_id
 }
 
-data "oci_core_images" "arm_images" {
+data "oci_core_images" "amd_images" {
   compartment_id   = var.compartment_id
   operating_system = "Canonical Ubuntu"
-  shape            = "VM.Standard.A1.Flex"
+  shape            = "VM.Standard.E5.Flex"
   sort_by         = "TIMECREATED"
   sort_order      = "DESC"
 }
@@ -103,7 +103,7 @@ resource "oci_core_security_list" "callableapis_sl" {
   vcn_id         = oci_core_vcn.callableapis_vcn.id
   display_name   = "callableapis-sl"
 
-  # SSH access
+  # SSH access only - all other ports blocked for security
   ingress_security_rules {
     protocol  = "6"
     source    = "0.0.0.0/0"
@@ -112,30 +112,6 @@ resource "oci_core_security_list" "callableapis_sl" {
     tcp_options {
       min = 22
       max = 22
-    }
-  }
-
-  # HTTP access
-  ingress_security_rules {
-    protocol  = "6"
-    source    = "0.0.0.0/0"
-    stateless = false
-
-    tcp_options {
-      min = 80
-      max = 80
-    }
-  }
-
-  # HTTPS access
-  ingress_security_rules {
-    protocol  = "6"
-    source    = "0.0.0.0/0"
-    stateless = false
-
-    tcp_options {
-      min = 443
-      max = 443
     }
   }
 
@@ -153,21 +129,21 @@ resource "oci_core_security_list" "callableapis_sl" {
   }
 }
 
-# ARM Instance 1 - Primary
+# ARM Instance 1 - Primary (node1)
 resource "oci_core_instance" "callableapis_arm_1" {
   compartment_id      = var.compartment_id
   availability_domain = data.oci_identity_availability_domains.ads.availability_domains[0].name
-  display_name        = "callableapis-arm-1"
-  shape               = "VM.Standard.A1.Flex"
+  display_name        = "node1"
+  shape               = "VM.Standard.E5.Flex"
 
-      shape_config {
-        ocpus         = 2
-        memory_in_gbs = 12
-      }
+  shape_config {
+    ocpus         = 1
+    memory_in_gbs = 12
+  }
 
   source_details {
     source_type = "image"
-    source_id   = data.oci_core_images.arm_images.images[0].id
+    source_id   = data.oci_core_images.amd_images.images[0].id
   }
 
   create_vnic_details {
@@ -191,41 +167,41 @@ resource "oci_core_instance" "callableapis_arm_1" {
   }
 }
 
-# ARM Instance 2 - Secondary
-resource "oci_core_instance" "callableapis_arm_2" {
-  compartment_id      = var.compartment_id
-  availability_domain = data.oci_identity_availability_domains.ads.availability_domains[0].name
-  display_name        = "callableapis-arm-2"
-  shape               = "VM.Standard.A1.Flex"
+# ARM Instance 2 - Secondary (node2) - Commented out for now due to capacity issues
+# resource "oci_core_instance" "callableapis_arm_2" {
+#   compartment_id      = var.compartment_id
+#   availability_domain = data.oci_identity_availability_domains.ads.availability_domains[2].name
+#   display_name        = "node2"
+#   shape               = "VM.Standard.A1.Flex"
 
-      shape_config {
-        ocpus         = 2
-        memory_in_gbs = 12
-      }
+#       shape_config {
+#         ocpus         = 2
+#         memory_in_gbs = 12
+#       }
 
-  source_details {
-    source_type = "image"
-    source_id   = data.oci_core_images.arm_images.images[0].id
-  }
+#   source_details {
+#     source_type = "image"
+#     source_id   = data.oci_core_images.amd_images.images[0].id
+#   }
 
-  create_vnic_details {
-    subnet_id        = oci_core_subnet.callableapis_subnet.id
-    display_name     = "callableapis-arm-2-vnic"
-    assign_public_ip = true
-    hostname_label   = "callableapis-arm-2"
-  }
+#   create_vnic_details {
+#     subnet_id        = oci_core_subnet.callableapis_subnet.id
+#     display_name     = "callableapis-arm-2-vnic"
+#     assign_public_ip = true
+#     hostname_label   = "callableapis-arm-2"
+#   }
 
-  metadata = {
-    ssh_authorized_keys = var.ssh_public_key
-    user_data = base64encode(file("${path.module}/user_data.sh"))
-  }
+#   metadata = {
+#     ssh_authorized_keys = var.ssh_public_key
+#     user_data = base64encode(file("${path.module}/user_data.sh"))
+#   }
 
-  freeform_tags = {
-    Name        = "callableapis-arm-2"
-    Environment = "production"
-    ManagedBy   = "terraform"
-    Role        = "secondary"
-    Provider    = "oracle"
-  }
-}
+#   freeform_tags = {
+#     Name        = "callableapis-arm-2"
+#     Environment = "production"
+#     ManagedBy   = "terraform"
+#     Role        = "secondary"
+#     Provider    = "oracle"
+#   }
+# }
 
