@@ -1,6 +1,5 @@
-# Global variables for all cloud providers
+# AWS-specific variables
 
-# AWS Configuration
 variable "aws_region" {
   description = "AWS region"
   type        = string
@@ -19,7 +18,6 @@ variable "aws_secret_access_key" {
   sensitive   = true
 }
 
-# Cloudflare Configuration
 variable "cloudflare_api_token" {
   description = "Cloudflare API token"
   type        = string
@@ -31,7 +29,6 @@ variable "cloudflare_zone_id" {
   type        = string
 }
 
-# GitHub OAuth Configuration
 variable "github_client_id" {
   description = "GitHub OAuth client ID"
   type        = string

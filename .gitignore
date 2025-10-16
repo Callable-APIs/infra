@@ -248,4 +248,4 @@ terraform_output/
 *.tmp
 *.temp
 *.bak
-*.backup
+*.backupterraform/ssh_keys/keys/

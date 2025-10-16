@@ -1,12 +1,8 @@
-# US-WEST-2 Region Configuration - Practical Migration
-# Generated on 2025-01-05 17:15:00 UTC
-# 
-# This file contains the practical migration configuration for us-west-2.
-# It preserves the existing application architecture while consolidating to us-west-2.
+# AWS Infrastructure Module
+# This module contains all AWS-specific resources
 
 # Data source for latest Amazon Linux 2 AMI
 data "aws_ami" "amazon_linux" {
-  provider = aws.us_west_2
 
   most_recent = true
   owners      = ["amazon"]
@@ -24,7 +20,6 @@ data "aws_ami" "amazon_linux" {
 
 # Use the specific AMI that's currently running
 data "aws_ami" "current_instance" {
-  provider = aws.us_west_2
 
   filter {
     name   = "image-id"
@@ -34,7 +29,6 @@ data "aws_ami" "current_instance" {
 
 # VPC for us-west-2
 resource "aws_vpc" "main" {
-  provider = aws.us_west_2
 
   cidr_block           = "172.31.0.0/16"
   enable_dns_hostnames = true
@@ -49,7 +43,6 @@ resource "aws_vpc" "main" {
 
 # Internet Gateway
 resource "aws_internet_gateway" "main" {
-  provider = aws.us_west_2
 
   vpc_id = aws_vpc.main.id
 
@@ -62,7 +55,6 @@ resource "aws_internet_gateway" "main" {
 
 # Route Table
 resource "aws_route_table" "public" {
-  provider = aws.us_west_2
 
   vpc_id = aws_vpc.main.id
 
@@ -80,14 +72,12 @@ resource "aws_route_table" "public" {
 
 # Route Table Associations
 resource "aws_route_table_association" "public_1" {
-  provider = aws.us_west_2
 
   subnet_id      = aws_subnet.public_1.id
   route_table_id = aws_route_table.public.id
 }
 
 resource "aws_route_table_association" "public_2" {
-  provider = aws.us_west_2
 
   subnet_id      = aws_subnet.public_2.id
   route_table_id = aws_route_table.public.id
@@ -95,7 +85,6 @@ resource "aws_route_table_association" "public_2" {
 
 # Public Subnets
 resource "aws_subnet" "public_1" {
-  provider = aws.us_west_2
 
   vpc_id                  = aws_vpc.main.id
   cidr_block              = "172.31.1.0/24"
@@ -110,7 +99,6 @@ resource "aws_subnet" "public_1" {
 }
 
 resource "aws_subnet" "public_2" {
-  provider = aws.us_west_2
 
   vpc_id                  = aws_vpc.main.id
   cidr_block              = "172.31.2.0/24"
@@ -126,7 +114,6 @@ resource "aws_subnet" "public_2" {
 
 # Security Group for Elastic Beanstalk
 resource "aws_security_group" "eb_security_group" {
-  provider = aws.us_west_2
 
   name        = "callableapis-eb-sg"
   description = "Security group for CallableAPIs Elastic Beanstalk"
@@ -173,7 +160,6 @@ resource "aws_security_group" "eb_security_group" {
 
 # Security Group for API Instance
 resource "aws_security_group" "api_security_group" {
-  provider = aws.us_west_2
 
   name        = "callableapis-api-sg"
   description = "Security group for CallableAPIs API instance"
@@ -220,7 +206,6 @@ resource "aws_security_group" "api_security_group" {
 
 # Key Pair (you'll need to create this manually or import existing)
 resource "aws_key_pair" "callableapis_key" {
-  provider = aws.us_west_2
 
   key_name   = "callableapis-key"
   public_key = file("id_rsa.pub")
@@ -234,7 +219,6 @@ resource "aws_key_pair" "callableapis_key" {
 
 # Elastic Beanstalk Application
 resource "aws_elastic_beanstalk_application" "callableapis" {
-  provider = aws.us_west_2
 
   name        = "callableapis"
   description = "CallableAPIs application"
@@ -254,7 +238,6 @@ resource "aws_elastic_beanstalk_application" "callableapis" {
 
 # Elastic Beanstalk Environment
 resource "aws_elastic_beanstalk_environment" "callableapis_env" {
-  provider = aws.us_west_2
 
   name                = "callableapis-java-env"
   application         = aws_elastic_beanstalk_application.callableapis.name
@@ -314,7 +297,6 @@ resource "aws_elastic_beanstalk_environment" "callableapis_env" {
 
 # IAM Role for Elastic Beanstalk Service
 resource "aws_iam_role" "eb_service_role" {
-  provider = aws.us_west_2
 
   name = "callableapis-eb-service-role"
 
@@ -340,7 +322,6 @@ resource "aws_iam_role" "eb_service_role" {
 
 # Attach AWS managed policy for Elastic Beanstalk service role
 resource "aws_iam_role_policy_attachment" "eb_service_role_policy" {
-  provider = aws.us_west_2
 
   role       = aws_iam_role.eb_service_role.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSElasticBeanstalkEnhancedHealth"
@@ -348,7 +329,6 @@ resource "aws_iam_role_policy_attachment" "eb_service_role_policy" {
 
 # IAM Role for EC2 instances
 resource "aws_iam_role" "eb_instance_role" {
-  provider = aws.us_west_2
 
   name = "callableapis-eb-instance-role"
 
@@ -374,7 +354,6 @@ resource "aws_iam_role" "eb_instance_role" {
 
 # Attach AWS managed policy for EC2 instances
 resource "aws_iam_role_policy_attachment" "eb_instance_role_policy" {
-  provider = aws.us_west_2
 
   role       = aws_iam_role.eb_instance_role.name
   policy_arn = "arn:aws:iam::aws:policy/AWSElasticBeanstalkWebTier"
@@ -382,7 +361,6 @@ resource "aws_iam_role_policy_attachment" "eb_instance_role_policy" {
 
 # IAM Instance Profile
 resource "aws_iam_instance_profile" "eb_instance_profile" {
-  provider = aws.us_west_2
 
   name = "callableapis-eb-instance-profile"
   role = aws_iam_role.eb_instance_role.name
@@ -396,7 +374,6 @@ resource "aws_iam_instance_profile" "eb_instance_profile" {
 
 # Attach CodeDeploy EC2 policy to EB instance role
 resource "aws_iam_role_policy_attachment" "eb_codedeploy_policy" {
-  provider = aws.us_west_2
 
   role       = aws_iam_role.eb_instance_role.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEC2RoleforAWSCodeDeploy"
