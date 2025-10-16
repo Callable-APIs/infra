@@ -119,11 +119,11 @@ resource "google_compute_instance" "callableapis_e2_micro" {
   }
 
   labels = {
-    Name        = "callableapis-e2-micro"
-    Environment = "production"
-    ManagedBy   = "terraform"
-    Provider    = "google"
-    Role        = "monitoring"
+    name        = "callableapis-e2-micro"
+    environment = "production"
+    managed_by  = "terraform"
+    provider    = "google"
+    role        = "monitoring"
   }
 }
 

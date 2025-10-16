@@ -59,6 +59,15 @@ resource "cloudflare_record" "node1" {
   comment = "Oracle Cloud node1 instance"
 }
 
+resource "cloudflare_record" "google" {
+  zone_id = data.cloudflare_zone.callableapis.id
+  name    = "google"
+  type    = "A"
+  content = "35.233.161.8"
+  proxied = false
+  comment = "Google Cloud e2-micro instance"
+}
+
 # SSL/TLS Settings
 resource "cloudflare_zone_settings_override" "ssl" {
   zone_id = data.cloudflare_zone.callableapis.id

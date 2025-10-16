@@ -6,7 +6,7 @@ oracle-arm-1 ansible_host=159.54.170.237 ansible_user=ansible provider=oracle ro
 oracle-arm-2 ansible_host= ansible_user=ubuntu provider=oracle role=secondary
 
 [google_cloud]
-google-e2-micro ansible_host= ansible_user=ubuntu provider=google role=monitoring
+google-e2-micro ansible_host=35.233.161.8 ansible_user=ansible provider=google role=monitoring
 
 [ibm_cloud]
 ibm-vsi ansible_host= ansible_user=ubuntu provider=ibm role=services
