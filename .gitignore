@@ -252,3 +252,9 @@ terraform_output/
 
 # Generated reports
 multicloud_billing_report_*.md
+
+# Ansible secrets artifacts
+ansible/artifacts/
+
+# Ansible inventory with sensitive data
+ansible/inventory/production

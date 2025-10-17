@@ -1,0 +1,20 @@
+# Global variables for all hosts
+
+# Container configuration
+container_memory_limit: "256m"
+container_cpu_limit: "0.5"
+
+# API configuration
+api_port: 8080
+api_health_path: "/health"
+
+# Registry configuration
+container_registry: "docker.io"
+registry_namespace: "your-dockerhub-username"
+
+# Service configuration
+api_service_name: "callableapis-api"
+api_container_name: "callableapis-api"
+
+# System configuration
+timezone: "UTC"

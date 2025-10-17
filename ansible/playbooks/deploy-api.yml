@@ -1,0 +1,83 @@
+---
+- name: Deploy CallableAPIs API Container
+  hosts: api_servers
+  become: yes
+  vars:
+    container_image: "{{ registry_namespace }}/callableapis:base"
+    container_name: "callableapis-api"
+    api_port: "8080"
+    memory_limit: "256m"
+    secrets_dir: "/etc/vault-secrets"
+
+  tasks:
+    - name: Install containerd if not present
+      command: nerdctl version
+      register: containerd_check
+      failed_when: false
+      changed_when: false
+
+    - name: Install containerd
+      include_tasks: containerd-setup.yml
+      when: containerd_check.rc != 0
+
+    - name: Pull container image
+      command: nerdctl pull {{ container_image }}
+      register: pull_result
+      changed_when: "'Downloaded newer image' in pull_result.stdout"
+
+    - name: Stop existing container if running
+      command: nerdctl stop {{ container_name }}
+      ignore_errors: yes
+
+    - name: Remove existing container if exists
+      command: nerdctl rm {{ container_name }}
+      ignore_errors: yes
+
+    - name: Run API container with secrets mounted
+      command: >
+        nerdctl run -d
+        --name {{ container_name }}
+        --restart unless-stopped
+        --memory {{ memory_limit }}
+        --cpus 0.5
+        -p {{ api_port }}:8080
+        -v {{ secrets_dir }}/vault-password:/app/vault-password:ro
+        -v {{ secrets_dir }}/secrets.yml:/app/secrets/all-secrets.env:ro
+        {{ container_image }}
+      register: container_run
+
+    - name: Wait for container to be ready
+      wait_for:
+        port: "{{ api_port }}"
+        host: "127.0.0.1"
+        delay: 5
+        timeout: 60
+
+    - name: Test API health endpoint
+      uri:
+        url: "http://127.0.0.1:{{ api_port }}/health"
+        method: GET
+        status_code: 200
+      register: health_check
+
+    - name: Test API status endpoint
+      uri:
+        url: "http://127.0.0.1:{{ api_port }}/api/status"
+        method: GET
+        status_code: 200
+      register: status_check
+
+    - name: Display deployment summary
+      debug:
+        msg: |
+          API Container Deployment Summary:
+          - Container: {{ container_name }}
+          - Image: {{ container_image }}
+          - Port: {{ api_port }}
+          - Memory Limit: {{ memory_limit }}
+          - Health Check: {{ 'PASSED' if health_check.status == 200 else 'FAILED' }}
+          - Status Check: {{ 'PASSED' if status_check.status == 200 else 'FAILED' }}
+
+          Test endpoints:
+          - Health: http://{{ ansible_default_ipv4.address }}:{{ api_port }}/health
+          - Status: http://{{ ansible_default_ipv4.address }}:{{ api_port }}/api/status
