@@ -1,4 +1,4 @@
-name: Generate and Deploy AWS Cost Report
+name: Generate and Deploy Multi-Cloud Cost Reports
 
 on:
   schedule:
@@ -71,34 +71,115 @@ jobs:
           echo "[default]" > ~/.aws/config
           echo "region = us-east-1" >> ~/.aws/config
 
-      - name: Generate AWS Cost Report
+      - name: Generate Multi-Cloud Cost Reports
         run: |
           # Use input parameter or default to 30 days
           DAYS_BACK="${{ github.event.inputs.days_back || '30' }}"
           REPORT_TYPE="${{ github.event.inputs.report_type || 'both' }}"
-          echo "Generating report for last $DAYS_BACK days (type: $REPORT_TYPE)..."
+          echo "Generating reports for last $DAYS_BACK days (type: $REPORT_TYPE)..."
 
           # Create reports directory
           mkdir -p reports
 
-          # Generate reports based on type
+          # Generate AWS reports based on type
           if [ "$REPORT_TYPE" = "public" ] || [ "$REPORT_TYPE" = "both" ]; then
-            echo "Generating public report..."
+            echo "Generating AWS public report..."
             poetry run aws-infra-report --days $DAYS_BACK --output reports
           fi
 
           if [ "$REPORT_TYPE" = "internal" ] || [ "$REPORT_TYPE" = "both" ]; then
-            echo "Generating internal report..."
+            echo "Generating AWS internal report..."
             poetry run aws-infra-report --days $DAYS_BACK --output reports --internal
           fi
 
-          # Verify report was generated
+          # Generate multi-cloud billing report
+          echo "Generating multi-cloud billing report..."
+          poetry run python scripts/update_billing_report.py
+          
+          # Copy the generated multi-cloud report to reports directory
+          if [ -f "multicloud_billing_report_*.md" ]; then
+            cp multicloud_billing_report_*.md reports/
+            echo "Multi-cloud billing report copied to reports directory"
+          fi
+
+          # Create a comprehensive index page
+          echo "Creating comprehensive index page..."
+          cat > reports/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>CallableAPIs - Multi-Cloud Cost Reports</title>
+              <style>
+                  body { font-family: Arial, sans-serif; margin: 40px; background: #f5f5f5; }
+                  .container { max-width: 1200px; margin: 0 auto; background: white; padding: 40px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+                  h1 { color: #333; text-align: center; margin-bottom: 30px; }
+                  .report-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin: 30px 0; }
+                  .report-card { border: 1px solid #ddd; border-radius: 8px; padding: 20px; background: #fafafa; }
+                  .report-card h3 { color: #2c5aa0; margin-top: 0; }
+                  .report-card a { color: #2c5aa0; text-decoration: none; font-weight: bold; }
+                  .report-card a:hover { text-decoration: underline; }
+                  .summary { background: #e8f4fd; padding: 20px; border-radius: 8px; margin: 20px 0; }
+                  .timestamp { color: #666; font-size: 0.9em; text-align: center; margin-top: 30px; }
+              </style>
+          </head>
+          <body>
+              <div class="container">
+                  <h1>CallableAPIs Multi-Cloud Cost Reports</h1>
+                  
+                  <div class="summary">
+                      <h2>📊 Report Summary</h2>
+                      <p>This dashboard provides comprehensive cost analysis across all cloud providers:</p>
+                      <ul>
+                          <li><strong>AWS:</strong> Detailed cost breakdown with service-level analysis</li>
+                          <li><strong>Multi-Cloud:</strong> Comprehensive billing report across AWS, Oracle Cloud, Google Cloud, and IBM Cloud</li>
+                          <li><strong>Free Tier:</strong> Value calculation and cost savings analysis</li>
+                      </ul>
+                  </div>
+
+                  <div class="report-grid">
+                      <div class="report-card">
+                          <h3>🌐 Multi-Cloud Billing Report</h3>
+                          <p>Comprehensive billing analysis across all cloud providers with detailed cost breakdown, free tier value, and optimization recommendations.</p>
+                          <a href="multicloud_billing_report_latest.md">View Multi-Cloud Report</a>
+                      </div>
+                      
+                      <div class="report-card">
+                          <h3>☁️ AWS Cost Report (Public)</h3>
+                          <p>Detailed AWS cost analysis with service breakdown, resource utilization, and cost optimization insights.</p>
+                          <a href="aws-cost-report-public.html">View AWS Public Report</a>
+                      </div>
+                      
+                      <div class="report-card">
+                          <h3>🔒 AWS Cost Report (Internal)</h3>
+                          <p>Internal AWS cost analysis with detailed resource information and sensitive cost data.</p>
+                          <a href="aws-cost-report-internal.html">View AWS Internal Report</a>
+                      </div>
+                  </div>
+
+                  <div class="timestamp">
+                      Last updated: $(date -u '+%Y-%m-%d %H:%M:%S UTC')
+                  </div>
+              </div>
+          </body>
+          </html>
+          EOF
+
+          # Create a symlink for the latest multi-cloud report
+          if ls multicloud_billing_report_*.md 1> /dev/null 2>&1; then
+            LATEST_REPORT=$(ls -t multicloud_billing_report_*.md | head -n1)
+            ln -sf "$LATEST_REPORT" reports/multicloud_billing_report_latest.md
+            echo "Created symlink for latest multi-cloud report: $LATEST_REPORT"
+          fi
+
+          # Verify reports were generated
           if [ ! -f "reports/index.html" ]; then
-            echo "Error: Report not generated successfully"
+            echo "Error: Index page not generated successfully"
             exit 1
           fi
 
-          echo "Report generated successfully"
+          echo "All reports generated successfully"
           ls -la reports/
 
       - name: Upload report artifacts
@@ -132,28 +213,34 @@ jobs:
       - name: Notify on success
         if: needs.generate-and-deploy.result == 'success'
         run: |
-          echo "✅ AWS Cost Report published successfully to GitHub Pages"
-          echo "📊 Report available at: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}"
+          echo "✅ Multi-Cloud Cost Reports published successfully to GitHub Pages"
+          echo "📊 Reports available at: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}"
+          echo "🌐 Multi-Cloud Billing Report included"
 
       - name: Notify on failure
         if: needs.generate-and-deploy.result == 'failure'
         run: |
-          echo "❌ Failed to publish AWS Cost Report"
+          echo "❌ Failed to publish Multi-Cloud Cost Reports"
           echo "Check the workflow logs for details"
 
       - name: Create summary
         if: always()
         run: |
-          echo "## AWS Cost Report Deployment" >> $GITHUB_STEP_SUMMARY
+          echo "## Multi-Cloud Cost Reports Deployment" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           if [ "${{ needs.generate-and-deploy.result }}" == "success" ]; then
-            echo "✅ **Report generated and deployed successfully**" >> $GITHUB_STEP_SUMMARY
+            echo "✅ **Reports generated and deployed successfully**" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "📊 **Report Details:**" >> $GITHUB_STEP_SUMMARY
             echo "- Generated: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
             echo "- Period: Last ${{ github.event.inputs.days_back || '30' }} days" >> $GITHUB_STEP_SUMMARY
             echo "- Type: ${{ github.event.inputs.report_type || 'both' }}" >> $GITHUB_STEP_SUMMARY
-            echo "- Report URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}" >> $GITHUB_STEP_SUMMARY
+            echo "- Reports URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "🌐 **Multi-Cloud Reports:**" >> $GITHUB_STEP_SUMMARY
+            echo "- AWS Cost Report (Public & Internal)" >> $GITHUB_STEP_SUMMARY
+            echo "- Multi-Cloud Billing Report (AWS, Oracle, Google, IBM)" >> $GITHUB_STEP_SUMMARY
+            echo "- Free Tier Value Analysis" >> $GITHUB_STEP_SUMMARY
           else
             echo "❌ **Report generation/deployment failed**" >> $GITHUB_STEP_SUMMARY
             echo "Check the workflow logs for details." >> $GITHUB_STEP_SUMMARY
