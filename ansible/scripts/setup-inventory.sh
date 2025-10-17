@@ -34,17 +34,28 @@ fi
 echo -e "${BLUE}Creating production inventory from template...${NC}"
 cp "$INVENTORY_DIR/production.in" "$INVENTORY_DIR/production"
 
+# Check if ansible.cfg exists, if not create from template
+if [ ! -f "$ANSIBLE_DIR/ansible.cfg" ]; then
+    echo -e "${BLUE}Creating ansible.cfg from template...${NC}"
+    cp "$ANSIBLE_DIR/ansible.cfg.in" "$ANSIBLE_DIR/ansible.cfg"
+    echo -e "${GREEN}ansible.cfg created!${NC}"
+else
+    echo -e "${YELLOW}ansible.cfg already exists, skipping...${NC}"
+fi
+
 echo -e "${GREEN}Production inventory created!${NC}"
 echo ""
 echo -e "${YELLOW}Next steps:${NC}"
 echo "1. Edit ansible/inventory/production"
-echo "2. Replace placeholder values with your actual IPs:"
+echo "2. Edit ansible/ansible.cfg (if needed)"
+echo "3. Replace placeholder values with your actual IPs:"
 echo "   - YOUR_ORACLE_IP"
 echo "   - YOUR_GOOGLE_IP" 
 echo "   - YOUR_IBM_IP"
 echo "   - YOUR_AWS_IP"
+echo "   - your_private_key (in ansible.cfg)"
 echo ""
-echo "3. Test connection:"
+echo "4. Test connection:"
 echo "   ansible all -i inventory/production -m ping"
 echo ""
-echo -e "${BLUE}Note: The production inventory file is gitignored for security.${NC}"
+echo -e "${BLUE}Note: Both production inventory and ansible.cfg are gitignored for security.${NC}"
