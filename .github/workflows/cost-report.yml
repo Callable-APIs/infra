@@ -95,7 +95,7 @@ jobs:
           # Generate multi-cloud billing report
           echo "Generating multi-cloud billing report..."
           poetry run python scripts/update_billing_report.py
-          
+
           # Copy the generated multi-cloud report to reports directory
           if [ -f "multicloud_billing_report_*.md" ]; then
             cp multicloud_billing_report_*.md reports/
@@ -201,8 +201,8 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
 
-       # Note: Reports are deployed to GitHub Pages directly from artifacts
-       # No need to commit reports to repository as they're in .gitignore
+        # Note: Reports are deployed to GitHub Pages directly from artifacts
+        # No need to commit reports to repository as they're in .gitignore
 
   notify:
     needs: generate-and-deploy
