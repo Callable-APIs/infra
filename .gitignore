@@ -248,4 +248,7 @@ terraform_output/
 *.tmp
 *.temp
 *.bak
-*.backupterraform/ssh_keys/keys/
+*.backup
+
+# Generated reports
+multicloud_billing_report_*.md
