@@ -258,3 +258,6 @@ ansible/artifacts/
 
 # Ansible inventory with sensitive data
 ansible/inventory/production
+
+# Ansible configuration with sensitive data
+ansible/ansible.cfg
