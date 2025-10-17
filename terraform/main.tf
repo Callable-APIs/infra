@@ -68,6 +68,15 @@ resource "cloudflare_record" "google" {
   comment = "Google Cloud e2-micro instance"
 }
 
+resource "cloudflare_record" "ibm" {
+  zone_id = data.cloudflare_zone.callableapis.id
+  name    = "ibm"
+  type    = "A"
+  content = "52.116.135.43"
+  proxied = false
+  comment = "IBM Cloud VSI instance"
+}
+
 # SSL/TLS Settings
 resource "cloudflare_zone_settings_override" "ssl" {
   zone_id = data.cloudflare_zone.callableapis.id

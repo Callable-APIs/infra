@@ -23,7 +23,7 @@ data "ibm_is_zones" "zones" {
 }
 
 data "ibm_is_image" "ubuntu" {
-  name = "ubuntu-20-04-amd64"
+  name = "ibm-ubuntu-20-04-6-minimal-amd64-2"
 }
 
 # VPC
@@ -37,8 +37,8 @@ resource "ibm_is_vpc" "callableapis_vpc" {
 resource "ibm_is_subnet" "callableapis_subnet" {
   name            = "callableapis-subnet"
   vpc             = ibm_is_vpc.callableapis_vpc.id
-  zone            = data.ibm_is_zones.zones.zones[0].name
-  ipv4_cidr_block = "10.2.0.0/24"
+  zone            = data.ibm_is_zones.zones.zones[0]
+  ipv4_cidr_block = "10.240.0.0/24"
   resource_group  = var.resource_group_id
   tags            = ["callableapis", "production"]
 }
@@ -94,7 +94,7 @@ resource "ibm_is_ssh_key" "callableapis_key" {
 resource "ibm_is_instance" "callableapis_vsi" {
   name           = "callableapis-vsi"
   vpc            = ibm_is_vpc.callableapis_vpc.id
-  zone           = data.ibm_is_zones.zones.zones[0].name
+  zone           = data.ibm_is_zones.zones.zones[0]
   keys           = [ibm_is_ssh_key.callableapis_key.id]
   image          = data.ibm_is_image.ubuntu.id
   profile        = "bx2-2x8" # Free tier eligible profile

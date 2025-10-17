@@ -7,7 +7,7 @@ output "vsi_public_ip" {
 
 output "vsi_private_ip" {
   description = "Private IP of VSI instance"
-  value       = ibm_is_instance.callableapis_vsi.primary_network_interface[0].primary_ipv4_address
+  value       = ibm_is_instance.callableapis_vsi.primary_network_interface[0]
 }
 
 output "vpc_id" {
