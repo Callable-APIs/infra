@@ -143,7 +143,7 @@ class EnhancedBillingReport:
                     "machine_type": "e2-micro",
                     "status": "RUNNING",
                     "public_ip": "35.233.161.8",
-                    "dns_name": "google.callableapis.com",
+                    "dns_name": "gnode1.callableapis.com",
                     "cost": 0.0,
                     "note": "Free tier - 1 vCPU, 1GB RAM, 30GB storage"
                 }
@@ -171,7 +171,7 @@ class EnhancedBillingReport:
                     "memory_gb": 12,
                     "status": "RUNNING",
                     "public_ip": "159.54.170.237",
-                    "dns_name": "node1.callableapis.com",
+                    "dns_name": "onode1.callableapis.com",
                     "cost": 0.0,
                     "note": "Always Free Tier - AMD processor"
                 }
@@ -198,7 +198,7 @@ class EnhancedBillingReport:
                     "memory_gb": 8,
                     "status": "RUNNING",
                     "public_ip": "52.116.135.43",
-                    "dns_name": "ibm.callableapis.com",
+                    "dns_name": "inode1.callableapis.com",
                     "cost": 0.0,
                     "note": "Free tier - 30 days, then $0.00 if within limits"
                 }

@@ -50,31 +50,31 @@ resource "cloudflare_record" "api" {
   comment = "Elastic Beanstalk API endpoint"
 }
 
-resource "cloudflare_record" "node1" {
+resource "cloudflare_record" "onode1" {
   zone_id = data.cloudflare_zone.callableapis.id
-  name    = "node1"
+  name    = "onode1"
   type    = "A"
   content = "159.54.170.237"
   proxied = false
-  comment = "Oracle Cloud node1 instance"
+  comment = "Oracle Cloud onode1 instance"
 }
 
-resource "cloudflare_record" "google" {
+resource "cloudflare_record" "gnode1" {
   zone_id = data.cloudflare_zone.callableapis.id
-  name    = "google"
+  name    = "gnode1"
   type    = "A"
   content = "35.233.161.8"
   proxied = false
-  comment = "Google Cloud e2-micro instance"
+  comment = "Google Cloud gnode1 instance"
 }
 
-resource "cloudflare_record" "ibm" {
+resource "cloudflare_record" "inode1" {
   zone_id = data.cloudflare_zone.callableapis.id
-  name    = "ibm"
+  name    = "inode1"
   type    = "A"
   content = "52.116.135.43"
   proxied = false
-  comment = "IBM Cloud VSI instance"
+  comment = "IBM Cloud inode1 instance"
 }
 
 # SSL/TLS Settings
