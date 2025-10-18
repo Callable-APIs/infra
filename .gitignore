@@ -261,3 +261,6 @@ ansible/inventory/production
 
 # Ansible configuration with sensitive data
 ansible/ansible.cfg
+
+# Terraform sensitive files
+terraform/*/terraform.tfvars

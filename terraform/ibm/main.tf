@@ -33,6 +33,15 @@ resource "ibm_is_vpc" "callableapis_vpc" {
   tags           = ["callableapis", "production"]
 }
 
+# Public Gateway (for internet access)
+resource "ibm_is_public_gateway" "callableapis_pgw" {
+  name           = "callableapis-pgw"
+  vpc            = ibm_is_vpc.callableapis_vpc.id
+  zone           = data.ibm_is_zones.zones.zones[0]
+  resource_group = var.resource_group_id
+  tags           = ["callableapis", "production"]
+}
+
 # Subnet
 resource "ibm_is_subnet" "callableapis_subnet" {
   name            = "callableapis-subnet"
@@ -40,6 +49,7 @@ resource "ibm_is_subnet" "callableapis_subnet" {
   zone            = data.ibm_is_zones.zones.zones[0]
   ipv4_cidr_block = "10.240.0.0/24"
   resource_group  = var.resource_group_id
+  public_gateway  = ibm_is_public_gateway.callableapis_pgw.id
   tags            = ["callableapis", "production"]
 }
 
@@ -51,7 +61,7 @@ resource "ibm_is_security_group" "callableapis_sg" {
   tags           = ["callableapis", "production"]
 }
 
-# Security Group Rules
+# Security Group Rules - Inbound
 resource "ibm_is_security_group_rule" "callableapis_ssh" {
   group     = ibm_is_security_group.callableapis_sg.id
   direction = "inbound"
@@ -79,6 +89,47 @@ resource "ibm_is_security_group_rule" "callableapis_https" {
   tcp {
     port_min = 443
     port_max = 443
+  }
+}
+
+# Security Group Rules - Outbound (for internet access)
+resource "ibm_is_security_group_rule" "callableapis_outbound_http" {
+  group     = ibm_is_security_group.callableapis_sg.id
+  direction = "outbound"
+  remote    = "0.0.0.0/0"
+  tcp {
+    port_min = 80
+    port_max = 80
+  }
+}
+
+resource "ibm_is_security_group_rule" "callableapis_outbound_https" {
+  group     = ibm_is_security_group.callableapis_sg.id
+  direction = "outbound"
+  remote    = "0.0.0.0/0"
+  tcp {
+    port_min = 443
+    port_max = 443
+  }
+}
+
+resource "ibm_is_security_group_rule" "callableapis_outbound_dns" {
+  group     = ibm_is_security_group.callableapis_sg.id
+  direction = "outbound"
+  remote    = "0.0.0.0/0"
+  udp {
+    port_min = 53
+    port_max = 53
+  }
+}
+
+resource "ibm_is_security_group_rule" "callableapis_outbound_icmp" {
+  group     = ibm_is_security_group.callableapis_sg.id
+  direction = "outbound"
+  remote    = "0.0.0.0/0"
+  icmp {
+    type = 8
+    code = 0
   }
 }
 

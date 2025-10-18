@@ -1,0 +1,149 @@
+---
+- name: Validate and update standardization facts
+  hosts: all
+  become: yes
+  vars:
+    facts_dir: "/etc/callableapis/facts"
+
+  tasks:
+    - name: Create facts directory if it doesn't exist
+      file:
+        path: "{{ facts_dir }}"
+        state: directory
+        mode: "0755"
+        owner: root
+        group: root
+
+    - name: Check if facts directory exists
+      stat:
+        path: "{{ facts_dir }}"
+      register: facts_dir_stat
+
+    - name: Fail if facts directory doesn't exist
+      fail:
+        msg: "Facts directory {{ facts_dir }} does not exist. Run standardization playbook first."
+      when: not facts_dir_stat.stat.exists
+
+    - name: Read existing facts
+      slurp:
+        src: "{{ facts_dir }}/{{ item }}"
+      register: existing_facts
+      loop:
+        - python_version
+        - containerd_version
+        - containerd_status
+        - standardization_complete
+        - cloud_provider
+        - os_version
+        - standardization_date
+      ignore_errors: yes
+
+    - name: Verify Python installation
+      command: python3 --version
+      register: python_version_check
+      changed_when: false
+      ignore_errors: yes
+
+    - name: Verify containerd installation
+      command: containerd --version
+      register: containerd_version_check
+      changed_when: false
+      ignore_errors: yes
+
+    - name: Check containerd service status
+      command: systemctl is-active containerd
+      register: containerd_status_check
+      changed_when: false
+      ignore_errors: yes
+
+    - name: Determine if standardization is valid
+      set_fact:
+        python_valid: "{{ python_version_check.rc == 0 }}"
+        containerd_valid: "{{ containerd_version_check.rc == 0 }}"
+        containerd_running: "{{ containerd_status_check.rc == 0 and containerd_status_check.stdout == 'active' }}"
+        standardization_valid: "{{ python_valid and containerd_valid and containerd_running }}"
+
+    - name: Update facts if validation fails
+      block:
+        - name: Remove invalid facts
+          file:
+            path: "{{ facts_dir }}/{{ item }}"
+            state: absent
+          loop:
+            - python_version
+            - containerd_version
+            - containerd_status
+            - standardization_complete
+            - cloud_provider
+            - os_version
+            - standardization_date
+          when: not standardization_valid
+
+        - name: Write updated facts
+          copy:
+            content: "{{ item.value }}"
+            dest: "{{ facts_dir }}/{{ item.key }}"
+            mode: "0644"
+            owner: root
+            group: root
+          loop:
+            - {
+                key: "python_version",
+                value: "{{ python_version_check.stdout }}",
+              }
+            - {
+                key: "containerd_version",
+                value: "{{ containerd_version_check.stdout }}",
+              }
+            - {
+                key: "containerd_status",
+                value: "{{ containerd_status_check.stdout }}",
+              }
+            - {
+                key: "standardization_complete",
+                value: "{{ 'true' if standardization_valid else 'false' }}",
+              }
+            - {
+                key: "cloud_provider",
+                value: "{{ 'oracle' if 'oracle' in group_names else 'google' if 'google' in group_names else 'ibm' if 'ibm' in group_names else 'unknown' }}",
+              }
+            - {
+                key: "os_version",
+                value: "{{ ansible_distribution }} {{ ansible_distribution_version }}",
+              }
+            - {
+                key: "standardization_date",
+                value: "{{ ansible_date_time.iso8601 }}",
+              }
+          when: not standardization_valid
+
+    - name: Read current facts
+      slurp:
+        src: "{{ facts_dir }}/{{ item }}"
+      register: current_facts
+      loop:
+        - python_version
+        - containerd_version
+        - containerd_status
+        - standardization_complete
+        - cloud_provider
+        - os_version
+        - standardization_date
+
+    - name: Display fact validation results
+      debug:
+        msg: |
+          Fact Validation Results for {{ inventory_hostname }}:
+          - Python Valid: {{ python_valid }}
+          - Containerd Valid: {{ containerd_valid }}
+          - Containerd Running: {{ containerd_running }}
+          - Standardization Valid: {{ standardization_valid }}
+
+          Current Facts:
+          - Python: {{ current_facts.results[0].content | b64decode | trim if current_facts.results[0].content is defined else 'Not set' }}
+          - Containerd: {{ current_facts.results[1].content | b64decode | trim if current_facts.results[1].content is defined else 'Not set' }}
+          - Status: {{ current_facts.results[2].content | b64decode | trim if current_facts.results[2].content is defined else 'Not set' }}
+          - Complete: {{ current_facts.results[3].content | b64decode | trim if current_facts.results[3].content is defined else 'Not set' }}
+          - Provider: {{ current_facts.results[4].content | b64decode | trim if current_facts.results[4].content is defined else 'Not set' }}
+          - OS: {{ current_facts.results[5].content | b64decode | trim if current_facts.results[5].content is defined else 'Not set' }}
+          - Date: {{ current_facts.results[6].content | b64decode | trim if current_facts.results[6].content is defined else 'Not set' }}

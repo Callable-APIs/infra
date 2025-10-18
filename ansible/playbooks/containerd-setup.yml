@@ -2,6 +2,33 @@
 - name: Install and configure containerd on all nodes
   hosts: all
   become: yes
+
+  pre_tasks:
+    - name: Check if standardization facts exist
+      stat:
+        path: /etc/callableapis/facts/standardization_complete
+      register: standardization_fact
+
+    - name: Read standardization status
+      slurp:
+        src: /etc/callableapis/facts/standardization_complete
+      register: standardization_status
+      when: standardization_fact.stat.exists
+
+    - name: Check if host has been standardized
+      fail:
+        msg: |
+          Host {{ inventory_hostname }} has not been standardized!
+
+          Run the appropriate standardization playbook first:
+          - Oracle Cloud: ansible-playbook -i inventory/production playbooks/install-containerd-direct.yml --limit oracle_cloud
+          - Google Cloud: ansible-playbook -i inventory/production playbooks/install-containerd-direct.yml --limit google_cloud
+          - IBM Cloud: ansible-playbook -i inventory/production playbooks/install-containerd-direct.yml --limit ibm_cloud
+          - All hosts: ansible-playbook -i inventory/production playbooks/install-containerd-direct.yml
+
+          Or validate existing facts:
+          ansible-playbook -i inventory/production playbooks/validate-facts.yml
+      when: not standardization_fact.stat.exists or not (standardization_status.content is defined and standardization_status.content | b64decode | trim == 'true')
   vars:
     containerd_version: "1.7.13"
     runc_version: "1.1.12"
