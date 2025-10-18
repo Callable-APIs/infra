@@ -1,6 +1,11 @@
 name: Generate and Deploy Multi-Cloud Cost Reports
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - ".github/workflows/cost-report.yml"
   schedule:
     # Run daily at 02:00 UTC
     - cron: "0 2 * * *"
