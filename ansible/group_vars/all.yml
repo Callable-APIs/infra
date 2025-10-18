@@ -10,7 +10,7 @@ api_health_path: "/health"
 
 # Registry configuration
 container_registry: "docker.io"
-registry_namespace: "your-dockerhub-username"
+registry_namespace: "{{ dockerhub_username | default('your-dockerhub-username') }}"
 
 # Service configuration
 api_service_name: "callableapis-api"
