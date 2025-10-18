@@ -15,7 +15,7 @@
 ### **Base Container**
 ```bash
 # Image: your-dockerhub-username/callableapis:base
-# Source: containers/api/
+# Source: containers/base/
 # Purpose: Base container for all CallableAPIs services
 ```
 
@@ -103,7 +103,7 @@ docker run -d \
 
 ### **Current: Base Container**
 ```yaml
-# Triggers on: containers/api/** changes
+# Triggers on: containers/base/** changes
 # Builds: your-dockerhub-username/callableapis:base
 # Pushes to: docker.io/your-dockerhub-username/callableapis
 ```
@@ -144,7 +144,7 @@ docker run -d \
 1. **Create Docker Hub repository** (`callableapis`)
 2. **Update GitHub secrets** with your Docker Hub credentials
 3. **Replace placeholder** `your-dockerhub-username` in config files
-4. **Test container build** by pushing changes to `containers/api/`
+4. **Test container build** by pushing changes to `containers/base/`
 5. **Deploy to onode1** using the new container image
 
 Ready to proceed with the Docker Hub setup?

@@ -1,4 +1,4 @@
-# Multi-stage build for CallableAPIs API
+# Multi-stage build for CallableAPIs Base Container
 FROM alpine:3.19 as builder
 
 # Install build dependencies

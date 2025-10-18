@@ -48,7 +48,7 @@ infra/ (PRIVATE)
 ### **Container Registry:**
 - **Registry**: `docker.io`
 - **Namespace**: `your-dockerhub-username`
-- **Images**: `your-dockerhub-username/callableapis:api`
+- **Images**: `your-dockerhub-username/callableapis:base`
 
 ### **Security Model:**
 - **Infra repo**: Private (contains IPs, regions, cloud configs)
@@ -59,14 +59,14 @@ infra/ (PRIVATE)
 
 ### **1. Build & Push (GitHub Actions)**
 ```yaml
-# Triggers on changes to containers/api/
-# Builds: your-dockerhub-username/callableapis:api
+# Triggers on changes to containers/base/
+# Builds: your-dockerhub-username/callableapis:base
 # Pushes to: docker.io/your-dockerhub-username/callableapis
 ```
 
 ### **2. Deploy (Ansible)**
 ```bash
-# Pulls: your-dockerhub-username/callableapis:api
+# Pulls: your-dockerhub-username/callableapis:base
 # Deploys to: onode1.callableapis.com
 # Exposes via: nginx reverse proxy
 ```
