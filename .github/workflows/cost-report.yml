@@ -182,7 +182,7 @@ jobs:
             ln -sf "$LATEST_BILLING_REPORT" reports/multicloud_billing_report_latest.md
             echo "Created symlink for latest multi-cloud billing report: $LATEST_BILLING_REPORT"
           fi
-          
+
           if ls multicloud_cost_report_*.html 1> /dev/null 2>&1; then
             LATEST_COST_REPORT=$(ls -t multicloud_cost_report_*.html | head -n1)
             ln -sf "$LATEST_COST_REPORT" reports/multicloud_cost_report_latest.html
