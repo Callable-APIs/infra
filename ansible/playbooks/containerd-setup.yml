@@ -8,10 +8,18 @@
     cni_version: "1.4.0"
 
   tasks:
+    - name: Add ansible user to sudoers
+      user:
+        name: ansible
+        groups: sudo
+        append: yes
+
     - name: Update package cache
       apt:
         update_cache: yes
         cache_valid_time: 3600
+      retries: 3
+      delay: 10
 
     - name: Install required packages
       apt:
@@ -49,6 +57,14 @@
         name: runc
         state: present
 
+    - name: Create CNI plugins directory
+      file:
+        path: /opt/cni/bin
+        state: directory
+        mode: "0755"
+        owner: root
+        group: root
+
     - name: Install CNI plugins
       unarchive:
         src: "https://github.com/containernetworking/plugins/releases/download/v{{ cni_version }}/cni-plugins-linux-amd64-v{{ cni_version }}.tgz"
@@ -64,14 +80,15 @@
         state: directory
         mode: "0755"
 
-    - name: Generate containerd config
-      command: containerd config default
-      register: containerd_config
-      changed_when: false
-
-    - name: Write containerd configuration
+    - name: Create basic containerd configuration
       copy:
-        content: "{{ containerd_config.stdout }}"
+        content: |
+          version = 2
+          [plugins."io.containerd.grpc.v1.cri"]
+            [plugins."io.containerd.grpc.v1.cri".containerd]
+              [plugins."io.containerd.grpc.v1.cri".containerd.runtimes]
+                [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc]
+                  runtime_type = "io.containerd.runc.v2"
         dest: /etc/containerd/config.toml
         mode: "0644"
       notify: restart containerd
