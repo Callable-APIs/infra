@@ -85,19 +85,23 @@ class MultiCloudCostAnalyzer:
                     if cost > 0:
                         aws_costs["total_cost"] += cost
                         
+                        # Sanitize usage type and service name for public reports
+                        sanitized_usage_type = self._sanitize_usage_type(usage_type)
+                        sanitized_service = self._sanitize_service_name(service)
+                        
                         # Categorize by service type
                         category = self._categorize_aws_service(service, usage_type)
                         aws_costs["resource_categories"][category]["cost"] += cost
                         aws_costs["resource_categories"][category]["resources"].append({
-                            "service": service,
-                            "usage_type": usage_type,
+                            "service": sanitized_service,
+                            "usage_type": sanitized_usage_type,
                             "cost": cost,
                         })
 
                         # Add to services list
                         aws_costs["services"].append({
-                            "service": service,
-                            "usage_type": usage_type,
+                            "service": sanitized_service,
+                            "usage_type": sanitized_usage_type,
                             "cost": cost,
                         })
 
@@ -166,6 +170,106 @@ class MultiCloudCostAnalyzer:
             return "databases"
 
         return "other"
+
+    def _sanitize_usage_type(self, usage_type: str) -> str:
+        """
+        Sanitize usage type to remove sensitive information while preserving useful context.
+
+        Args:
+            usage_type: Original usage type
+
+        Returns:
+            Sanitized usage type
+        """
+        import re
+        
+        # Remove IP addresses
+        sanitized = re.sub(r'\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b', '[IP]', usage_type)
+        
+        # Replace specific region/zone identifiers with generic region names
+        # Keep the provider context but remove specific identifiers
+        region_patterns = [
+            (r'\b(us|eu|ap|ca|sa|af|me)[a-z0-9-]+\b', r'\1-[Region]', re.IGNORECASE),  # USW2, USE1, etc.
+            (r'\b(us|eu|ap|ca|sa|af|me)-[a-z0-9-]+\b', r'\1-[Region]', re.IGNORECASE),  # us-west-2, eu-west-1, etc.
+            (r'\b(us|eu|ap|ca|sa|af|me)-[a-z]+-[0-9]+[a-z]?\b', r'\1-[Region]', re.IGNORECASE),  # us-west-2a, eu-west-1b, etc.
+        ]
+        
+        for pattern, replacement, flags in region_patterns:
+            sanitized = re.sub(pattern, replacement, sanitized, flags=flags)
+        
+        # Replace specific resource IDs with generic identifiers
+        # Keep the resource type but remove specific IDs
+        resource_patterns = [
+            (r'\b(i-[a-z0-9]+)\b', 'i-[Instance]', re.IGNORECASE),  # EC2 instances
+            (r'\b(vol-[a-z0-9]+)\b', 'vol-[Volume]', re.IGNORECASE),  # EBS volumes
+            (r'\b(snap-[a-z0-9]+)\b', 'snap-[Snapshot]', re.IGNORECASE),  # Snapshots
+            (r'\b(ami-[a-z0-9]+)\b', 'ami-[Image]', re.IGNORECASE),  # AMI images
+            (r'\b(sg-[a-z0-9]+)\b', 'sg-[SecurityGroup]', re.IGNORECASE),  # Security groups
+            (r'\b(subnet-[a-z0-9]+)\b', 'subnet-[Subnet]', re.IGNORECASE),  # Subnets
+            (r'\b(vpc-[a-z0-9]+)\b', 'vpc-[VPC]', re.IGNORECASE),  # VPCs
+        ]
+        
+        for pattern, replacement, flags in resource_patterns:
+            sanitized = re.sub(pattern, replacement, sanitized, flags=flags)
+        
+        # Remove account-specific identifiers
+        sanitized = re.sub(r'\b\d{12}\b', '[Account]', sanitized)  # 12-digit AWS account numbers
+        
+        # Handle multiple resource groups by adding designators
+        # Look for patterns like "Resource Group 1", "Resource Group 2", etc.
+        resource_group_count = {}
+        def replace_resource_group(match):
+            provider = match.group(1).lower()
+            if provider not in resource_group_count:
+                resource_group_count[provider] = 0
+            resource_group_count[provider] += 1
+            
+            designators = ['Alpha', 'Bravo', 'Charlie', 'Delta', 'Echo', 'Foxtrot', 'Golf', 'Hotel']
+            if resource_group_count[provider] <= len(designators):
+                return f"{provider.title()} Resource Group {designators[resource_group_count[provider]-1]}"
+            else:
+                return f"{provider.title()} Resource Group {resource_group_count[provider]}"
+        
+        # Apply resource group replacement
+        sanitized = re.sub(r'\b(aws|azure|gcp|ibm|oracle)\s+resource\s+group\s*(\d+)?', 
+                          replace_resource_group, sanitized, flags=re.IGNORECASE)
+        
+        return sanitized
+
+    def _sanitize_service_name(self, service: str) -> str:
+        """
+        Sanitize service name to remove sensitive information while preserving useful context.
+
+        Args:
+            service: Original service name
+
+        Returns:
+            Sanitized service name
+        """
+        import re
+        
+        # Remove account-specific identifiers from service names
+        sanitized = re.sub(r'\b\d{12}\b', '[Account]', service)  # 12-digit AWS account numbers
+        
+        # Replace specific region/zone identifiers with generic region names
+        sanitized = re.sub(r'\b(us|eu|ap|ca|sa|af|me)[a-z0-9-]+\b', r'\1-[Region]', sanitized, flags=re.IGNORECASE)  # USW2, USE1, etc.
+        sanitized = re.sub(r'\b(us|eu|ap|ca|sa|af|me)-[a-z0-9-]+\b', r'\1-[Region]', sanitized, flags=re.IGNORECASE)  # us-west-2, eu-west-1, etc.
+        
+        # Replace specific resource IDs with generic identifiers
+        resource_patterns = [
+            (r'\b(i-[a-z0-9]+)\b', 'i-[Instance]', re.IGNORECASE),
+            (r'\b(vol-[a-z0-9]+)\b', 'vol-[Volume]', re.IGNORECASE),
+            (r'\b(snap-[a-z0-9]+)\b', 'snap-[Snapshot]', re.IGNORECASE),
+            (r'\b(ami-[a-z0-9]+)\b', 'ami-[Image]', re.IGNORECASE),
+            (r'\b(sg-[a-z0-9]+)\b', 'sg-[SecurityGroup]', re.IGNORECASE),
+            (r'\b(subnet-[a-z0-9]+)\b', 'subnet-[Subnet]', re.IGNORECASE),
+            (r'\b(vpc-[a-z0-9]+)\b', 'vpc-[VPC]', re.IGNORECASE),
+        ]
+        
+        for pattern, replacement, flags in resource_patterns:
+            sanitized = re.sub(pattern, replacement, sanitized, flags=flags)
+        
+        return sanitized
 
     def get_oracle_cloud_costs(self) -> Dict[str, Any]:
         """

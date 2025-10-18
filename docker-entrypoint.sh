@@ -13,6 +13,7 @@ show_help() {
     echo ""
     echo "Commands:"
     echo "  cost-report [OPTIONS]     Generate cost reports"
+    echo "  multicloud-report [OPTIONS] Generate multi-cloud cost reports"
     echo "  terraform-discover        Discover current AWS infrastructure"
     echo "  terraform-generate        Generate Terraform configuration"
     echo "  terraform-plan            Run terraform plan on generated config"
@@ -62,6 +63,12 @@ check_aws_credentials() {
 generate_cost_report() {
     echo "📊 Generating cost reports..."
     python -m src.main "$@"
+}
+
+# Function to generate multi-cloud cost reports
+generate_multicloud_report() {
+    echo "🌐 Generating multi-cloud cost reports..."
+    python -m src.multicloud_main "$@"
 }
 
 # Function to discover AWS infrastructure
@@ -123,6 +130,11 @@ case "${1:-help}" in
         check_aws_credentials
         shift
         generate_cost_report "$@"
+        ;;
+    "multicloud-report")
+        check_aws_credentials
+        shift
+        generate_multicloud_report "$@"
         ;;
     "terraform-discover")
         check_aws_credentials
