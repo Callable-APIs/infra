@@ -81,6 +81,10 @@ jobs:
           # Create reports directory
           mkdir -p reports
 
+          # Generate comprehensive multi-cloud report
+          echo "Generating comprehensive multi-cloud report..."
+          poetry run python src/multicloud_main.py --days $DAYS_BACK --output reports
+
           # Generate AWS reports based on type
           if [ "$REPORT_TYPE" = "public" ] || [ "$REPORT_TYPE" = "both" ]; then
             echo "Generating AWS public report..."
@@ -140,9 +144,15 @@ jobs:
 
                   <div class="report-grid">
                       <div class="report-card">
-                          <h3>🌐 Multi-Cloud Billing Report</h3>
+                          <h3>🌐 Comprehensive Multi-Cloud Report</h3>
+                          <p>Real-time cost analysis across AWS, Oracle Cloud, Google Cloud, and IBM Cloud with detailed resource breakdown and free tier monitoring.</p>
+                          <a href="multicloud_cost_report_latest.html">View Comprehensive Report</a>
+                      </div>
+                      
+                      <div class="report-card">
+                          <h3>📊 Multi-Cloud Billing Report</h3>
                           <p>Comprehensive billing analysis across all cloud providers with detailed cost breakdown, free tier value, and optimization recommendations.</p>
-                          <a href="multicloud_billing_report_latest.md">View Multi-Cloud Report</a>
+                          <a href="multicloud_billing_report_latest.md">View Billing Report</a>
                       </div>
                       
                       <div class="report-card">
@@ -166,11 +176,17 @@ jobs:
           </html>
           EOF
 
-          # Create a symlink for the latest multi-cloud report
+          # Create symlinks for the latest reports
           if ls multicloud_billing_report_*.md 1> /dev/null 2>&1; then
-            LATEST_REPORT=$(ls -t multicloud_billing_report_*.md | head -n1)
-            ln -sf "$LATEST_REPORT" reports/multicloud_billing_report_latest.md
-            echo "Created symlink for latest multi-cloud report: $LATEST_REPORT"
+            LATEST_BILLING_REPORT=$(ls -t multicloud_billing_report_*.md | head -n1)
+            ln -sf "$LATEST_BILLING_REPORT" reports/multicloud_billing_report_latest.md
+            echo "Created symlink for latest multi-cloud billing report: $LATEST_BILLING_REPORT"
+          fi
+          
+          if ls multicloud_cost_report_*.html 1> /dev/null 2>&1; then
+            LATEST_COST_REPORT=$(ls -t multicloud_cost_report_*.html | head -n1)
+            ln -sf "$LATEST_COST_REPORT" reports/multicloud_cost_report_latest.html
+            echo "Created symlink for latest multi-cloud cost report: $LATEST_COST_REPORT"
           fi
 
           # Verify reports were generated
