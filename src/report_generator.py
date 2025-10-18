@@ -320,11 +320,7 @@ class ReportGenerator:
 
         logger.info(f"Generated report: {filepath}")
 
-        # Also create index.html for GitHub Pages
-        index_path = os.path.join(self.output_dir, "index.html")
-        with open(index_path, "w", encoding="utf-8") as f:
-            f.write(html_content)
-
-        logger.info(f"Created index.html: {index_path}")
+        # Note: We don't overwrite index.html here as it's managed by GitHub Actions
+        # The index.html is created by the workflow to provide navigation between reports
 
         return filepath

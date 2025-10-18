@@ -63,8 +63,9 @@ class InternalReportGenerator:
             previous_cycle_costs or [],
         )
 
-        # Save as index.html for easy access
-        filepath = f"{self.output_dir}/index.html"
+        # Save as internal report with timestamp
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filepath = f"{self.output_dir}/aws-cost-report-internal_{timestamp}.html"
 
         with open(filepath, "w", encoding="utf-8") as f:
             f.write(html_content)
