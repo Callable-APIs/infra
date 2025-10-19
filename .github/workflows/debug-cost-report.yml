@@ -1,0 +1,67 @@
+name: Debug Cost Report
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: latest
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+          
+      - name: Install dependencies
+        run: poetry install --no-interaction --no-root
+        
+      - name: Install project
+        run: poetry install --no-interaction
+        
+      - name: Check AWS credentials
+        run: |
+          echo "Checking AWS credentials..."
+          if [ -n "$AWS_ACCESS_KEY_ID" ]; then
+            echo "✅ AWS_ACCESS_KEY_ID is set"
+          else
+            echo "❌ AWS_ACCESS_KEY_ID is not set"
+          fi
+          
+          if [ -n "$AWS_SECRET_ACCESS_KEY" ]; then
+            echo "✅ AWS_SECRET_ACCESS_KEY is set"
+          else
+            echo "❌ AWS_SECRET_ACCESS_KEY is not set"
+          fi
+          
+      - name: Test multi-cloud script
+        run: |
+          echo "Testing multi-cloud script..."
+          poetry run python src/multicloud_main.py --days 1 --output reports --console-only
+          
+      - name: Test AWS script
+        run: |
+          echo "Testing AWS script..."
+          poetry run aws-infra-report --days 1 --output reports
+          
+      - name: Test billing script
+        run: |
+          echo "Testing billing script..."
+          poetry run python scripts/update_billing_report.py
+          
+      - name: List generated files
+        run: |
+          echo "Generated files:"
+          ls -la reports/ || echo "No reports directory found"
