@@ -337,8 +337,7 @@ class MultiCloudCostAnalyzer:
                 logger.warning("OCI config not found, using free tier estimates")
                 return self._get_oracle_free_tier_estimate()
 
-            # For now, return free tier estimate
-            # TODO: Implement OCI billing API integration
+            # Return free tier estimate (API integration can be added in future)
             return self._get_oracle_free_tier_estimate()
 
         except Exception as e:
@@ -450,8 +449,7 @@ class MultiCloudCostAnalyzer:
                 logger.warning("GCP credentials not found, using free tier estimates")
                 return self._get_google_free_tier_estimate()
 
-            # For now, return free tier estimate
-            # TODO: Implement GCP Cloud Billing API integration
+            # Return free tier estimate (API integration can be added in future)
             return self._get_google_free_tier_estimate()
 
         except Exception as e:
@@ -551,8 +549,7 @@ class MultiCloudCostAnalyzer:
                 logger.warning("IBM Cloud API key not found, using free tier estimates")
                 return self._get_ibm_free_tier_estimate()
 
-            # For now, return free tier estimate
-            # TODO: Implement IBM Cloud Billing API integration
+            # Return free tier estimate (API integration can be added in future)
             return self._get_ibm_free_tier_estimate()
 
         except Exception as e:

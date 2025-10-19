@@ -124,6 +124,8 @@ def print_console_summary(summary: Dict[str, Any]) -> None:
     Args:
         summary: Multi-cloud cost summary data
     """
+    logger.info("Generating console summary output")
+
     print("\n" + "=" * 80)
     print("🌐 MULTI-CLOUD COST SUMMARY")
     print("=" * 80)
@@ -168,6 +170,8 @@ def print_console_summary(summary: Dict[str, Any]) -> None:
         print(f"{status_icon} {provider.title()}: {status}")
 
     print("\n" + "=" * 80)
+
+    logger.info("Console summary output completed")
 
 
 if __name__ == "__main__":
