@@ -1,0 +1,41 @@
+name: Test Report Generation
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: latest
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+          
+      - name: Install dependencies
+        run: poetry install --no-interaction --no-root
+        
+      - name: Install project
+        run: poetry install --no-interaction
+        
+      - name: Test multi-cloud script
+        run: poetry run python src/multicloud_main.py --days 1 --output reports --console-only
+        
+      - name: Test AWS script
+        run: poetry run aws-infra-report --days 1 --output reports --console-only
+        
+      - name: Test billing script
+        run: poetry run python scripts/update_billing_report.py
