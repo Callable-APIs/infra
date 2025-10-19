@@ -529,6 +529,7 @@ class MultiCloudReportGenerator:
         """
         self.output_dir = output_dir
         import os
+
         os.makedirs(output_dir, exist_ok=True)
 
     def generate_multicloud_report(
@@ -551,8 +552,9 @@ class MultiCloudReportGenerator:
         template = Template(MULTICLOUD_HTML_TEMPLATE)
 
         # Calculate additional summary metrics
-        summary["free_tier_providers"] = sum(1 for status in summary["free_tier_status"].values() 
-                                           if "Free Tier" in status or "Within limits" in status)
+        summary["free_tier_providers"] = sum(
+            1 for status in summary["free_tier_status"].values() if "Free Tier" in status or "Within limits" in status
+        )
         summary["total_providers"] = len(summary["free_tier_status"])
 
         html_content = template.render(

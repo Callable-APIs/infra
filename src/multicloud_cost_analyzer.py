@@ -1,9 +1,9 @@
 """Multi-cloud cost analyzer for comprehensive cost reporting across all providers."""
-import logging
-from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Tuple
 import json
+import logging
 import os
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import boto3
 from botocore.exceptions import ClientError
@@ -24,12 +24,12 @@ class MultiCloudCostAnalyzer:
         """
         self.aws_region = aws_region
         self.aws_profile = aws_profile
-        
+
         # Initialize AWS client
-        session_kwargs = {"region_name": aws_region}
+        session_kwargs: Dict[str, Any] = {"region_name": aws_region}
         if aws_profile:
             session_kwargs["profile_name"] = aws_profile
-        
+
         session = boto3.Session(**session_kwargs)
         self.ce_client = session.client("ce")
         self.sts_client = session.client("sts")
@@ -62,7 +62,7 @@ class MultiCloudCostAnalyzer:
                 ],
             )
 
-            aws_costs = {
+            aws_costs: Dict[str, Any] = {
                 "provider": "AWS",
                 "total_cost": 0.0,
                 "resource_categories": {
@@ -75,41 +75,74 @@ class MultiCloudCostAnalyzer:
                 "services": [],
             }
 
-            # Process cost data
-            for result in response.get("ResultsByTime", []):
-                for group in result.get("Groups", []):
-                    service = group["Keys"][0]
-                    usage_type = group["Keys"][1] if len(group["Keys"]) > 1 else "General"
-                    cost = float(group["Metrics"]["UnblendedCost"]["Amount"])
+            # Process cost data with type safety
+            results_by_time = response.get("ResultsByTime", [])
+            if not isinstance(results_by_time, list):
+                return aws_costs
+
+            for result in results_by_time:
+                if not isinstance(result, dict):
+                    continue
+
+                groups = result.get("Groups", [])
+                if not isinstance(groups, list):
+                    continue
+
+                for group in groups:
+                    if not isinstance(group, dict):
+                        continue
+
+                    keys = group.get("Keys", [])
+                    if not isinstance(keys, list) or len(keys) < 1:
+                        continue
+
+                    service = str(keys[0])
+                    usage_type = str(keys[1]) if len(keys) > 1 else "General"
+
+                    metrics = group.get("Metrics", {})
+                    if not isinstance(metrics, dict):
+                        continue
+
+                    unblended_cost = metrics.get("UnblendedCost", {})
+                    if not isinstance(unblended_cost, dict):
+                        continue
+
+                    amount = unblended_cost.get("Amount", "0")
+                    try:
+                        cost = float(amount)
+                    except (ValueError, TypeError):
+                        continue
 
                     if cost > 0:
                         aws_costs["total_cost"] += cost
-                        
+
                         # Sanitize usage type and service name for public reports
                         sanitized_usage_type = self._sanitize_usage_type(usage_type)
                         sanitized_service = self._sanitize_service_name(service)
-                        
+
                         # Categorize by service type
                         category = self._categorize_aws_service(service, usage_type)
                         aws_costs["resource_categories"][category]["cost"] += cost
-                        aws_costs["resource_categories"][category]["resources"].append({
-                            "service": sanitized_service,
-                            "usage_type": sanitized_usage_type,
-                            "cost": cost,
-                        })
+                        aws_costs["resource_categories"][category]["resources"].append(
+                            {
+                                "service": sanitized_service,
+                                "usage_type": sanitized_usage_type,
+                                "cost": cost,
+                            }
+                        )
 
                         # Add to services list
-                        aws_costs["services"].append({
-                            "service": sanitized_service,
-                            "usage_type": sanitized_usage_type,
-                            "cost": cost,
-                        })
+                        aws_costs["services"].append(
+                            {
+                                "service": sanitized_service,
+                                "usage_type": sanitized_usage_type,
+                                "cost": cost,
+                            }
+                        )
 
             # Sort resources by cost
             for category in aws_costs["resource_categories"]:
-                aws_costs["resource_categories"][category]["resources"].sort(
-                    key=lambda x: x["cost"], reverse=True
-                )
+                aws_costs["resource_categories"][category]["resources"].sort(key=lambda x: x["cost"], reverse=True)
 
             aws_costs["services"].sort(key=lambda x: x["cost"], reverse=True)
             return aws_costs
@@ -145,28 +178,34 @@ class MultiCloudCostAnalyzer:
         usage_lower = usage_type.lower()
 
         # Compute services
-        if any(compute in service_lower for compute in [
-            "ec2", "lambda", "elastic beanstalk", "fargate", "ecs", "eks", "lightsail"
-        ]):
+        if any(
+            compute in service_lower
+            for compute in ["ec2", "lambda", "elastic beanstalk", "fargate", "ecs", "eks", "lightsail"]
+        ):
             return "compute"
 
         # Networking services
-        if any(network in service_lower for network in [
-            "cloudfront", "route53", "vpc", "direct connect", "api gateway", 
-            "load balancer", "nat gateway", "transit gateway"
-        ]):
+        if any(
+            network in service_lower
+            for network in [
+                "cloudfront",
+                "route53",
+                "vpc",
+                "direct connect",
+                "api gateway",
+                "load balancer",
+                "nat gateway",
+                "transit gateway",
+            ]
+        ):
             return "networking"
 
         # Storage services
-        if any(storage in service_lower for storage in [
-            "s3", "ebs", "efs", "fsx", "glacier", "storage gateway"
-        ]):
+        if any(storage in service_lower for storage in ["s3", "ebs", "efs", "fsx", "glacier", "storage gateway"]):
             return "storage"
 
         # Database services
-        if any(db in service_lower for db in [
-            "rds", "dynamodb", "redshift", "elasticache", "documentdb", "neptune"
-        ]):
+        if any(db in service_lower for db in ["rds", "dynamodb", "redshift", "elasticache", "documentdb", "neptune"]):
             return "databases"
 
         return "other"
@@ -182,58 +221,67 @@ class MultiCloudCostAnalyzer:
             Sanitized usage type
         """
         import re
-        
+
         # Remove IP addresses
-        sanitized = re.sub(r'\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b', '[IP]', usage_type)
-        
+        sanitized = re.sub(r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b", "[IP]", usage_type)
+
         # Replace specific region/zone identifiers with generic region names
         # Keep the provider context but remove specific identifiers
         region_patterns = [
-            (r'\b(us|eu|ap|ca|sa|af|me)[a-z0-9-]+\b', r'\1-[Region]', re.IGNORECASE),  # USW2, USE1, etc.
-            (r'\b(us|eu|ap|ca|sa|af|me)-[a-z0-9-]+\b', r'\1-[Region]', re.IGNORECASE),  # us-west-2, eu-west-1, etc.
-            (r'\b(us|eu|ap|ca|sa|af|me)-[a-z]+-[0-9]+[a-z]?\b', r'\1-[Region]', re.IGNORECASE),  # us-west-2a, eu-west-1b, etc.
+            (r"\b(us|eu|ap|ca|sa|af|me)[a-z0-9-]+\b", r"\1-[Region]", re.IGNORECASE),  # USW2, USE1, etc.
+            (r"\b(us|eu|ap|ca|sa|af|me)-[a-z0-9-]+\b", r"\1-[Region]", re.IGNORECASE),  # us-west-2, eu-west-1, etc.
+            (
+                r"\b(us|eu|ap|ca|sa|af|me)-[a-z]+-[0-9]+[a-z]?\b",
+                r"\1-[Region]",
+                re.IGNORECASE,
+            ),  # us-west-2a, eu-west-1b, etc.
         ]
-        
+
         for pattern, replacement, flags in region_patterns:
             sanitized = re.sub(pattern, replacement, sanitized, flags=flags)
-        
+
         # Replace specific resource IDs with generic identifiers
         # Keep the resource type but remove specific IDs
         resource_patterns = [
-            (r'\b(i-[a-z0-9]+)\b', 'i-[Instance]', re.IGNORECASE),  # EC2 instances
-            (r'\b(vol-[a-z0-9]+)\b', 'vol-[Volume]', re.IGNORECASE),  # EBS volumes
-            (r'\b(snap-[a-z0-9]+)\b', 'snap-[Snapshot]', re.IGNORECASE),  # Snapshots
-            (r'\b(ami-[a-z0-9]+)\b', 'ami-[Image]', re.IGNORECASE),  # AMI images
-            (r'\b(sg-[a-z0-9]+)\b', 'sg-[SecurityGroup]', re.IGNORECASE),  # Security groups
-            (r'\b(subnet-[a-z0-9]+)\b', 'subnet-[Subnet]', re.IGNORECASE),  # Subnets
-            (r'\b(vpc-[a-z0-9]+)\b', 'vpc-[VPC]', re.IGNORECASE),  # VPCs
+            (r"\b(i-[a-z0-9]+)\b", "i-[Instance]", re.IGNORECASE),  # EC2 instances
+            (r"\b(vol-[a-z0-9]+)\b", "vol-[Volume]", re.IGNORECASE),  # EBS volumes
+            (r"\b(snap-[a-z0-9]+)\b", "snap-[Snapshot]", re.IGNORECASE),  # Snapshots
+            (r"\b(ami-[a-z0-9]+)\b", "ami-[Image]", re.IGNORECASE),  # AMI images
+            (r"\b(sg-[a-z0-9]+)\b", "sg-[SecurityGroup]", re.IGNORECASE),  # Security groups
+            (r"\b(subnet-[a-z0-9]+)\b", "subnet-[Subnet]", re.IGNORECASE),  # Subnets
+            (r"\b(vpc-[a-z0-9]+)\b", "vpc-[VPC]", re.IGNORECASE),  # VPCs
         ]
-        
+
         for pattern, replacement, flags in resource_patterns:
             sanitized = re.sub(pattern, replacement, sanitized, flags=flags)
-        
+
         # Remove account-specific identifiers
-        sanitized = re.sub(r'\b\d{12}\b', '[Account]', sanitized)  # 12-digit AWS account numbers
-        
+        sanitized = re.sub(r"\b\d{12}\b", "[Account]", sanitized)  # 12-digit AWS account numbers
+
         # Handle multiple resource groups by adding designators
         # Look for patterns like "Resource Group 1", "Resource Group 2", etc.
         resource_group_count = {}
+
         def replace_resource_group(match):
             provider = match.group(1).lower()
             if provider not in resource_group_count:
                 resource_group_count[provider] = 0
             resource_group_count[provider] += 1
-            
-            designators = ['Alpha', 'Bravo', 'Charlie', 'Delta', 'Echo', 'Foxtrot', 'Golf', 'Hotel']
+
+            designators = ["Alpha", "Bravo", "Charlie", "Delta", "Echo", "Foxtrot", "Golf", "Hotel"]
             if resource_group_count[provider] <= len(designators):
                 return f"{provider.title()} Resource Group {designators[resource_group_count[provider]-1]}"
             else:
                 return f"{provider.title()} Resource Group {resource_group_count[provider]}"
-        
+
         # Apply resource group replacement
-        sanitized = re.sub(r'\b(aws|azure|gcp|ibm|oracle)\s+resource\s+group\s*(\d+)?', 
-                          replace_resource_group, sanitized, flags=re.IGNORECASE)
-        
+        sanitized = re.sub(
+            r"\b(aws|azure|gcp|ibm|oracle)\s+resource\s+group\s*(\d+)?",
+            replace_resource_group,
+            sanitized,
+            flags=re.IGNORECASE,
+        )
+
         return sanitized
 
     def _sanitize_service_name(self, service: str) -> str:
@@ -247,28 +295,32 @@ class MultiCloudCostAnalyzer:
             Sanitized service name
         """
         import re
-        
+
         # Remove account-specific identifiers from service names
-        sanitized = re.sub(r'\b\d{12}\b', '[Account]', service)  # 12-digit AWS account numbers
-        
+        sanitized = re.sub(r"\b\d{12}\b", "[Account]", service)  # 12-digit AWS account numbers
+
         # Replace specific region/zone identifiers with generic region names
-        sanitized = re.sub(r'\b(us|eu|ap|ca|sa|af|me)[a-z0-9-]+\b', r'\1-[Region]', sanitized, flags=re.IGNORECASE)  # USW2, USE1, etc.
-        sanitized = re.sub(r'\b(us|eu|ap|ca|sa|af|me)-[a-z0-9-]+\b', r'\1-[Region]', sanitized, flags=re.IGNORECASE)  # us-west-2, eu-west-1, etc.
-        
+        sanitized = re.sub(
+            r"\b(us|eu|ap|ca|sa|af|me)[a-z0-9-]+\b", r"\1-[Region]", sanitized, flags=re.IGNORECASE
+        )  # USW2, USE1, etc.
+        sanitized = re.sub(
+            r"\b(us|eu|ap|ca|sa|af|me)-[a-z0-9-]+\b", r"\1-[Region]", sanitized, flags=re.IGNORECASE
+        )  # us-west-2, eu-west-1, etc.
+
         # Replace specific resource IDs with generic identifiers
         resource_patterns = [
-            (r'\b(i-[a-z0-9]+)\b', 'i-[Instance]', re.IGNORECASE),
-            (r'\b(vol-[a-z0-9]+)\b', 'vol-[Volume]', re.IGNORECASE),
-            (r'\b(snap-[a-z0-9]+)\b', 'snap-[Snapshot]', re.IGNORECASE),
-            (r'\b(ami-[a-z0-9]+)\b', 'ami-[Image]', re.IGNORECASE),
-            (r'\b(sg-[a-z0-9]+)\b', 'sg-[SecurityGroup]', re.IGNORECASE),
-            (r'\b(subnet-[a-z0-9]+)\b', 'subnet-[Subnet]', re.IGNORECASE),
-            (r'\b(vpc-[a-z0-9]+)\b', 'vpc-[VPC]', re.IGNORECASE),
+            (r"\b(i-[a-z0-9]+)\b", "i-[Instance]", re.IGNORECASE),
+            (r"\b(vol-[a-z0-9]+)\b", "vol-[Volume]", re.IGNORECASE),
+            (r"\b(snap-[a-z0-9]+)\b", "snap-[Snapshot]", re.IGNORECASE),
+            (r"\b(ami-[a-z0-9]+)\b", "ami-[Image]", re.IGNORECASE),
+            (r"\b(sg-[a-z0-9]+)\b", "sg-[SecurityGroup]", re.IGNORECASE),
+            (r"\b(subnet-[a-z0-9]+)\b", "subnet-[Subnet]", re.IGNORECASE),
+            (r"\b(vpc-[a-z0-9]+)\b", "vpc-[VPC]", re.IGNORECASE),
         ]
-        
+
         for pattern, replacement, flags in resource_patterns:
             sanitized = re.sub(pattern, replacement, sanitized, flags=flags)
-        
+
         return sanitized
 
     def get_oracle_cloud_costs(self) -> Dict[str, Any]:
@@ -593,10 +645,7 @@ class MultiCloudCostAnalyzer:
 
         # Calculate totals
         total_cost = (
-            aws_costs["total_cost"] +
-            oracle_costs["total_cost"] +
-            google_costs["total_cost"] +
-            ibm_costs["total_cost"]
+            aws_costs["total_cost"] + oracle_costs["total_cost"] + google_costs["total_cost"] + ibm_costs["total_cost"]
         )
 
         # Aggregate by resource category across all providers
@@ -614,8 +663,11 @@ class MultiCloudCostAnalyzer:
                     resource_totals[category] += data["cost"]
 
         # Count active providers
-        active_providers = sum(1 for costs in [aws_costs, oracle_costs, google_costs, ibm_costs] 
-                             if costs["total_cost"] > 0 or "free_tier_status" in costs)
+        active_providers = sum(
+            1
+            for costs in [aws_costs, oracle_costs, google_costs, ibm_costs]
+            if costs["total_cost"] > 0 or "free_tier_status" in costs
+        )
 
         return {
             "total_cost": total_cost,

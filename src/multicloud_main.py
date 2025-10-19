@@ -124,25 +124,25 @@ def print_console_summary(summary: Dict[str, Any]) -> None:
     Args:
         summary: Multi-cloud cost summary data
     """
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("🌐 MULTI-CLOUD COST SUMMARY")
-    print("="*80)
-    
+    print("=" * 80)
+
     print(f"📊 Total Cost: ${summary['total_cost']:.2f}")
     print(f"🏢 Active Providers: {summary['active_providers']}")
     print(f"📅 Period: Last {summary['days_back']} days")
     print(f"🕒 Generated: {summary['generated_at']}")
-    
-    print("\n" + "-"*80)
+
+    print("\n" + "-" * 80)
     print("CLOUD PROVIDER BREAKDOWN")
-    print("-"*80)
-    
+    print("-" * 80)
+
     for provider_name, provider_data in summary["providers"].items():
         status = summary["free_tier_status"][provider_name]
         status_icon = "🆓" if "Free" in status or "Within limits" in status else "💰"
-        
+
         print(f"\n{status_icon} {provider_data['provider']}: ${provider_data['total_cost']:.2f} ({status})")
-        
+
         # Show top resources by category
         for category, category_data in provider_data["resource_categories"].items():
             if category_data["cost"] > 0 or category_data["resources"]:
@@ -150,24 +150,24 @@ def print_console_summary(summary: Dict[str, Any]) -> None:
                 for resource in category_data["resources"][:3]:  # Top 3 resources
                     cost_str = "FREE" if resource["cost"] == 0.0 else f"${resource['cost']:.2f}"
                     print(f"      • {resource['service']}: {cost_str}")
-    
-    print("\n" + "-"*80)
+
+    print("\n" + "-" * 80)
     print("RESOURCE CATEGORY TOTALS")
-    print("-"*80)
-    
+    print("-" * 80)
+
     for category, cost in summary["resource_totals"].items():
         percentage = (cost / summary["total_cost"] * 100) if summary["total_cost"] > 0 else 0
         print(f"📊 {category.title()}: ${cost:.2f} ({percentage:.1f}%)")
-    
-    print("\n" + "-"*80)
+
+    print("\n" + "-" * 80)
     print("FREE TIER STATUS")
-    print("-"*80)
-    
+    print("-" * 80)
+
     for provider, status in summary["free_tier_status"].items():
         status_icon = "✅" if "Free" in status or "Within limits" in status else "⚠️"
         print(f"{status_icon} {provider.title()}: {status}")
-    
-    print("\n" + "="*80)
+
+    print("\n" + "=" * 80)
 
 
 if __name__ == "__main__":

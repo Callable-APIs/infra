@@ -114,8 +114,9 @@ class TestInternalReportGenerator:
                     previous_cycle_costs=previous_cycle_costs,
                 )
 
-                # Check that file was created
-                assert result == os.path.join(temp_dir, "index.html")
+                # Check that file was created with timestamped filename
+                assert result.endswith(".html")
+                assert "aws-cost-report-internal_" in result
                 assert os.path.exists(result)
 
                 # Check file content

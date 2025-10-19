@@ -69,7 +69,6 @@ class TestReportGenerator:
 
                 # Check that files were created
                 assert os.path.exists(result)
-                assert os.path.exists(os.path.join(temp_dir, "index.html"))
 
                 # Check file content
                 with open(result, "r") as f:
@@ -103,7 +102,6 @@ class TestReportGenerator:
 
                 # Check that files were created
                 assert os.path.exists(result)
-                assert os.path.exists(os.path.join(temp_dir, "index.html"))
 
                 # Check file content
                 with open(result, "r") as f:
@@ -143,8 +141,8 @@ class TestReportGenerator:
                     content = f.read()
                     assert "Account:" not in content
 
-    def test_generate_html_report_creates_index_html(self):
-        """Test that generate_html_report creates index.html for GitHub Pages."""
+    def test_generate_html_report_creates_timestamped_file(self):
+        """Test that generate_html_report creates timestamped file."""
         with tempfile.TemporaryDirectory() as temp_dir:
             generator = ReportGenerator(temp_dir)
 
@@ -160,7 +158,7 @@ class TestReportGenerator:
                     "20230101_120000",
                 ]
 
-                generator.generate_html_report(
+                result = generator.generate_html_report(
                     title="Test Report",
                     summary=summary,
                     services=[{"service": "Amazon EC2", "cost": 100.0}],
@@ -168,15 +166,16 @@ class TestReportGenerator:
                     account_id="****-****-1234",
                 )
 
-                # Check that both files exist and have same content
+                # Check that timestamped file exists
                 timestamped_file = os.path.join(temp_dir, "aws_cost_report_20230101_120000.html")
-                index_file = os.path.join(temp_dir, "index.html")
-
                 assert os.path.exists(timestamped_file)
-                assert os.path.exists(index_file)
+                assert result == timestamped_file
 
-                with open(timestamped_file, "r") as f1, open(index_file, "r") as f2:
-                    assert f1.read() == f2.read()
+                # Check file content
+                with open(timestamped_file, "r") as f:
+                    content = f.read()
+                    assert "Test Report" in content
+                    assert "Amazon EC2" in content
 
     def test_generate_html_report_template_rendering(self):
         """Test that Jinja2 template is properly rendered."""

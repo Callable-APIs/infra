@@ -75,11 +75,9 @@ class EnhancedBillingReport:
             total_cost = 0.0
             for day in daily_response["ResultsByTime"]:
                 cost = float(day["Total"]["BlendedCost"]["Amount"])
-                daily_costs.append({
-                    "date": day["TimePeriod"]["Start"],
-                    "cost": cost,
-                    "currency": day["Total"]["BlendedCost"]["Unit"]
-                })
+                daily_costs.append(
+                    {"date": day["TimePeriod"]["Start"], "cost": cost, "currency": day["Total"]["BlendedCost"]["Unit"]}
+                )
                 total_cost += cost
 
             # Service breakdown
@@ -88,31 +86,33 @@ class EnhancedBillingReport:
                 service_name = group["Keys"][0]
                 cost = float(group["Metrics"]["BlendedCost"]["Amount"])
                 if cost > 0:
-                    service_costs.append({
-                        "service": service_name,
-                        "cost": cost,
-                        "currency": group["Metrics"]["BlendedCost"]["Unit"]
-                    })
+                    service_costs.append(
+                        {"service": service_name, "cost": cost, "currency": group["Metrics"]["BlendedCost"]["Unit"]}
+                    )
 
             # Running resources
             running_instances = []
             for reservation in instances_response["Reservations"]:
                 for instance in reservation["Instances"]:
-                    running_instances.append({
-                        "instance_id": instance["InstanceId"],
-                        "instance_type": instance["InstanceType"],
-                        "state": instance["State"]["Name"],
-                        "launch_time": instance["LaunchTime"].strftime("%Y-%m-%d %H:%M:%S")
-                    })
+                    running_instances.append(
+                        {
+                            "instance_id": instance["InstanceId"],
+                            "instance_type": instance["InstanceType"],
+                            "state": instance["State"]["Name"],
+                            "launch_time": instance["LaunchTime"].strftime("%Y-%m-%d %H:%M:%S"),
+                        }
+                    )
 
             running_environments = []
             for env in eb_response["Environments"]:
-                running_environments.append({
-                    "environment_name": env["EnvironmentName"],
-                    "status": env["Status"],
-                    "health": env["Health"],
-                    "version_label": env.get("VersionLabel", "N/A")
-                })
+                running_environments.append(
+                    {
+                        "environment_name": env["EnvironmentName"],
+                        "status": env["Status"],
+                        "health": env["Health"],
+                        "version_label": env.get("VersionLabel", "N/A"),
+                    }
+                )
 
             return {
                 "provider": "AWS",
@@ -122,7 +122,7 @@ class EnhancedBillingReport:
                 "service_breakdown": service_costs,
                 "running_instances": running_instances,
                 "running_environments": running_environments,
-                "period": {"start": start_date, "end": end_date}
+                "period": {"start": start_date, "end": end_date},
             }
 
         except Exception as e:
@@ -145,14 +145,14 @@ class EnhancedBillingReport:
                     "public_ip": "35.233.161.8",
                     "dns_name": "gnode1.callableapis.com",
                     "cost": 0.0,
-                    "note": "Free tier - 1 vCPU, 1GB RAM, 30GB storage"
+                    "note": "Free tier - 1 vCPU, 1GB RAM, 30GB storage",
                 }
             ],
             "free_tier_usage": {
                 "compute_engine": "1 instance (e2-micro)",
                 "persistent_disk": "30GB",
-                "network_egress": "1GB/month"
-            }
+                "network_egress": "1GB/month",
+            },
         }
 
     def get_oracle_cloud_details(self) -> Dict[str, Any]:
@@ -173,14 +173,14 @@ class EnhancedBillingReport:
                     "public_ip": "159.54.170.237",
                     "dns_name": "onode1.callableapis.com",
                     "cost": 0.0,
-                    "note": "Always Free Tier - AMD processor"
+                    "note": "Always Free Tier - AMD processor",
                 }
             ],
             "free_tier_usage": {
                 "compute_instances": "1 of 2 (4 OCPUs, 24GB RAM total available)",
                 "block_storage": "200GB total",
-                "network_egress": "10TB/month"
-            }
+                "network_egress": "10TB/month",
+            },
         }
 
     def get_ibm_cloud_details(self) -> Dict[str, Any]:
@@ -200,14 +200,14 @@ class EnhancedBillingReport:
                     "public_ip": "52.116.135.43",
                     "dns_name": "inode1.callableapis.com",
                     "cost": 0.0,
-                    "note": "Free tier - 30 days, then $0.00 if within limits"
+                    "note": "Free tier - 30 days, then $0.00 if within limits",
                 }
             ],
             "free_tier_usage": {
                 "virtual_servers": "1 instance (bx2-2x8)",
                 "block_storage": "100GB",
-                "network_egress": "1TB/month"
-            }
+                "network_egress": "1TB/month",
+            },
         }
 
     def generate_comprehensive_report(self, days_back: int = 30) -> str:
@@ -217,7 +217,7 @@ class EnhancedBillingReport:
 
         # Get AWS detailed costs
         aws_data = self.get_aws_detailed_costs(start_date, end_date)
-        
+
         # Get other cloud details
         google_data = self.get_google_cloud_details()
         oracle_data = self.get_oracle_cloud_details()
@@ -245,7 +245,7 @@ Currency: {aws_data.get('currency', 'USD')}
 
 ### Service Breakdown:
 """
-        
+
         if "service_breakdown" in aws_data:
             for service in aws_data["service_breakdown"]:
                 report += f"- {service['service']}: ${service['cost']:.2f}\n"
@@ -255,11 +255,11 @@ Currency: {aws_data.get('currency', 'USD')}
         report += f"""
 ### Running Resources:
 """
-        
+
         if "running_instances" in aws_data:
             for instance in aws_data["running_instances"]:
                 report += f"- EC2: {instance['instance_id']} ({instance['instance_type']}) - {instance['state']}\n"
-        
+
         if "running_environments" in aws_data:
             for env in aws_data["running_environments"]:
                 report += f"- Elastic Beanstalk: {env['environment_name']} - {env['status']}\n"
@@ -350,8 +350,8 @@ Report generated by CallableAPIs Multi-Cloud Infrastructure Management
         # Rough estimates of what these resources would cost if paid
         oracle_value = 50.0  # VM.Standard.E5.Flex with 1 OCPU, 12GB RAM
         google_value = 25.0  # e2-micro instance
-        ibm_value = 40.0     # bx2-2x8 instance
-        
+        ibm_value = 40.0  # bx2-2x8 instance
+
         return oracle_value + google_value + ibm_value
 
     def save_report(self, filename: str = None) -> str:
@@ -359,23 +359,23 @@ Report generated by CallableAPIs Multi-Cloud Infrastructure Management
         if not filename:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             filename = f"multicloud_billing_report_{timestamp}.md"
-        
+
         report = self.generate_comprehensive_report()
-        
-        with open(filename, 'w') as f:
+
+        with open(filename, "w") as f:
             f.write(report)
-        
+
         return filename
 
 
 def main():
     """Main function to generate and display the billing report"""
     billing_report = EnhancedBillingReport()
-    
+
     print("Generating comprehensive multi-cloud billing report...")
     report = billing_report.generate_comprehensive_report()
     print(report)
-    
+
     # Save to file
     filename = billing_report.save_report()
     print(f"\nReport saved to: {filename}")

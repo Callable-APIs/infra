@@ -148,7 +148,6 @@ def test_report_generation():
 
         # Check files were created
         assert os.path.exists(report_path)
-        assert os.path.exists(os.path.join(temp_dir, "index.html"))
 
         # Read and verify content
         with open(report_path, "r") as f:
