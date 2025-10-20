@@ -106,9 +106,11 @@ jobs:
           poetry run python scripts/update_billing_report.py
 
           # Copy the generated multi-cloud report to reports directory
-          if [ -f "multicloud_billing_report_*.md" ]; then
+          if ls multicloud_billing_report_*.md 1> /dev/null 2>&1; then
             cp multicloud_billing_report_*.md reports/
             echo "Multi-cloud billing report copied to reports directory"
+          else
+            echo "No multi-cloud billing report found to copy"
           fi
 
           # Create a comprehensive navigation index page
@@ -273,15 +275,15 @@ jobs:
           EOF
 
           # Create symlinks for the latest reports
-          if ls multicloud_billing_report_*.md 1> /dev/null 2>&1; then
-            LATEST_BILLING_REPORT=$(ls -t multicloud_billing_report_*.md | head -n1)
-            ln -sf "$LATEST_BILLING_REPORT" reports/multicloud_billing_report_latest.md
+          if ls reports/multicloud_billing_report_*.md 1> /dev/null 2>&1; then
+            LATEST_BILLING_REPORT=$(ls -t reports/multicloud_billing_report_*.md | head -n1)
+            ln -sf "$(basename "$LATEST_BILLING_REPORT")" reports/multicloud_billing_report_latest.md
             echo "Created symlink for latest multi-cloud billing report: $LATEST_BILLING_REPORT"
           fi
 
-          if ls multicloud_cost_report_*.html 1> /dev/null 2>&1; then
-            LATEST_COST_REPORT=$(ls -t multicloud_cost_report_*.html | head -n1)
-            ln -sf "$LATEST_COST_REPORT" reports/multicloud_cost_report_latest.html
+          if ls reports/multicloud_cost_report_*.html 1> /dev/null 2>&1; then
+            LATEST_COST_REPORT=$(ls -t reports/multicloud_cost_report_*.html | head -n1)
+            ln -sf "$(basename "$LATEST_COST_REPORT")" reports/multicloud_cost_report_latest.html
             echo "Created symlink for latest multi-cloud cost report: $LATEST_COST_REPORT"
           fi
 
