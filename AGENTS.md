@@ -127,21 +127,42 @@ done
 docker run --rm -v $(pwd):/app -w /app -e AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" -e AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" callableapis:infra terraform state list | awk -F'.' '{print $1"."$2}' | sort | uniq -c | sort -nr
 ```
 
-**Container Deployment Status:**
-- **Base Container**: `callableapis:base` deployed to containerd nodes
-- **Nodes**: Oracle (onode1), Google (gnode1), IBM (inode1)  
-- **Port**: 8080 (Google Cloud working, Oracle/IBM need SSH key fixes via Ansible)
+### Current Infrastructure State
+**Get the current infrastructure state from Terraform (single source of truth):**
 
-**Current Node Status:**
-- **Google Cloud (gnode1)**: ✅ Working - All endpoints responding on port 8080
-- **Oracle Cloud (onode1)**: ❌ Not responding - SSH key format issues, needs Ansible fix
-- **IBM Cloud (inode1)**: ❌ Not responding - SSH key format issues, needs Ansible fix
+```bash
+# Check current Terraform state
+docker run --rm -v $(pwd):/app -w /app -e AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" -e AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" callableapis:infra terraform state list
 
-**Node Recovery Strategy:**
-1. **Use Ansible to update SSH keys** on existing nodes (don't recreate)
-2. **Deploy containers** using Ansible playbooks
-3. **Verify endpoints** are accessible on port 8080
-4. **Maintain node availability** throughout the process
+# Get detailed resource information
+docker run --rm -v $(pwd):/app -w /app -e AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" -e AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" callableapis:infra terraform state list | while read -r resource; do
+  echo "Resource: $resource"
+  docker run --rm -v $(pwd):/app -w /app -e AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" -e AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" callableapis:infra terraform state show "$resource"
+  echo "---"
+done
+
+# Get infrastructure summary by provider
+docker run --rm -v $(pwd):/app -w /app -e AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" -e AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" callableapis:infra terraform state list | awk -F'.' '{print $1"."$2}' | sort | uniq -c | sort -nr
+```
+
+### Node and Container Status Commands
+**Get current node connectivity and container status:**
+
+```bash
+# Test SSH connectivity to all nodes
+ansible all -i ansible/inventory/production -m ping
+
+# Check container status on all nodes
+ansible all -i ansible/inventory/production -m shell -a "docker ps -a || nerdctl ps -a || ctr containers list"
+
+# Test external access to container endpoints
+./test-container-endpoints.sh
+
+# Check specific node status
+ansible onode1 -i ansible/inventory/production -m shell -a "curl -s http://localhost:8080/health"
+ansible gnode1 -i ansible/inventory/production -m shell -a "curl -s http://localhost:8080/health"  
+ansible inode1 -i ansible/inventory/production -m shell -a "curl -s http://localhost:8080/health"
+```
 
 ### Quick Reference Commands
 ```bash
