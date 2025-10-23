@@ -44,9 +44,9 @@ provider "aws" {
 
 # Google Cloud Provider Configuration
 provider "google" {
-  project = var.gcp_project_id
-  region  = var.gcp_region
-  zone    = var.gcp_zone
+  project     = var.gcp_project_id
+  region      = var.gcp_region
+  zone        = var.gcp_zone
   credentials = "/app/google-credentials.json"
 }
 
@@ -255,8 +255,8 @@ data "oci_core_images" "amd_images" {
   compartment_id   = var.compartment_id
   operating_system = "Canonical Ubuntu"
   shape            = "VM.Standard.E5.Flex"
-  sort_by         = "TIMECREATED"
-  sort_order      = "DESC"
+  sort_by          = "TIMECREATED"
+  sort_order       = "DESC"
 }
 
 # VCN for OCI resources
@@ -375,13 +375,13 @@ resource "oci_core_security_list" "callableapis_sl" {
 
 # Subnet
 resource "oci_core_subnet" "callableapis_subnet" {
-  compartment_id      = var.compartment_id
-  vcn_id              = oci_core_vcn.callableapis_vcn.id
-  cidr_block          = "10.0.1.0/24"
-  display_name        = "callableapis-subnet"
-  dns_label           = "callableapis"
-  route_table_id      = oci_core_route_table.callableapis_rt.id
-  security_list_ids   = [oci_core_security_list.callableapis_sl.id]
+  compartment_id    = var.compartment_id
+  vcn_id            = oci_core_vcn.callableapis_vcn.id
+  cidr_block        = "10.0.1.0/24"
+  display_name      = "callableapis-subnet"
+  dns_label         = "callableapis"
+  route_table_id    = oci_core_route_table.callableapis_rt.id
+  security_list_ids = [oci_core_security_list.callableapis_sl.id]
 
   freeform_tags = {
     Name        = "callableapis-subnet"
@@ -416,7 +416,7 @@ resource "oci_core_instance" "callableapis_arm_1" {
 
   metadata = {
     ssh_authorized_keys = var.ssh_public_key
-    user_data = base64encode(file("${path.module}/oracle/user_data.sh"))
+    user_data           = base64encode(file("${path.module}/oracle/user_data.sh"))
   }
 
   freeform_tags = {
@@ -454,7 +454,7 @@ resource "oci_core_instance" "callableapis_arm_2" {
 
   metadata = {
     ssh_authorized_keys = var.ssh_public_key
-    user_data = base64encode(file("${path.module}/oracle/user_data.sh"))
+    user_data           = base64encode(file("${path.module}/oracle/user_data.sh"))
   }
 
   freeform_tags = {
@@ -697,7 +697,7 @@ resource "cloudflare_record" "status" {
   zone_id = data.cloudflare_zone.callableapis.id
   name    = "status"
   type    = "A"
-  content = "192.0.2.1"  # Dummy IP - Worker will handle routing
+  content = "192.0.2.1" # Dummy IP - Worker will handle routing
   proxied = true
   comment = "Status Dashboard - Cloudflare Worker Proxy"
 }
@@ -705,7 +705,7 @@ resource "cloudflare_record" "status" {
 # Cloudflare Worker for Status Dashboard
 module "status_worker" {
   source = "./cloudflare-worker"
-  
+
   cloudflare_account_id = var.cloudflare_account_id
   cloudflare_zone_id    = data.cloudflare_zone.callableapis.id
 }
