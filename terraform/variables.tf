@@ -74,6 +74,12 @@ variable "gcp_zone" {
   default     = "us-central1-a"
 }
 
+variable "gcp_credentials_file" {
+  description = "Path to GCP service account credentials JSON file"
+  type        = string
+  default     = "/app/google-credentials.json"
+}
+
 # Oracle Cloud Configuration
 variable "tenancy_ocid" {
   description = "OCI tenancy OCID"
