@@ -84,6 +84,54 @@ checks found in run_checks.sh.  Ideally it will be all but there may be checks t
 - ✅ Maintain node availability during updates
 - ✅ Document all configuration changes
 
+### Node Standardization Process
+**CRITICAL: New nodes must be standardized before container deployment**
+
+#### Standardization Requirements
+All new nodes must be standardized using our Ansible playbooks to ensure:
+- **Container Runtime**: containerd with nerdctl CLI
+- **Python Version**: Python 3.12+ for Ansible compatibility
+- **System Packages**: Essential tools and dependencies
+- **User Configuration**: ansible user with proper permissions
+- **Service Configuration**: containerd service enabled and running
+
+#### Standardization Commands
+```bash
+# Standardize new Oracle Cloud nodes
+ansible-playbook -i ansible/inventory/production ansible/playbooks/install-containerd-direct.yml --limit oracle_cloud
+
+# Standardize new Google Cloud nodes  
+ansible-playbook -i ansible/inventory/production ansible/playbooks/install-containerd-direct.yml --limit google_cloud
+
+# Standardize new IBM Cloud nodes
+ansible-playbook -i ansible/inventory/production ansible/playbooks/install-containerd-direct.yml --limit ibm_cloud
+
+# Standardize all new nodes at once
+ansible-playbook -i ansible/inventory/production ansible/playbooks/install-containerd-direct.yml
+
+# Verify standardization completed
+ansible-playbook -i ansible/inventory/production ansible/playbooks/validate-facts.yml
+```
+
+#### Post-Standardization Deployment
+After standardization, deploy containers using:
+```bash
+# Deploy containers to standardized nodes
+ansible-playbook -i ansible/inventory/production ansible/playbooks/debug-and-deploy.yml
+
+# Or use the containerd setup with nginx proxy
+ansible-playbook -i ansible/inventory/production ansible/playbooks/containerd-setup.yml
+```
+
+#### Standardization Verification
+```bash
+# Check if nodes are standardized
+ansible all -i ansible/inventory/production -m shell -a "cat /home/ansible/.ansible/facts/standardization_complete 2>/dev/null || echo 'Not standardized'"
+
+# Verify container runtime availability
+ansible all -i ansible/inventory/production -m shell -a "nerdctl --version || ctr --version || echo 'No container runtime'"
+```
+
 ### Environment Configuration Management
 **CRITICAL: Keep template files in sync with actual configuration**
 
