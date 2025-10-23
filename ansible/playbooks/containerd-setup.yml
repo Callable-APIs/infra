@@ -186,6 +186,10 @@
         path: /tmp/nerdctl.tar.gz
         state: absent
 
+    - name: Deploy nginx proxy for container endpoints
+      include_role:
+        name: nginx-proxy
+
   handlers:
     - name: restart containerd
       systemd:
