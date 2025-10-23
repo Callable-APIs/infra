@@ -185,6 +185,19 @@ resource "google_compute_firewall" "callableapis_allow_8080" {
   target_tags   = ["callableapis-web"]
 }
 
+resource "google_compute_firewall" "callableapis_allow_8081" {
+  name    = "callableapis-allow-8081"
+  network = google_compute_network.callableapis_vpc.name
+
+  allow {
+    protocol = "tcp"
+    ports    = ["8081"]
+  }
+
+  source_ranges = ["0.0.0.0/0"]
+  target_tags   = ["callableapis-web"]
+}
+
 # e2-micro Instance (Always Free)
 resource "google_compute_instance" "callableapis_e2_micro" {
   name         = "callableapis-e2-micro"
@@ -677,6 +690,15 @@ resource "cloudflare_record" "inode1" {
   content = ibm_is_floating_ip.callableapis_fip.address
   proxied = true
   comment = "IBM Cloud services node"
+}
+
+resource "cloudflare_record" "status" {
+  zone_id = data.cloudflare_zone.callableapis.id
+  name    = "status"
+  type    = "A"
+  content = google_compute_instance.callableapis_e2_micro.network_interface[0].access_config[0].nat_ip
+  proxied = true
+  comment = "Status Dashboard - Google Cloud Node 1"
 }
 
 # Cloudflare zone settings

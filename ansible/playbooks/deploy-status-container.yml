@@ -39,6 +39,35 @@
         source: pull
         force_source: yes
       register: pull_result
+      ignore_errors: yes
+
+    - name: Build status container image locally if pull failed
+      ansible.builtin.docker_image:
+        name: "{{ status_container_image }}"
+        source: build
+        build:
+          path: /tmp/status-container
+          dockerfile: Dockerfile
+      when: pull_result.failed
+      ignore_errors: yes
+
+    - name: Create status container build directory
+      ansible.builtin.file:
+        path: /tmp/status-container
+        state: directory
+        mode: '0755'
+      when: pull_result.failed
+
+    - name: Copy status container files for local build
+      ansible.builtin.copy:
+        src: "{{ item }}"
+        dest: "/tmp/status-container/{{ item | basename }}"
+      loop:
+        - "{{ playbook_dir }}/../../containers/status/app.py"
+        - "{{ playbook_dir }}/../../containers/status/requirements.txt"
+        - "{{ playbook_dir }}/../../containers/status/Dockerfile"
+        - "{{ playbook_dir }}/../../containers/status/CONTAINER_VERSION"
+      when: pull_result.failed
 
     - name: Stop existing status container if running
       ansible.builtin.docker_container:
@@ -118,13 +147,13 @@
           Dashboard URL: http://localhost:{{ status_host_port }}/dashboard
 
     - name: Verify status container is running
-      ansible.builtin.command: docker inspect -f '{{.State.Running}}' {{ status_container_name }}
+      ansible.builtin.command: docker inspect -f '{{ "{{.State.Running}}" }}' {{ status_container_name }}
       register: verify_running_result
       failed_when: "'true' not in verify_running_result.stdout"
       changed_when: false
 
     - name: Display final container status
-      ansible.builtin.command: docker inspect -f '{{json .NetworkSettings.Ports}}' {{ status_container_name }}
+      ansible.builtin.command: docker inspect -f '{{ "{{json .NetworkSettings.Ports}}" }}' {{ status_container_name }}
       register: final_container_ports
       changed_when: false
 
