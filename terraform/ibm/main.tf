@@ -92,6 +92,16 @@ resource "ibm_is_security_group_rule" "callableapis_https" {
   }
 }
 
+resource "ibm_is_security_group_rule" "callableapis_8080" {
+  group     = ibm_is_security_group.callableapis_sg.id
+  direction = "inbound"
+  remote    = "0.0.0.0/0"
+  tcp {
+    port_min = 8080
+    port_max = 8080
+  }
+}
+
 # Security Group Rules - Outbound (for internet access)
 resource "ibm_is_security_group_rule" "callableapis_outbound_http" {
   group     = ibm_is_security_group.callableapis_sg.id

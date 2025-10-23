@@ -1,0 +1,139 @@
+---
+- name: Debug container runtime and deploy CallableAPIs Base Container
+  hosts: all
+  become: yes
+
+  vars:
+    container_image: "rl337/callableapis:base"
+    container_name: "callableapis-base"
+    container_port: 8080
+
+  tasks:
+    - name: Check if nerdctl exists
+      stat:
+        path: /usr/bin/nerdctl
+      register: nerdctl_stat
+
+    - name: Check if ctr exists
+      stat:
+        path: /usr/bin/ctr
+      register: ctr_stat
+
+    - name: Display stat results
+      debug:
+        msg: |
+          nerdctl exists: {{ nerdctl_stat.stat.exists }}
+          ctr exists: {{ ctr_stat.stat.exists }}
+
+    - name: Try nerdctl first
+      command: nerdctl --version
+      register: nerdctl_version
+      failed_when: false
+
+    - name: Try ctr if nerdctl fails
+      command: ctr --version
+      register: ctr_version
+      failed_when: false
+      when: nerdctl_version.rc != 0
+
+    - name: Set container runtime based on what works
+      set_fact:
+        container_runtime: "{{ 'nerdctl' if nerdctl_version.rc == 0 else ('ctr' if ctr_version.rc == 0 else 'none') }}"
+
+    - name: Display selected runtime
+      debug:
+        msg: "Selected container runtime: {{ container_runtime }}"
+
+    - name: Fail if no container runtime is available
+      fail:
+        msg: "No working container runtime found on {{ inventory_hostname }}"
+      when: container_runtime == 'none'
+
+    - name: Start containerd service
+      systemd:
+        name: containerd
+        state: started
+        enabled: yes
+      failed_when: false
+
+    - name: Wait a moment for containerd to start
+      wait_for:
+        timeout: 10
+
+    - name: Pull base container image
+      command: "{{ container_runtime }} pull {{ container_image }}"
+      register: pull_result
+      failed_when: false
+
+    - name: Display pull result
+      debug:
+        msg: "{{ 'Container image pulled successfully' if pull_result.rc == 0 else 'Failed to pull container image' }}"
+
+    - name: Stop existing base container if running
+      command: "{{ container_runtime }} stop {{ container_name }}"
+      register: stop_result
+      failed_when: false
+
+    - name: Remove existing base container if exists
+      command: "{{ container_runtime }} rm {{ container_name }}"
+      register: remove_result
+      failed_when: false
+
+    - name: Run base container
+      command: >
+        {{ container_runtime }} run -d
+        --name {{ container_name }}
+        --restart unless-stopped
+        -p {{ container_port }}:8080
+        {{ container_image }}
+      register: run_result
+
+    - name: Wait for container to start
+      wait_for:
+        port: "{{ container_port }}"
+        host: "127.0.0.1"
+        timeout: 30
+
+    - name: Check container status
+      command: "{{ container_runtime }} ps --filter name={{ container_name }}"
+      register: container_status
+
+    - name: Display container status
+      debug:
+        msg: "{{ container_status.stdout_lines }}"
+
+    - name: Test container health endpoint
+      uri:
+        url: "http://127.0.0.1:{{ container_port }}/health"
+        method: GET
+        status_code: 200
+      register: health_test
+      failed_when: false
+
+    - name: Test container status endpoint
+      uri:
+        url: "http://127.0.0.1:{{ container_port }}/api/status"
+        method: GET
+        status_code: 200
+      register: status_test
+      failed_when: false
+
+    - name: Display test results
+      debug:
+        msg: |
+          Container deployment completed on {{ inventory_hostname }}
+          Runtime: {{ container_runtime }}
+          Health endpoint: {{ 'PASSED' if health_test.status == 200 else 'FAILED' }}
+          Status endpoint: {{ 'PASSED' if status_test.status == 200 else 'FAILED' }}
+          Container port: {{ container_port }}
+          Access URL: http://{{ ansible_default_ipv4.address }}:{{ container_port }}
+
+  post_tasks:
+    - name: Verify container is running
+      command: "{{ container_runtime }} ps --filter name={{ container_name }}"
+      register: final_status
+
+    - name: Display final container status
+      debug:
+        msg: "{{ final_status.stdout_lines }}"
+

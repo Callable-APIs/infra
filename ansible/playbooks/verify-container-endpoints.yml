@@ -1,0 +1,70 @@
+---
+- name: Verify container endpoints across all nodes
+  hosts: all
+  become: no
+
+  vars:
+    container_port: 8080
+
+  tasks:
+    - name: Test container health endpoint
+      uri:
+        url: "http://{{ ansible_default_ipv4.address }}:{{ container_port }}/health"
+        method: GET
+        status_code: 200
+        timeout: 10
+      register: health_test
+      failed_when: false
+
+    - name: Test container status endpoint
+      uri:
+        url: "http://{{ ansible_default_ipv4.address }}:{{ container_port }}/api/status"
+        method: GET
+        status_code: 200
+        timeout: 10
+      register: status_test
+      failed_when: false
+
+    - name: Test container API health endpoint
+      uri:
+        url: "http://{{ ansible_default_ipv4.address }}:{{ container_port }}/api/health"
+        method: GET
+        status_code: 200
+        timeout: 10
+      register: api_health_test
+      failed_when: false
+
+    - name: Test container root endpoint
+      uri:
+        url: "http://{{ ansible_default_ipv4.address }}:{{ container_port }}/"
+        method: GET
+        status_code: 200
+        timeout: 10
+      register: root_test
+      failed_when: false
+
+    - name: Display test results for {{ inventory_hostname }}
+      debug:
+        msg: |
+          Node: {{ inventory_hostname }} ({{ ansible_default_ipv4.address }})
+          Provider: {{ provider | default('unknown') }}
+          Role: {{ role | default('unknown') }}
+          Health endpoint: {{ 'PASSED' if health_test.status == 200 else 'FAILED' }}
+          Status endpoint: {{ 'PASSED' if status_test.status == 200 else 'FAILED' }}
+          API health endpoint: {{ 'PASSED' if api_health_test.status == 200 else 'FAILED' }}
+          Root endpoint: {{ 'PASSED' if root_test.status == 200 else 'FAILED' }}
+          Access URL: http://{{ ansible_default_ipv4.address }}:{{ container_port }}
+
+  post_tasks:
+    - name: Summary of all nodes
+      debug:
+        msg: |
+          ========================================
+          Container Endpoint Verification Summary
+          ========================================
+          Total nodes tested: {{ ansible_play_hosts | length }}
+          Node: {{ inventory_hostname }}
+          IP: {{ ansible_default_ipv4.address }}
+          All endpoints: {{ 'PASSED' if (health_test.status == 200 and status_test.status == 200 and api_health_test.status == 200 and root_test.status == 200) else 'FAILED' }}
+          ========================================
+

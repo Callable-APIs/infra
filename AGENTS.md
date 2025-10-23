@@ -16,6 +16,135 @@ There should be a run_checks.sh that runs all automated tests, static checks, st
 There should be at least 1 github action designed to validate Pull Requests which run a relevant subset of 
 checks found in run_checks.sh.  Ideally it will be all but there may be checks that cannot run headlessly or in a github actions context.  
 
+## Terraform State Management
+
+**CRITICAL: All infrastructure changes MUST go through S3-backed Terraform state**
+
+### State Management Rules
+1. **S3 Backend Only**: All infrastructure is managed through the S3-backed Terraform state located at:
+   - Bucket: `callableapis-terraform-state`
+   - Key: `terraform.tfstate`
+   - Region: `us-west-2`
+   - Locking: DynamoDB table `callableapis-terraform-locks`
+
+2. **No Local State**: Never create or modify local `terraform.tfstate` files. All state operations must use the S3 backend.
+
+3. **Import Before Modify**: When adding new infrastructure:
+   - First import existing resources into S3-backed state
+   - Then modify the Terraform configuration
+   - Finally apply changes through `terraform apply`
+
+4. **Multi-Cloud Coverage**: All cloud providers (AWS, Google Cloud, Oracle Cloud, IBM Cloud) must be managed through the single S3-backed state.
+
+### Terraform Workflow
+1. **Always use Docker container**: `callableapis:infra` for all Terraform operations
+2. **Load environment variables**: Source `env.sh` before running Terraform commands
+3. **Verify state**: Run `terraform plan` before any changes to ensure state consistency
+4. **Apply changes**: Use `terraform apply` for all infrastructure modifications
+5. **Use relative paths**: All commands should be run from repository root
+
+### Prohibited Actions
+- ❌ Creating local `terraform.tfstate` files
+- ❌ Using cloud provider CLIs/consoles for infrastructure changes
+- ❌ Manual firewall rule modifications outside Terraform
+- ❌ Creating resources directly in cloud consoles
+- ❌ Using separate Terraform configurations for different cloud providers
+
+### Required Actions
+- ✅ All infrastructure changes through `terraform apply`
+- ✅ Import existing resources before managing them
+- ✅ Use `terraform plan` to verify changes before applying
+- ✅ Test infrastructure changes in development before production
+- ✅ Document all infrastructure changes in commit messages
+
+### Environment Configuration Management
+**CRITICAL: Keep template files in sync with actual configuration**
+
+#### Template Files (Safe to Commit)
+- `env.sh.in` - Environment variables template
+- `terraform/terraform.tfvars.in` - Terraform variables template
+
+#### Actual Files (Never Commit)
+- `env.sh` - Contains actual credentials (gitignored)
+- `terraform/terraform.tfvars` - Contains actual values (gitignored)
+
+#### Template File Maintenance Rules
+1. **Always update templates first** when adding new variables
+2. **Keep templates in sync** with actual configuration files
+3. **Use descriptive placeholder values** in templates
+4. **Test template files** by copying to actual files and verifying
+
+#### Adding New Variables
+When adding new environment variables or Terraform variables:
+1. Add to `env.sh.in` with placeholder value
+2. Add to `terraform/terraform.tfvars.in` with placeholder value
+3. Test by copying templates to actual files
+4. Verify all required variables are documented
+
+
+### Current Infrastructure State
+**Get the current infrastructure state from Terraform (single source of truth):**
+
+```bash
+# Check current Terraform state
+docker run --rm -v $(pwd):/app -w /app -e AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" -e AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" callableapis:infra terraform state list
+
+# Get detailed resource information
+docker run --rm -v $(pwd):/app -w /app -e AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" -e AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" callableapis:infra terraform state list | while read -r resource; do
+  echo "Resource: $resource"
+  docker run --rm -v $(pwd):/app -w /app -e AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" -e AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" callableapis:infra terraform state show "$resource"
+  echo "---"
+done
+
+# Get infrastructure summary by provider
+docker run --rm -v $(pwd):/app -w /app -e AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" -e AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" callableapis:infra terraform state list | awk -F'.' '{print $1"."$2}' | sort | uniq -c | sort -nr
+```
+
+**Container Deployment Status:**
+- **Base Container**: `callableapis:base` deployed to containerd nodes
+- **Nodes**: Oracle (onode1), Google (gnode1), IBM (inode1)  
+- **Port**: 8080 (internal access confirmed, external access pending firewall rules)
+
+### Quick Reference Commands
+```bash
+# Load environment and navigate to terraform directory
+# Note: Run from repository root, ensure env.sh contains all required credentials
+cd $(pwd) && source env.sh && cd terraform
+
+# Plan changes (load all environment variables from env.sh)
+docker run --rm -v $(pwd):/app -w /app \
+  -e AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" \
+  -e AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" \
+  -e GOOGLE_APPLICATION_CREDENTIALS="/app/google-credentials.json" \
+  -e OCI_TENANCY_OCID="$OCI_TENANCY_OCID" \
+  -e OCI_USER_OCID="$OCI_USER_OCID" \
+  -e OCI_FINGERPRINT="$OCI_FINGERPRINT" \
+  -e OCI_PRIVATE_KEY_PATH="/app/oci-private-key.pem" \
+  -e OCI_COMPARTMENT_ID="$OCI_COMPARTMENT_ID" \
+  -e OCI_REGION="$OCI_REGION" \
+  -e IBMCLOUD_API_KEY="$IBMCLOUD_API_KEY" \
+  -e IBMCLOUD_REGION="$IBMCLOUD_REGION" \
+  callableapis:infra terraform plan
+
+# Apply changes (load all environment variables from env.sh)
+docker run --rm -v $(pwd):/app -w /app \
+  -e AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" \
+  -e AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" \
+  -e GOOGLE_APPLICATION_CREDENTIALS="/app/google-credentials.json" \
+  -e OCI_TENANCY_OCID="$OCI_TENANCY_OCID" \
+  -e OCI_USER_OCID="$OCI_USER_OCID" \
+  -e OCI_FINGERPRINT="$OCI_FINGERPRINT" \
+  -e OCI_PRIVATE_KEY_PATH="/app/oci-private-key.pem" \
+  -e OCI_COMPARTMENT_ID="$OCI_COMPARTMENT_ID" \
+  -e OCI_REGION="$OCI_REGION" \
+  -e IBMCLOUD_API_KEY="$IBMCLOUD_API_KEY" \
+  -e IBMCLOUD_REGION="$IBMCLOUD_REGION" \
+  callableapis:infra terraform apply
+
+# Import existing resource (use appropriate environment variables)
+docker run --rm -v $(pwd):/app -w /app -e [ENV_VARS] callableapis:infra terraform import [RESOURCE_TYPE].[RESOURCE_NAME] [RESOURCE_ID]
+```
+
 # Task Instruction
 All work and changes to the repository should be part of a task.  A task has a distinct starting point and measurable end goal.  If you feel like you are not presently in a task, ask for more detailed instructions or clarity on any underdeveloped parts of the problem.  Once the problem is well understood and appropriately broken down it will be tracked in a Github Issue.
 

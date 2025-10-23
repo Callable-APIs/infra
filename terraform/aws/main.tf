@@ -143,6 +143,14 @@ resource "aws_security_group" "eb_security_group" {
     cidr_blocks = ["0.0.0.0/0"] # TODO: Restrict to your IP
   }
 
+  # Container Services (port 8080)
+  ingress {
+    from_port   = 8080
+    to_port     = 8080
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
   # All outbound traffic
   egress {
     from_port   = 0
@@ -187,6 +195,14 @@ resource "aws_security_group" "api_security_group" {
     to_port     = 22
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"] # TODO: Restrict to your IP
+  }
+
+  # Container Services (port 8080)
+  ingress {
+    from_port   = 8080
+    to_port     = 8080
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   # All outbound traffic

@@ -115,6 +115,18 @@ resource "oci_core_security_list" "callableapis_sl" {
     }
   }
 
+  # Container Services (port 8080)
+  ingress_security_rules {
+    protocol  = "6"
+    source    = "0.0.0.0/0"
+    stateless = false
+
+    tcp_options {
+      min = 8080
+      max = 8080
+    }
+  }
+
   # All outbound traffic
   egress_security_rules {
     protocol    = "all"

@@ -83,6 +83,19 @@ resource "google_compute_firewall" "callableapis_allow_https" {
   target_tags   = ["callableapis-web"]
 }
 
+resource "google_compute_firewall" "callableapis_allow_8080" {
+  name    = "callableapis-allow-8080"
+  network = google_compute_network.callableapis_vpc.name
+
+  allow {
+    protocol = "tcp"
+    ports    = ["8080"]
+  }
+
+  source_ranges = ["0.0.0.0/0"]
+  target_tags   = ["callableapis-web"]
+}
+
 # e2-micro Instance (Always Free)
 resource "google_compute_instance" "callableapis_e2_micro" {
   name         = "callableapis-e2-micro"
