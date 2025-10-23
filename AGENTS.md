@@ -89,37 +89,37 @@ checks found in run_checks.sh.  Ideally it will be all but there may be checks t
 
 #### Standardization Requirements
 All new nodes must be standardized using our Ansible playbooks to ensure:
-- **Container Runtime**: containerd with nerdctl CLI
-- **Python Version**: Python 3.12+ for Ansible compatibility
+- **Container Runtime**: Docker Engine with Docker CLI
+- **Python Version**: Python 3.10+ for Ansible compatibility
 - **System Packages**: Essential tools and dependencies
 - **User Configuration**: ansible user with proper permissions
-- **Service Configuration**: containerd service enabled and running
+- **Service Configuration**: Docker service enabled and running
 
 #### Standardization Commands
 ```bash
 # Standardize new Oracle Cloud nodes
-ansible-playbook -i ansible/inventory/production ansible/playbooks/install-containerd-direct.yml --limit oracle_cloud
+ansible-playbook -i ansible/inventory/production ansible/playbooks/install-docker-standard.yml --limit oracle_cloud
 
 # Standardize new Google Cloud nodes  
-ansible-playbook -i ansible/inventory/production ansible/playbooks/install-containerd-direct.yml --limit google_cloud
+ansible-playbook -i ansible/inventory/production ansible/playbooks/install-docker-standard.yml --limit google_cloud
 
 # Standardize new IBM Cloud nodes
-ansible-playbook -i ansible/inventory/production ansible/playbooks/install-containerd-direct.yml --limit ibm_cloud
+ansible-playbook -i ansible/inventory/production ansible/playbooks/install-docker-standard.yml --limit ibm_cloud
 
 # Standardize all new nodes at once
-ansible-playbook -i ansible/inventory/production ansible/playbooks/install-containerd-direct.yml
+ansible-playbook -i ansible/inventory/production ansible/playbooks/install-docker-standard.yml
 
-# Verify standardization completed
-ansible-playbook -i ansible/inventory/production ansible/playbooks/validate-facts.yml
+# Migrate existing containerd nodes to Docker
+ansible-playbook -i ansible/inventory/production ansible/playbooks/migrate-to-docker.yml
 ```
 
 #### Post-Standardization Deployment
 After standardization, deploy containers using:
 ```bash
 # Deploy containers to standardized nodes
-ansible-playbook -i ansible/inventory/production ansible/playbooks/debug-and-deploy.yml
+ansible-playbook -i ansible/inventory/production ansible/playbooks/deploy-docker-container.yml
 
-# Or use the containerd setup with nginx proxy
+# Or use the nginx proxy setup with Docker
 ansible-playbook -i ansible/inventory/production ansible/playbooks/containerd-setup.yml
 ```
 
@@ -129,7 +129,10 @@ ansible-playbook -i ansible/inventory/production ansible/playbooks/containerd-se
 ansible all -i ansible/inventory/production -m shell -a "cat /home/ansible/.ansible/facts/standardization_complete 2>/dev/null || echo 'Not standardized'"
 
 # Verify container runtime availability
-ansible all -i ansible/inventory/production -m shell -a "nerdctl --version || ctr --version || echo 'No container runtime'"
+ansible all -i ansible/inventory/production -m shell -a "docker --version || echo 'No container runtime'"
+
+# Check container runtime type
+ansible all -i ansible/inventory/production -m shell -a "cat /home/ansible/.ansible/facts/container_runtime 2>/dev/null || echo 'Unknown'"
 ```
 
 ### Environment Configuration Management
@@ -201,7 +204,7 @@ docker run --rm -v $(pwd):/app -w /app -e AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID"
 ansible all -i ansible/inventory/production -m ping
 
 # Check container status on all nodes
-ansible all -i ansible/inventory/production -m shell -a "docker ps -a || nerdctl ps -a || ctr containers list"
+ansible all -i ansible/inventory/production -m shell -a "docker ps -a"
 
 # Test external access to container endpoints
 ./test-container-endpoints.sh

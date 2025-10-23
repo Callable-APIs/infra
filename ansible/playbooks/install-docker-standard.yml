@@ -1,0 +1,189 @@
+---
+- name: Install Docker and standardize nodes for container deployment
+  hosts: all
+  become: yes
+  vars:
+    docker_version: "26.1.3" # Version available in Ubuntu repositories
+    container_image: "rl337/callableapis:base"
+    container_name: "callableapis-base"
+    container_port: 8080
+
+  tasks:
+    - name: Add ansible user to sudoers
+      ansible.builtin.lineinfile:
+        path: /etc/sudoers.d/ansible
+        line: "ansible ALL=(ALL) NOPASSWD:ALL"
+        create: yes
+        mode: "0440"
+
+    - name: Update package cache
+      ansible.builtin.apt:
+        update_cache: yes
+
+    - name: Install essential packages
+      ansible.builtin.apt:
+        name:
+          - curl
+          - wget
+          - git
+          - python3
+          - python3-pip
+          - python3-venv
+          - htop
+          - iotop
+          - net-tools
+          - vim
+          - nano
+          - unzip
+          - jq
+          - fail2ban
+          - ufw
+          - ca-certificates
+          - gnupg
+          - lsb-release
+        state: present
+
+    - name: Install Python 3.12 from deadsnakes PPA (Ubuntu 24.04+)
+      ansible.builtin.apt_repository:
+        repo: ppa:deadsnakes/ppa
+        state: present
+      when: ansible_distribution_version == '24.04'
+
+    - name: Install Python 3.10 for Ubuntu 22.04
+      ansible.builtin.apt:
+        name: python3.10
+        state: present
+      when: ansible_distribution_version == '22.04'
+
+    - name: Set Python 3.12 as default python3 (Ubuntu 24.04+)
+      ansible.builtin.alternatives:
+        name: python3
+        link: /usr/bin/python3
+        path: /usr/bin/python3.12
+      when: ansible_distribution_version == '24.04'
+
+    - name: Set Python 3.10 as default python3 (Ubuntu 22.04)
+      ansible.builtin.alternatives:
+        name: python3
+        link: /usr/bin/python3
+        path: /usr/bin/python3.10
+      when: ansible_distribution_version == '22.04'
+
+    - name: Remove old Docker packages
+      ansible.builtin.apt:
+        name:
+          - docker
+          - docker-engine
+          - docker.io
+          - containerd
+          - containerd.io
+        state: absent
+        purge: yes
+      ignore_errors: yes
+
+    - name: Add Docker's official GPG key
+      ansible.builtin.apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Add Docker repository
+      ansible.builtin.apt_repository:
+        repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+        state: present
+        update_cache: yes
+
+    - name: Install Docker Engine
+      ansible.builtin.apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-buildx-plugin
+          - docker-compose-plugin
+        state: present
+
+    - name: Create docker group
+      ansible.builtin.group:
+        name: docker
+        state: present
+
+    - name: Add ansible user to docker group
+      ansible.builtin.user:
+        name: ansible
+        groups: docker
+        append: yes
+
+    - name: Enable and start Docker service
+      ansible.builtin.systemd:
+        name: docker
+        enabled: yes
+        state: started
+        daemon_reload: yes
+
+    - name: Wait for Docker to be ready
+      ansible.builtin.wait_for:
+        port: 2376 # Docker daemon port
+        host: localhost
+        timeout: 30
+      ignore_errors: yes # Docker might use unix socket
+
+    - name: Verify Docker installation
+      ansible.builtin.command: docker --version
+      register: docker_version_output
+      changed_when: false
+
+    - name: Verify Python version
+      ansible.builtin.command: python3 --version
+      register: python_version_output
+      changed_when: false
+
+    - name: Check Docker service status
+      ansible.builtin.systemd:
+        name: docker
+        state: started
+      register: docker_status
+
+    - name: Create facts directory
+      ansible.builtin.file:
+        path: /home/ansible/.ansible/facts
+        state: directory
+        owner: ansible
+        group: ansible
+        mode: "0755"
+
+    - name: Write standardization facts to files
+      ansible.builtin.copy:
+        content: "{{ item.value }}"
+        dest: "/home/ansible/.ansible/facts/{{ item.key }}"
+        owner: ansible
+        group: ansible
+        mode: "0644"
+      loop:
+        - { key: "python_version", value: "{{ python_version_output.stdout }}" }
+        - { key: "docker_version", value: "{{ docker_version_output.stdout }}" }
+        - { key: "docker_status", value: "{{ 'active' if docker_status.changed == false else 'inactive' }}" }
+        - { key: "standardization_complete", value: "true" }
+        - { key: "container_runtime", value: "docker" }
+        - { key: "cloud_provider", value: "unknown" }
+        - { key: "os_version", value: "{{ ansible_distribution }} {{ ansible_distribution_version }}" }
+        - { key: "standardization_date", value: "{{ ansible_date_time.iso8601 }}" }
+
+    - name: Set standardization facts (for current run)
+      ansible.builtin.set_fact:
+        standardization_complete: true
+        docker_version: "{{ docker_version_output.stdout }}"
+        python_version: "{{ python_version_output.stdout }}"
+        docker_status: "{{ 'active' if docker_status.changed == false else 'inactive' }}"
+        container_runtime: "docker"
+
+    - name: Display standardization results
+      ansible.builtin.debug:
+        msg: |
+          Cloud Host Standardized with Docker:
+          - Host: {{ inventory_hostname }}
+          - OS: {{ ansible_distribution }} {{ ansible_distribution_version }}
+          - Python: {{ python_version }}
+          - Docker: {{ docker_version }}
+          - Docker Status: {{ docker_status }}
+          - Container Runtime: {{ container_runtime }}
+          - Standardization: COMPLETE

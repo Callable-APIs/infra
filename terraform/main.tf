@@ -554,16 +554,16 @@ resource "ibm_is_security_group_rule" "callableapis_outbound_http" {
   }
 }
 
-# Outbound HTTPS disabled - SSL terminated at Cloudflare
-# resource "ibm_is_security_group_rule" "callableapis_outbound_https" {
-#   group     = ibm_is_security_group.callableapis_sg.id
-#   direction = "outbound"
-#   remote    = "0.0.0.0/0"
-#   tcp {
-#     port_min = 443
-#     port_max = 443
-#   }
-# }
+# Outbound HTTPS for Docker Hub and GitHub access
+resource "ibm_is_security_group_rule" "callableapis_outbound_https" {
+  group     = ibm_is_security_group.callableapis_sg.id
+  direction = "outbound"
+  remote    = "0.0.0.0/0"
+  tcp {
+    port_min = 443
+    port_max = 443
+  }
+}
 
 resource "ibm_is_security_group_rule" "callableapis_outbound_dns" {
   group     = ibm_is_security_group.callableapis_sg.id
