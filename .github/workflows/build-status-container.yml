@@ -1,0 +1,88 @@
+name: Build and Push Status Container
+
+on:
+    push:
+        branches: [main]
+        paths: ["containers/status/**"]
+    pull_request:
+        branches: [main]
+        paths: ["containers/status/**"]
+    workflow_dispatch:
+
+env:
+    REGISTRY: docker.io
+    IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/callableapis
+
+jobs:
+    build-and-push:
+        runs-on: ubuntu-latest
+        permissions:
+            contents: read
+            packages: write
+
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v4
+
+            - name: Set up Docker Buildx
+              uses: docker/setup-buildx-action@v3
+
+            - name: Log in to Docker Hub
+              uses: docker/login-action@v3
+              with:
+                  username: ${{ secrets.DOCKERHUB_USERNAME }}
+                  password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+            - name: Extract metadata
+              id: meta
+              uses: docker/metadata-action@v5
+              with:
+                images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+                tags: |
+                  type=ref,event=branch
+                  type=ref,event=pr
+                  type=sha,prefix={{branch}}-
+                  type=raw,value=status,enable={{is_default_branch}}
+                  type=raw,value=latest-status,enable={{is_default_branch}}
+
+            - name: Generate container version
+              run: |
+                echo "${{ github.repository }}/${{ github.sha }}" > containers/status/CONTAINER_VERSION
+
+            - name: Build and push Docker image
+              uses: docker/build-push-action@v5
+              with:
+                  context: ./containers/status
+                  file: ./containers/status/Dockerfile
+                  push: true
+                  tags: ${{ steps.meta.outputs.tags }}
+                  labels: ${{ steps.meta.outputs.labels }}
+                  cache-from: type=gha
+                  cache-to: type=gha,mode=max
+                  platforms: linux/amd64
+
+            - name: Generate deployment info
+              run: |
+                  echo "## Status Container Build Summary" >> $GITHUB_STEP_SUMMARY
+                  echo "- **Registry**: ${{ env.REGISTRY }}" >> $GITHUB_STEP_SUMMARY
+                  echo "- **Image**: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}" >> $GITHUB_STEP_SUMMARY
+                  echo "- **Tags**: ${{ steps.meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
+                  echo "- **Size**: ~150MB (Python slim base)" >> $GITHUB_STEP_SUMMARY
+                  echo "" >> $GITHUB_STEP_SUMMARY
+                  echo "### Status Container Features" >> $GITHUB_STEP_SUMMARY
+                  echo "- Real-time health monitoring of all infrastructure nodes" >> $GITHUB_STEP_SUMMARY
+                  echo "- Concurrent health checks using asyncio" >> $GITHUB_STEP_SUMMARY
+                  echo "- Beautiful HTML dashboard at /dashboard" >> $GITHUB_STEP_SUMMARY
+                  echo "- JSON API endpoints for programmatic access" >> $GITHUB_STEP_SUMMARY
+                  echo "- Node identification by CNAME only (security)" >> $GITHUB_STEP_SUMMARY
+                  echo "" >> $GITHUB_STEP_SUMMARY
+                  echo "### Monitored Nodes" >> $GITHUB_STEP_SUMMARY
+                  echo "- onode1 (Oracle Cloud Node 1)" >> $GITHUB_STEP_SUMMARY
+                  echo "- onode2 (Oracle Cloud Node 2)" >> $GITHUB_STEP_SUMMARY
+                  echo "- gnode1 (Google Cloud Node 1)" >> $GITHUB_STEP_SUMMARY
+                  echo "- inode1 (IBM Cloud Node 1)" >> $GITHUB_STEP_SUMMARY
+                  echo "" >> $GITHUB_STEP_SUMMARY
+                  echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
+                  echo "1. Deploy to infrastructure node using Ansible" >> $GITHUB_STEP_SUMMARY
+                  echo "2. Configure Cloudflare DNS for status.callableapis.com" >> $GITHUB_STEP_SUMMARY
+                  echo "3. Test dashboard and API endpoints" >> $GITHUB_STEP_SUMMARY

@@ -1,0 +1,139 @@
+---
+- name: Deploy CallableAPIs Status Container
+  hosts: all
+  become: yes
+  vars:
+    status_container_name: "callableapis-status"
+    status_container_image: "docker.io/rl337/callableapis:status"
+    status_container_port: 8080
+    status_host_port: 8081  # Different port to avoid conflict with base container
+
+  tasks:
+    - name: Check if Docker is installed
+      ansible.builtin.command: which docker
+      register: docker_check
+      changed_when: false
+      ignore_errors: yes
+
+    - name: Fail if Docker is not installed
+      ansible.builtin.fail:
+        msg: "Docker is not installed on {{ inventory_hostname }}. Please run install-docker-standard.yml first."
+      when: docker_check.rc != 0
+
+    - name: Start Docker service
+      ansible.builtin.systemd:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Wait for Docker to be ready
+      ansible.builtin.wait_for:
+        port: 2376
+        host: localhost
+        timeout: 30
+      ignore_errors: yes
+
+    - name: Pull status container image
+      ansible.builtin.docker_image:
+        name: "{{ status_container_image }}"
+        source: pull
+        force_source: yes
+      register: pull_result
+
+    - name: Stop existing status container if running
+      ansible.builtin.docker_container:
+        name: "{{ status_container_name }}"
+        state: stopped
+      ignore_errors: yes
+
+    - name: Remove existing status container if exists
+      ansible.builtin.docker_container:
+        name: "{{ status_container_name }}"
+        state: absent
+      ignore_errors: yes
+
+    - name: Deploy status container
+      ansible.builtin.docker_container:
+        name: "{{ status_container_name }}"
+        image: "{{ status_container_image }}"
+        state: started
+        restart_policy: "unless-stopped"
+        ports:
+          - "{{ status_host_port }}:{{ status_container_port }}"
+        env:
+          CONTAINER_VERSION: "{{ ansible_date_time.iso8601 }}"
+        labels:
+          app: "callableapis"
+          service: "status"
+          managed_by: "ansible"
+          deployed_at: "{{ ansible_date_time.iso8601 }}"
+      register: deploy_result
+
+    - name: Wait for status container to start
+      ansible.builtin.wait_for:
+        port: "{{ status_host_port }}"
+        host: localhost
+        timeout: 30
+
+    - name: Check status container status
+      ansible.builtin.command: docker ps -f name={{ status_container_name }} --format "{{ '{{.Names}} {{.Status}}' }}"
+      register: container_status
+      changed_when: false
+
+    - name: Test status container health endpoint
+      ansible.builtin.uri:
+        url: "http://localhost:{{ status_host_port }}/health"
+        method: GET
+        status_code: 200
+      register: health_check_result
+      failed_when: false
+
+    - name: Test status container API status endpoint
+      ansible.builtin.uri:
+        url: "http://localhost:{{ status_host_port }}/api/status"
+        method: GET
+        status_code: 200
+      register: status_check_result
+      failed_when: false
+
+    - name: Test status container dashboard endpoint
+      ansible.builtin.uri:
+        url: "http://localhost:{{ status_host_port }}/dashboard"
+        method: GET
+        status_code: 200
+      register: dashboard_check_result
+      failed_when: false
+
+    - name: Display deployment results
+      ansible.builtin.debug:
+        msg: |
+          Status container deployment completed on {{ inventory_hostname }}
+          Container: {{ container_status.stdout_lines[0] | default('N/A') }}
+          Health endpoint: {{ 'PASSED' if health_check_result.status == 200 else 'FAILED' }}
+          Status endpoint: {{ 'PASSED' if status_check_result.status == 200 else 'FAILED' }}
+          Dashboard endpoint: {{ 'PASSED' if dashboard_check_result.status == 200 else 'FAILED' }}
+          Container port: {{ status_container_port }}
+          Host port: {{ status_host_port }}
+          Access URL: http://localhost:{{ status_host_port }}
+          Dashboard URL: http://localhost:{{ status_host_port }}/dashboard
+
+    - name: Verify status container is running
+      ansible.builtin.command: docker inspect -f '{{.State.Running}}' {{ status_container_name }}
+      register: verify_running_result
+      failed_when: "'true' not in verify_running_result.stdout"
+      changed_when: false
+
+    - name: Display final container status
+      ansible.builtin.command: docker inspect -f '{{json .NetworkSettings.Ports}}' {{ status_container_name }}
+      register: final_container_ports
+      changed_when: false
+
+    - name: Display final container status
+      ansible.builtin.debug:
+        msg: |
+          Final Status Container Status:
+          - Name: {{ status_container_name }}
+          - Status: {{ (verify_running_result.stdout | default('false')) | trim }}
+          - Started: {{ (deploy_result.container.State.StartedAt | default('N/A')) }}
+          - Image: {{ status_container_image }}
+          - Ports: {{ final_container_ports.stdout | default('N/A') }}
