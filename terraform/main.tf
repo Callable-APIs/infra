@@ -158,13 +158,27 @@ resource "google_compute_firewall" "callableapis_allow_http" {
   target_tags   = ["callableapis-web"]
 }
 
-resource "google_compute_firewall" "callableapis_allow_https" {
-  name    = "callableapis-allow-https"
+# HTTPS disabled - SSL terminated at Cloudflare
+# resource "google_compute_firewall" "callableapis_allow_https" {
+#   name    = "callableapis-allow-https"
+#   network = google_compute_network.callableapis_vpc.name
+#
+#   allow {
+#     protocol = "tcp"
+#     ports    = ["443"]
+#   }
+#
+#   source_ranges = ["0.0.0.0/0"]
+#   target_tags   = ["callableapis-web"]
+# }
+
+resource "google_compute_firewall" "callableapis_allow_8080" {
+  name    = "callableapis-allow-8080"
   network = google_compute_network.callableapis_vpc.name
 
   allow {
     protocol = "tcp"
-    ports    = ["443"]
+    ports    = ["8080"]
   }
 
   source_ranges = ["0.0.0.0/0"]
@@ -309,15 +323,26 @@ resource "oci_core_security_list" "callableapis_sl" {
     }
   }
 
-  # HTTPS access
+  # HTTPS disabled - SSL terminated at Cloudflare
+  # ingress_security_rules {
+  #   protocol  = "6"
+  #   source    = "0.0.0.0/0"
+  #   stateless = false
+  #
+  #   tcp_options {
+  #     min = 443
+  #     max = 443
+  #   }
+  # }
+
   ingress_security_rules {
     protocol  = "6"
     source    = "0.0.0.0/0"
     stateless = false
 
     tcp_options {
-      min = 443
-      max = 443
+      min = 8080
+      max = 8080
     }
   }
 
@@ -459,13 +484,24 @@ resource "ibm_is_security_group_rule" "callableapis_http" {
   }
 }
 
-resource "ibm_is_security_group_rule" "callableapis_https" {
+# HTTPS disabled - SSL terminated at Cloudflare
+# resource "ibm_is_security_group_rule" "callableapis_https" {
+#   group     = ibm_is_security_group.callableapis_sg.id
+#   direction = "inbound"
+#   remote    = "0.0.0.0/0"
+#   tcp {
+#     port_min = 443
+#     port_max = 443
+#   }
+# }
+
+resource "ibm_is_security_group_rule" "callableapis_8080" {
   group     = ibm_is_security_group.callableapis_sg.id
   direction = "inbound"
   remote    = "0.0.0.0/0"
   tcp {
-    port_min = 443
-    port_max = 443
+    port_min = 8080
+    port_max = 8080
   }
 }
 
@@ -480,15 +516,16 @@ resource "ibm_is_security_group_rule" "callableapis_outbound_http" {
   }
 }
 
-resource "ibm_is_security_group_rule" "callableapis_outbound_https" {
-  group     = ibm_is_security_group.callableapis_sg.id
-  direction = "outbound"
-  remote    = "0.0.0.0/0"
-  tcp {
-    port_min = 443
-    port_max = 443
-  }
-}
+# Outbound HTTPS disabled - SSL terminated at Cloudflare
+# resource "ibm_is_security_group_rule" "callableapis_outbound_https" {
+#   group     = ibm_is_security_group.callableapis_sg.id
+#   direction = "outbound"
+#   remote    = "0.0.0.0/0"
+#   tcp {
+#     port_min = 443
+#     port_max = 443
+#   }
+# }
 
 resource "ibm_is_security_group_rule" "callableapis_outbound_dns" {
   group     = ibm_is_security_group.callableapis_sg.id
