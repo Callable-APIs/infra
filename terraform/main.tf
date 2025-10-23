@@ -639,30 +639,33 @@ resource "ibm_is_floating_ip" "callableapis_fip" {
 # =============================================================================
 
 resource "cloudflare_record" "website_root" {
-  zone_id = data.cloudflare_zone.callableapis.id
-  name    = "callableapis.com"
-  type    = "CNAME"
-  content = "callableapis-usw2.com.s3-website.us-west-2.amazonaws.com"
-  proxied = true
-  comment = "S3 website endpoint"
+  zone_id         = data.cloudflare_zone.callableapis.id
+  name            = "callableapis.com"
+  type            = "CNAME"
+  content         = "callableapis-usw2.com.s3-website.us-west-2.amazonaws.com"
+  proxied         = true
+  allow_overwrite = true
+  comment         = "S3 website endpoint"
 }
 
 resource "cloudflare_record" "website_www" {
-  zone_id = data.cloudflare_zone.callableapis.id
-  name    = "www"
-  type    = "CNAME"
-  content = "callableapis-usw2.com.s3-website.us-west-2.amazonaws.com"
-  proxied = true
-  comment = "S3 website endpoint"
+  zone_id         = data.cloudflare_zone.callableapis.id
+  name            = "www"
+  type            = "CNAME"
+  content         = "callableapis-usw2.com.s3-website.us-west-2.amazonaws.com"
+  proxied         = true
+  allow_overwrite = true
+  comment         = "S3 website endpoint"
 }
 
 resource "cloudflare_record" "api" {
-  zone_id = data.cloudflare_zone.callableapis.id
-  name    = "api"
-  type    = "CNAME"
-  content = "callableapis-java-env.eba-s6cewupj.us-west-2.elasticbeanstalk.com"
-  proxied = true
-  comment = "Elastic Beanstalk API endpoint"
+  zone_id         = data.cloudflare_zone.callableapis.id
+  name            = "api"
+  type            = "CNAME"
+  content         = "callableapis-java-env.eba-s6cewupj.us-west-2.elasticbeanstalk.com"
+  proxied         = true
+  allow_overwrite = true
+  comment         = "Elastic Beanstalk API endpoint"
 }
 
 resource "cloudflare_record" "gnode1" {
