@@ -57,6 +57,33 @@ checks found in run_checks.sh.  Ideally it will be all but there may be checks t
 - ✅ Test infrastructure changes in development before production
 - ✅ Document all infrastructure changes in commit messages
 
+### Node Management Principles
+**CRITICAL: Avoid destroying nodes to prevent outages and data loss**
+
+#### Node Update Strategy
+1. **Use Ansible for configuration changes** - SSH keys, user accounts, software updates
+2. **Use Terraform for infrastructure changes** - firewall rules, networking, storage
+3. **Never destroy nodes for configuration changes** - Always patch in-place
+4. **Test changes in development** before applying to production nodes
+
+#### Configuration Management Hierarchy
+1. **Ansible**: Node configuration, SSH keys, users, software, services
+2. **Terraform**: Infrastructure, networking, firewall rules, storage
+3. **Docker/Containers**: Application deployment and management
+
+#### Prohibited Actions
+- ❌ Destroying nodes for SSH key updates
+- ❌ Recreating instances for configuration changes
+- ❌ Using Terraform for user account management
+- ❌ Manual configuration changes outside Ansible
+
+#### Required Actions
+- ✅ Use Ansible for all node configuration changes
+- ✅ Use Terraform only for infrastructure changes
+- ✅ Test configuration changes in development first
+- ✅ Maintain node availability during updates
+- ✅ Document all configuration changes
+
 ### Environment Configuration Management
 **CRITICAL: Keep template files in sync with actual configuration**
 
@@ -103,7 +130,18 @@ docker run --rm -v $(pwd):/app -w /app -e AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID"
 **Container Deployment Status:**
 - **Base Container**: `callableapis:base` deployed to containerd nodes
 - **Nodes**: Oracle (onode1), Google (gnode1), IBM (inode1)  
-- **Port**: 8080 (internal access confirmed, external access pending firewall rules)
+- **Port**: 8080 (Google Cloud working, Oracle/IBM need SSH key fixes via Ansible)
+
+**Current Node Status:**
+- **Google Cloud (gnode1)**: ✅ Working - All endpoints responding on port 8080
+- **Oracle Cloud (onode1)**: ❌ Not responding - SSH key format issues, needs Ansible fix
+- **IBM Cloud (inode1)**: ❌ Not responding - SSH key format issues, needs Ansible fix
+
+**Node Recovery Strategy:**
+1. **Use Ansible to update SSH keys** on existing nodes (don't recreate)
+2. **Deploy containers** using Ansible playbooks
+3. **Verify endpoints** are accessible on port 8080
+4. **Maintain node availability** throughout the process
 
 ### Quick Reference Commands
 ```bash
@@ -143,6 +181,21 @@ docker run --rm -v $(pwd):/app -w /app \
 
 # Import existing resource (use appropriate environment variables)
 docker run --rm -v $(pwd):/app -w /app -e [ENV_VARS] callableapis:infra terraform import [RESOURCE_TYPE].[RESOURCE_NAME] [RESOURCE_ID]
+```
+
+### Ansible Node Management Commands
+```bash
+# Update SSH keys on all nodes (non-destructive)
+ansible-playbook -i ansible/inventory/production ansible/playbooks/update-ssh-keys.yml
+
+# Deploy containers to all nodes
+ansible-playbook -i ansible/inventory/production ansible/playbooks/debug-and-deploy.yml
+
+# Verify container endpoints
+ansible-playbook -i ansible/inventory/production ansible/playbooks/verify-container-endpoints.yml
+
+# Test external access to endpoints
+./test-container-endpoints.sh
 ```
 
 # Task Instruction

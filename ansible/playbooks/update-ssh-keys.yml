@@ -1,0 +1,65 @@
+---
+- name: Update SSH keys on all nodes (non-destructive)
+  hosts: all
+  become: yes
+  tasks:
+    - name: Check if ansible user exists
+      ansible.builtin.user:
+        name: ansible
+        state: present
+      register: ansible_user_check
+
+    - name: Create ansible user if it doesn't exist
+      ansible.builtin.user:
+        name: ansible
+        shell: /bin/bash
+        createhome: yes
+        groups: sudo
+        append: yes
+      when: not ansible_user_check.changed
+
+    - name: Create .ssh directory for ansible user
+      ansible.builtin.file:
+        path: /home/ansible/.ssh
+        state: directory
+        owner: ansible
+        group: ansible
+        mode: '0700'
+
+    - name: Update SSH authorized keys for ansible user
+      ansible.builtin.copy:
+        content: "{{ lookup('file', 'ssh_keys/keys/callableapis_public_key') }}"
+        dest: /home/ansible/.ssh/authorized_keys
+        owner: ansible
+        group: ansible
+        mode: '0600'
+      notify: restart ssh
+
+    - name: Ensure ansible user has sudo access
+      ansible.builtin.lineinfile:
+        path: /etc/sudoers.d/ansible
+        line: "ansible ALL=(ALL) NOPASSWD:ALL"
+        create: yes
+        mode: '0440'
+        validate: 'visudo -cf %s'
+
+    - name: Check if containers are running
+      ansible.builtin.command: "{{ container_runtime }} ps -f name=callableapis-base --format '{{.ID}}'"
+      register: container_check
+      changed_when: false
+      failed_when: false
+      vars:
+        container_runtime: "{{ 'nerdctl' if ansible_facts['nerdctl_exists'] else 'ctr' }}"
+
+    - name: Display container status
+      ansible.builtin.debug:
+        msg: "Container status: {{ 'Running' if container_check.stdout else 'Not running' }}"
+
+  handlers:
+    - name: restart ssh
+      ansible.builtin.service:
+        name: ssh
+        state: restarted
+
+  vars:
+    container_runtime: "{{ 'nerdctl' if ansible_facts['nerdctl_exists'] else 'ctr' }}"
