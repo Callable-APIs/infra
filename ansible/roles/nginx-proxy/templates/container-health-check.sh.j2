@@ -1,0 +1,88 @@
+#!/bin/bash
+# Container Health Check Script
+# Monitors running containers and updates nginx upstream configuration
+
+CONFIG_FILE="/etc/nginx/conf.d/container-proxy.conf"
+UPSTREAM_FILE="/etc/nginx/conf.d/container-upstream.conf"
+LOG_FILE="/var/log/container-health-check.log"
+
+# Function to log messages
+log_message() {
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >> "$LOG_FILE"
+}
+
+# Function to check if a container is healthy
+check_container_health() {
+    local port=$1
+    local container_name=$2
+    
+    # Check if port is listening
+    if ! netstat -tln | grep -q ":$port "; then
+        return 1
+    fi
+    
+    # Check if container responds to health check
+    if curl -sf "http://127.0.0.1:$port/health" > /dev/null 2>&1; then
+        return 0
+    fi
+    
+    return 1
+}
+
+# Function to update nginx upstream configuration
+update_upstream() {
+    local active_ports=()
+    
+    # Check common container ports
+    for port in 8080 8081 8082 8083 8084; do
+        if check_container_health "$port" "container-$port"; then
+            active_ports+=("127.0.0.1:$port")
+            log_message "Container on port $port is healthy"
+        else
+            log_message "Container on port $port is not responding"
+        fi
+    done
+    
+    # Generate upstream configuration
+    cat > "$UPSTREAM_FILE" << EOF
+# Auto-generated upstream configuration
+# Generated at $(date)
+upstream container_services {
+    least_conn;
+EOF
+    
+    if [ ${#active_ports[@]} -eq 0 ]; then
+        # No healthy containers, use a default
+        echo "    server 127.0.0.1:8080 max_fails=3 fail_timeout=30s;" >> "$UPSTREAM_FILE"
+        log_message "No healthy containers found, using default upstream"
+    else
+        for port in "${active_ports[@]}"; do
+            echo "    server $port max_fails=3 fail_timeout=30s;" >> "$UPSTREAM_FILE"
+        done
+        log_message "Updated upstream with ${#active_ports[@]} healthy containers"
+    fi
+    
+    echo "}" >> "$UPSTREAM_FILE"
+    
+    # Test nginx configuration
+    if nginx -t > /dev/null 2>&1; then
+        # Reload nginx if configuration is valid
+        systemctl reload nginx
+        log_message "Nginx configuration updated and reloaded"
+    else
+        log_message "ERROR: Nginx configuration test failed"
+        return 1
+    fi
+}
+
+# Main execution
+log_message "Starting container health check"
+
+# Create log file if it doesn't exist
+touch "$LOG_FILE"
+
+# Update upstream configuration
+update_upstream
+
+log_message "Container health check completed"
+

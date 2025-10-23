@@ -1,0 +1,15 @@
+[Unit]
+Description=Container Health Monitor
+After=network.target nginx.service
+Wants=nginx.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/container-health-check.sh
+RemainAfterExit=no
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+

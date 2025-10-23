@@ -1,0 +1,72 @@
+---
+- name: Install nginx
+  apt:
+    name: nginx
+    state: present
+    update_cache: yes
+
+- name: Create nginx configuration directory
+  file:
+    path: /etc/nginx/conf.d
+    state: directory
+    mode: "0755"
+
+- name: Create container proxy configuration
+  template:
+    src: container-proxy.conf.j2
+    dest: /etc/nginx/conf.d/container-proxy.conf
+    mode: "0644"
+  notify: restart nginx
+
+- name: Create nginx main configuration
+  template:
+    src: nginx.conf.j2
+    dest: /etc/nginx/nginx.conf
+    mode: "0644"
+  notify: restart nginx
+
+- name: Create container health check script
+  template:
+    src: container-health-check.sh.j2
+    dest: /usr/local/bin/container-health-check.sh
+    mode: "0755"
+
+- name: Create systemd service for container health monitoring
+  template:
+    src: container-health-monitor.service.j2
+    dest: /etc/systemd/system/container-health-monitor.service
+    mode: "0644"
+  notify: restart container-health-monitor
+
+- name: Create systemd timer for container health monitoring
+  template:
+    src: container-health-monitor.timer.j2
+    dest: /etc/systemd/system/container-health-monitor.timer
+    mode: "0644"
+  notify: restart container-health-monitor
+
+- name: Enable and start nginx
+  systemd:
+    name: nginx
+    enabled: yes
+    state: started
+    daemon_reload: yes
+
+- name: Enable and start container health monitor timer
+  systemd:
+    name: container-health-monitor.timer
+    enabled: yes
+    state: started
+    daemon_reload: yes
+
+- name: Configure firewall for HTTP
+  ufw:
+    rule: allow
+    port: "80"
+    proto: tcp
+
+- name: Configure firewall for HTTPS
+  ufw:
+    rule: allow
+    port: "443"
+    proto: tcp

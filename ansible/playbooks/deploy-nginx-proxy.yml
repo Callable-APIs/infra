@@ -1,0 +1,63 @@
+---
+- name: Deploy nginx proxy for container endpoints
+  hosts: all
+  become: yes
+
+  pre_tasks:
+    - name: Check if containerd is installed
+      stat:
+        path: /usr/bin/containerd
+      register: containerd_installed
+
+    - name: Check if containerd is running
+      systemd:
+        name: containerd
+      register: containerd_running
+      failed_when: false
+
+    - name: Fail if containerd is not installed or running
+      fail:
+        msg: |
+          Containerd is not properly installed or running on {{ inventory_hostname }}!
+
+          Please run the containerd setup playbook first:
+          ansible-playbook -i inventory/production playbooks/containerd-setup.yml
+      when: not containerd_installed.stat.exists or containerd_running.failed
+
+  tasks:
+    - name: Include nginx-proxy role
+      include_role:
+        name: nginx-proxy
+
+  post_tasks:
+    - name: Wait for nginx to start
+      wait_for:
+        port: 80
+        timeout: 30
+
+    - name: Test nginx configuration
+      uri:
+        url: "http://{{ ansible_default_ipv4.address }}/health"
+        method: GET
+        status_code: 200
+      register: nginx_test
+      failed_when: false
+
+    - name: Display nginx status
+      debug:
+        msg: |
+          Nginx proxy deployed successfully on {{ inventory_hostname }}
+          Health check endpoint: http://{{ ansible_default_ipv4.address }}/health
+          Status endpoint: http://{{ ansible_default_ipv4.address }}/api/status
+          API endpoints: http://{{ ansible_default_ipv4.address }}/api/v1/* and /api/v2/*
+          Test result: {{ "PASSED" if nginx_test.status == 200 else "FAILED" }}
+
+    - name: Show container health check status
+      command: systemctl status container-health-monitor.timer
+      register: timer_status
+      failed_when: false
+
+    - name: Display timer status
+      debug:
+        msg: "{{ timer_status.stdout_lines }}"
+

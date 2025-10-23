@@ -1,0 +1,107 @@
+---
+- name: Deploy CallableAPIs Base Container to all nodes (Simple Docker approach)
+  hosts: all
+  become: yes
+
+  pre_tasks:
+    - name: Check if Docker is installed
+      stat:
+        path: /usr/bin/docker
+      register: docker_installed
+
+    - name: Check if Docker is running
+      systemd:
+        name: docker
+      register: docker_running
+      failed_when: false
+
+    - name: Fail if Docker is not installed or running
+      fail:
+        msg: |
+          Docker is not properly installed or running on {{ inventory_hostname }}!
+
+          Please ensure Docker is installed and running on this node.
+      when: not docker_installed.stat.exists or docker_running.failed
+
+  vars:
+    container_image: "rl337/callableapis:base"
+    container_name: "callableapis-base"
+    container_port: 8080
+
+  tasks:
+    - name: Pull base container image
+      command: docker pull {{ container_image }}
+      register: pull_result
+      failed_when: false
+
+    - name: Display pull result
+      debug:
+        msg: "{{ 'Container image pulled successfully' if pull_result.rc == 0 else 'Failed to pull container image' }}"
+
+    - name: Stop existing base container if running
+      command: docker stop {{ container_name }}
+      register: stop_result
+      failed_when: false
+
+    - name: Remove existing base container if exists
+      command: docker rm {{ container_name }}
+      register: remove_result
+      failed_when: false
+
+    - name: Run base container
+      command: >
+        docker run -d
+        --name {{ container_name }}
+        --restart unless-stopped
+        -p {{ container_port }}:8080
+        {{ container_image }}
+      register: run_result
+
+    - name: Wait for container to start
+      wait_for:
+        port: "{{ container_port }}"
+        host: "127.0.0.1"
+        timeout: 30
+
+    - name: Check container status
+      command: docker ps --filter name={{ container_name }}
+      register: container_status
+
+    - name: Display container status
+      debug:
+        msg: "{{ container_status.stdout_lines }}"
+
+    - name: Test container health endpoint
+      uri:
+        url: "http://127.0.0.1:{{ container_port }}/health"
+        method: GET
+        status_code: 200
+      register: health_test
+      failed_when: false
+
+    - name: Test container status endpoint
+      uri:
+        url: "http://127.0.0.1:{{ container_port }}/api/status"
+        method: GET
+        status_code: 200
+      register: status_test
+      failed_when: false
+
+    - name: Display test results
+      debug:
+        msg: |
+          Container deployment completed on {{ inventory_hostname }}
+          Health endpoint: {{ 'PASSED' if health_test.status == 200 else 'FAILED' }}
+          Status endpoint: {{ 'PASSED' if status_test.status == 200 else 'FAILED' }}
+          Container port: {{ container_port }}
+          Access URL: http://{{ ansible_default_ipv4.address }}:{{ container_port }}
+
+  post_tasks:
+    - name: Verify container is running
+      command: docker ps --filter name={{ container_name }} --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+      register: final_status
+
+    - name: Display final container status
+      debug:
+        msg: "{{ final_status.stdout_lines }}"
+
