@@ -1,0 +1,125 @@
+---
+- name: Deploy CallableAPIs Base Container using ctr
+  hosts: all
+  become: yes
+  vars:
+    container_image: "rl337/callableapis:base"
+    container_name: "callableapis-base"
+    container_port: "8080"
+
+  tasks:
+    - name: Check if ctr exists
+      stat:
+        path: /usr/local/bin/ctr
+      register: ctr_local
+      failed_when: false
+
+    - name: Check if ctr exists in system path
+      stat:
+        path: /usr/bin/ctr
+      register: ctr_system
+      failed_when: false
+
+    - name: Set ctr path
+      set_fact:
+        ctr_path: "{{ '/usr/local/bin/ctr' if ctr_local.stat.exists else '/usr/bin/ctr' }}"
+
+    - name: Display ctr path
+      debug:
+        msg: "Using ctr at: {{ ctr_path }}"
+
+    - name: Start containerd service
+      systemd:
+        name: containerd
+        state: started
+        enabled: yes
+
+    - name: Wait for containerd to be ready
+      wait_for:
+        port: 2375
+        host: localhost
+        timeout: 30
+      ignore_errors: yes
+
+    - name: Pull base container image
+      command: "{{ ctr_path }} images pull {{ container_image }}"
+      register: pull_result
+      failed_when: false
+
+    - name: Display pull result
+      debug:
+        msg: "{{ 'Container image pulled successfully' if pull_result.rc == 0 else 'Failed to pull container image' }}"
+
+    - name: Stop existing base container if running
+      command: "{{ ctr_path }} tasks kill {{ container_name }}"
+      register: stop_result
+      failed_when: false
+
+    - name: Remove existing base container if exists
+      command: "{{ ctr_path }} containers delete {{ container_name }}"
+      register: remove_result
+      failed_when: false
+
+    - name: Create container with ctr (using CNI networking)
+      command: >
+        {{ ctr_path }} containers create
+        --cni
+        {{ container_image }}
+        {{ container_name }}
+      register: create_result
+      failed_when: false
+
+    - name: Start container with ctr
+      command: "{{ ctr_path }} tasks start {{ container_name }}"
+      register: start_result
+      failed_when: false
+
+    - name: Wait for container to start
+      wait_for:
+        port: "{{ container_port }}"
+        host: localhost
+        timeout: 30
+
+    - name: Check container status
+      command: "{{ ctr_path }} tasks list"
+      register: task_list
+      changed_when: false
+
+    - name: Display container status
+      debug:
+        msg: "{{ task_list.stdout_lines }}"
+
+    - name: Test container health endpoint
+      uri:
+        url: "http://localhost:{{ container_port }}/health"
+        method: GET
+        timeout: 5
+      register: health_check
+      failed_when: false
+
+    - name: Test container status endpoint
+      uri:
+        url: "http://localhost:{{ container_port }}/api/status"
+        method: GET
+        timeout: 5
+      register: status_check
+      failed_when: false
+
+    - name: Display test results
+      debug:
+        msg: |
+          Container deployment completed on {{ inventory_hostname }}
+          Runtime: ctr
+          Health endpoint: {{ 'PASSED' if health_check.status == 200 else 'FAILED' }}
+          Status endpoint: {{ 'PASSED' if status_check.status == 200 else 'FAILED' }}
+          Container port: {{ container_port }}
+          Access URL: http://{{ ansible_default_ipv4.address }}:{{ container_port }}
+
+    - name: Verify container is running
+      command: "{{ ctr_path }} tasks list"
+      register: final_status
+      changed_when: false
+
+    - name: Display final container status
+      debug:
+        msg: "{{ final_status.stdout_lines }}"
