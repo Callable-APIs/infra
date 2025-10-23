@@ -84,6 +84,28 @@ checks found in run_checks.sh.  Ideally it will be all but there may be checks t
 - ✅ Maintain node availability during updates
 - ✅ Document all configuration changes
 
+### Ansible Playbook Structure
+**Current playbooks after Docker standardization cleanup:**
+
+#### Core Docker Playbooks
+- `install-docker-standard.yml` - Standardize nodes with Docker Engine
+- `deploy-docker-container.yml` - Deploy containers using Docker
+
+#### Utility Playbooks  
+- `update-ssh-keys.yml` - Update SSH keys on all nodes
+- `verify-container-endpoints.yml` - Verify container endpoints
+- `validate-facts.yml` - Validate and update standardization facts
+
+#### Service Playbooks
+- `deploy-nginx-proxy.yml` - Deploy nginx proxy for containers
+- `deploy-api.yml` - Deploy API services
+
+#### Secrets Playbooks
+- `build-secrets.yml` - Build secrets locally
+- `deploy-secrets-simple.yml` - Deploy secrets to nodes
+
+**Removed playbooks:** All containerd/ctr-based playbooks have been removed as we now use Docker exclusively.
+
 ### Node Standardization Process
 **CRITICAL: New nodes must be standardized before container deployment**
 
@@ -109,8 +131,7 @@ ansible-playbook -i ansible/inventory/production ansible/playbooks/install-docke
 # Standardize all new nodes at once
 ansible-playbook -i ansible/inventory/production ansible/playbooks/install-docker-standard.yml
 
-# Migrate existing containerd nodes to Docker
-ansible-playbook -i ansible/inventory/production ansible/playbooks/migrate-to-docker.yml
+# Note: Migration playbook removed - all nodes now standardized on Docker
 ```
 
 #### Post-Standardization Deployment
