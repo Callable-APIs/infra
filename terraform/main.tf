@@ -415,6 +415,44 @@ resource "oci_core_instance" "callableapis_arm_1" {
   }
 }
 
+# ARM Instance 2 - Secondary (node2)
+resource "oci_core_instance" "callableapis_arm_2" {
+  compartment_id      = var.compartment_id
+  availability_domain = data.oci_identity_availability_domains.ads.availability_domains[0].name
+  display_name        = "node2"
+  shape               = "VM.Standard.E5.Flex"
+
+  shape_config {
+    ocpus         = 1
+    memory_in_gbs = 12
+  }
+
+  source_details {
+    source_type = "image"
+    source_id   = data.oci_core_images.amd_images.images[0].id
+  }
+
+  create_vnic_details {
+    subnet_id        = oci_core_subnet.callableapis_subnet.id
+    display_name     = "callableapis-arm-2-vnic"
+    assign_public_ip = true
+    hostname_label   = "callableapis-arm-2"
+  }
+
+  metadata = {
+    ssh_authorized_keys = var.ssh_public_key
+    user_data = base64encode(file("${path.module}/oracle/user_data.sh"))
+  }
+
+  freeform_tags = {
+    Name        = "callableapis-arm-2"
+    Environment = "production"
+    ManagedBy   = "terraform"
+    Role        = "secondary"
+    Provider    = "oracle"
+  }
+}
+
 # =============================================================================
 # IBM CLOUD INFRASTRUCTURE (ACTUAL RESOURCES)
 # =============================================================================
