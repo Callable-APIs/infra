@@ -28,7 +28,7 @@
 
     - name: Update SSH authorized keys for ansible user
       ansible.builtin.copy:
-        content: "{{ lookup('file', 'ssh_keys/keys/callableapis_public_key') }}"
+        content: "{{ lookup('file', 'terraform/ssh_keys/keys/callableapis_public_key') }}"
         dest: /home/ansible/.ssh/authorized_keys
         owner: ansible
         group: ansible
