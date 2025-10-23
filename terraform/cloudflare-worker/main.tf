@@ -12,15 +12,15 @@ resource "cloudflare_workers_script" "status_worker" {
   compatibility_flags = ["nodejs_compat"]
 }
 
-# Cloudflare Worker Route
-resource "cloudflare_worker_route" "status_route" {
+# Cloudflare Worker Route (using new resource name)
+resource "cloudflare_workers_route" "status_route" {
   zone_id     = var.cloudflare_zone_id
   pattern     = "status.callableapis.com/*"
   script_name = cloudflare_workers_script.status_worker.name
 }
 
 # Optional: Worker Cron Trigger (for health checks)
-resource "cloudflare_worker_cron_trigger" "status_health_check" {
+resource "cloudflare_workers_cron_trigger" "status_health_check" {
   account_id  = var.cloudflare_account_id
   script_name = cloudflare_workers_script.status_worker.name
   schedules   = ["*/5 * * * *"]  # Every 5 minutes
