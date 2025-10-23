@@ -34,7 +34,8 @@ async function handleRequest(request) {
                 'Access-Control-Allow-Origin': '*',
                 'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
                 'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-                'X-Forwarded-By': 'Cloudflare-Worker'
+                'X-Forwarded-By': 'Cloudflare-Worker',
+                'X-Target-Server': targetHost
             }
         })
 
@@ -44,13 +45,15 @@ async function handleRequest(request) {
         return new Response(JSON.stringify({
             error: 'Service Unavailable',
             message: 'Status dashboard is temporarily unavailable',
-            details: error.message
+            details: error.message,
+            target: `${targetHost}:${targetPort}`
         }), {
             status: 503,
             statusText: 'Service Unavailable',
             headers: {
                 'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*'
+                'Access-Control-Allow-Origin': '*',
+                'X-Error-Source': 'Cloudflare-Worker'
             }
         })
     }

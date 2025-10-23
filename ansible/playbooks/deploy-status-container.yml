@@ -39,34 +39,10 @@
         source: pull
         force_source: yes
       register: pull_result
-      ignore_errors: yes
 
-    - name: Build status container image locally if pull failed
-      ansible.builtin.docker_image:
-        name: "{{ status_container_image }}"
-        source: build
-        build:
-          path: /tmp/status-container
-          dockerfile: Dockerfile
-      when: pull_result.failed
-      ignore_errors: yes
-
-    - name: Create status container build directory
-      ansible.builtin.file:
-        path: /tmp/status-container
-        state: directory
-        mode: "0755"
-      when: pull_result.failed
-
-    - name: Copy status container files for local build
-      ansible.builtin.copy:
-        src: "{{ item }}"
-        dest: "/tmp/status-container/{{ item | basename }}"
-      loop:
-        - "{{ playbook_dir }}/../../containers/status/app.py"
-        - "{{ playbook_dir }}/../../containers/status/requirements.txt"
-        - "{{ playbook_dir }}/../../containers/status/Dockerfile"
-        - "{{ playbook_dir }}/../../containers/status/CONTAINER_VERSION"
+    - name: Fail if image pull failed
+      ansible.builtin.fail:
+        msg: "Failed to pull status container image {{ status_container_image }}. Make sure the image exists in Docker Hub."
       when: pull_result.failed
 
     - name: Stop existing status container if running

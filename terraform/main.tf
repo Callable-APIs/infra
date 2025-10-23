@@ -704,16 +704,10 @@ resource "cloudflare_record" "status" {
 
 # Cloudflare Worker for Status Dashboard
 module "status_worker" {
-  source = "./modules/cloudflare-worker"
+  source = "./cloudflare-worker"
   
-  account_id    = var.cloudflare_account_id
-  zone_id       = data.cloudflare_zone.callableapis.id
-  route_pattern = "status.callableapis.com/*"
-  target_host   = google_compute_instance.callableapis_e2_micro.network_interface[0].access_config[0].nat_ip
-  target_port   = "8081"
-  
-  enable_health_check = true
-  health_check_cron   = "*/5 * * * *"  # Every 5 minutes
+  cloudflare_account_id = var.cloudflare_account_id
+  cloudflare_zone_id    = data.cloudflare_zone.callableapis.id
 }
 
 # Cloudflare zone settings
