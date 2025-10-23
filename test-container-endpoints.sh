@@ -10,9 +10,10 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# Node configuration (containerd nodes only)
+# Node configuration (Docker nodes only)
 NODES=(
-    "onode1:159.54.170.237"
+    "onode1:192.9.154.97"
+    "onode2:192.9.134.169"
     "gnode1:35.233.161.8"
     "inode1:52.116.135.43"
 )
