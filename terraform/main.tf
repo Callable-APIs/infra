@@ -692,13 +692,28 @@ resource "cloudflare_record" "inode1" {
   comment = "IBM Cloud services node"
 }
 
+# Status Dashboard DNS Record (for Cloudflare Worker)
 resource "cloudflare_record" "status" {
   zone_id = data.cloudflare_zone.callableapis.id
   name    = "status"
   type    = "A"
-  content = google_compute_instance.callableapis_e2_micro.network_interface[0].access_config[0].nat_ip
+  content = "192.0.2.1"  # Dummy IP - Worker will handle routing
   proxied = true
-  comment = "Status Dashboard - Google Cloud Node 1"
+  comment = "Status Dashboard - Cloudflare Worker Proxy"
+}
+
+# Cloudflare Worker for Status Dashboard
+module "status_worker" {
+  source = "./modules/cloudflare-worker"
+  
+  account_id    = var.cloudflare_account_id
+  zone_id       = data.cloudflare_zone.callableapis.id
+  route_pattern = "status.callableapis.com/*"
+  target_host   = google_compute_instance.callableapis_e2_micro.network_interface[0].access_config[0].nat_ip
+  target_port   = "8081"
+  
+  enable_health_check = true
+  health_check_cron   = "*/5 * * * *"  # Every 5 minutes
 }
 
 # Cloudflare zone settings
