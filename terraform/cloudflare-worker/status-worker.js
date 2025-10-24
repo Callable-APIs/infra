@@ -6,8 +6,8 @@ addEventListener('fetch', event => {
 })
 
 async function handleRequest(request) {
-    // Target server (Google Cloud Node 1)
-    const targetHost = '35.233.161.8'
+    // Target server (Google Cloud Node 1) - use domain name instead of IP
+    const targetHost = 'gnode1.callableapis.com'
     const targetPort = '8081'
 
     // Construct the target URL

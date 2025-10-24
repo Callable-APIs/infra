@@ -20,8 +20,9 @@ resource "cloudflare_workers_route" "status_route" {
 }
 
 # Optional: Worker Cron Trigger (for health checks)
-resource "cloudflare_workers_cron_trigger" "status_health_check" {
-  account_id  = var.cloudflare_account_id
-  script_name = cloudflare_workers_script.status_worker.name
-  schedules   = ["*/5 * * * *"]  # Every 5 minutes
-}
+# Disabled for now - requires workers.dev subdomain
+# resource "cloudflare_workers_cron_trigger" "status_health_check" {
+#   account_id  = var.cloudflare_account_id
+#   script_name = cloudflare_workers_script.status_worker.name
+#   schedules   = ["*/5 * * * *"]  # Every 5 minutes
+# }
