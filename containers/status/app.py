@@ -1,253 +1,202 @@
-#!/usr/bin/env python3
-"""
-CallableAPIs Status Container
-Aggregates health and status information from all infrastructure nodes
-"""
-
 import os
 import json
 import logging
-import requests
 import asyncio
 import aiohttp
-from datetime import datetime, timedelta
-from flask import Flask, jsonify, render_template_string
-from typing import Dict, List, Optional, Tuple
+from datetime import datetime
+from flask import Flask, jsonify, render_template_string, request
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Create Flask app
 app = Flask(__name__)
 
-# Node configuration - mapping hostnames to IPs and display names
-NODES = {
-    "onode1": {
-        "ip": "192.9.154.97",
-        "display_name": "Oracle Cloud Node 1",
-        "provider": "Oracle Cloud",
-        "role": "Primary"
-    },
-    "onode2": {
-        "ip": "192.9.134.169", 
-        "display_name": "Oracle Cloud Node 2",
-        "provider": "Oracle Cloud",
-        "role": "Secondary"
-    },
-    "gnode1": {
-        "ip": "35.233.161.8",
-        "display_name": "Google Cloud Node 1", 
-        "provider": "Google Cloud",
-        "role": "Monitoring"
-    },
-    "inode1": {
-        "ip": "52.116.135.43",
-        "display_name": "IBM Cloud Node 1",
-        "provider": "IBM Cloud", 
-        "role": "Services"
-    }
-}
+# Node configuration (from Ansible inventory or environment variables)
+# In a real scenario, this would be dynamically discovered or managed by a service mesh
+NODES = [
+    {"id": "onode1", "display_name": "Oracle Cloud Node 1", "ip": "192.9.154.97", "provider": "Oracle Cloud", "role": "Primary"},
+    {"id": "onode2", "display_name": "Oracle Cloud Node 2", "ip": "192.9.134.169", "provider": "Oracle Cloud", "role": "Secondary"},
+    {"id": "gnode1", "display_name": "Google Cloud Node 1", "ip": "35.233.161.8", "provider": "Google Cloud", "role": "Monitoring"},
+    {"id": "inode1", "display_name": "IBM Cloud Node 1", "ip": "52.116.135.43", "provider": "IBM Cloud", "role": "Services"},
+]
 
-# Timeout for health checks
-HEALTH_CHECK_TIMEOUT = 5
+CONTAINER_VERSION = os.environ.get('CONTAINER_VERSION', 'unknown')
+START_TIME = datetime.now()
 
-class NodeStatus:
-    """Represents the status of a single node"""
+async def fetch_node_status(session, node):
+    """Fetches health and status from a single node."""
+    node_ip = node['ip']
+    node_id = node['id']
+    health_url = f"http://{node_ip}:8080/health"
+    status_url = f"http://{node_ip}:8080/api/status"
     
-    def __init__(self, node_id: str, config: dict):
-        self.node_id = node_id
-        self.config = config
-        self.health_status = "unknown"
-        self.api_status = "unknown"
-        self.last_check = None
-        self.uptime = None
-        self.version = None
-        self.error_message = None
-        self.response_time = None
+    health_status = "unknown"
+    api_status = "unknown"
+    version = "unknown"
+    uptime = "unknown"
+    error_message = None
+    response_time = None
+    last_check = datetime.now().isoformat()
 
-    async def check_health(self, session: aiohttp.ClientSession) -> None:
-        """Check the health and status of this node"""
-        start_time = datetime.now()
+    try:
+        start_time = asyncio.get_event_loop().time()
+        async with session.get(health_url, timeout=5) as response:
+            response.raise_for_status()
+            health_data = await response.json()
+            health_status = health_data.get("status", "unhealthy")
+            version = health_data.get("version", "unknown")
         
-        try:
-            # Check health endpoint
-            health_url = f"http://{self.config['ip']}:8080/health"
-            async with session.get(health_url, timeout=aiohttp.ClientTimeout(total=HEALTH_CHECK_TIMEOUT)) as response:
-                if response.status == 200:
-                    health_data = await response.json()
-                    self.health_status = health_data.get('status', 'unknown')
-                    self.version = health_data.get('version', 'unknown')
-                else:
-                    self.health_status = 'error'
-                    self.error_message = f"Health check returned {response.status}"
-            
-            # Check API status endpoint
-            status_url = f"http://{self.config['ip']}:8080/api/status"
-            async with session.get(status_url, timeout=aiohttp.ClientTimeout(total=HEALTH_CHECK_TIMEOUT)) as response:
-                if response.status == 200:
-                    status_data = await response.json()
-                    self.api_status = status_data.get('status', 'unknown')
-                    self.uptime = status_data.get('uptime', 'unknown')
-                else:
-                    self.api_status = 'error'
-                    if not self.error_message:
-                        self.error_message = f"Status check returned {response.status}"
-            
-            self.response_time = (datetime.now() - start_time).total_seconds()
-            self.last_check = datetime.now()
-            
-        except asyncio.TimeoutError:
-            self.health_status = 'timeout'
-            self.api_status = 'timeout'
-            self.error_message = "Request timeout"
-            self.last_check = datetime.now()
-        except Exception as e:
-            self.health_status = 'error'
-            self.api_status = 'error'
-            self.error_message = str(e)
-            self.last_check = datetime.now()
+        async with session.get(status_url, timeout=5) as response:
+            response.raise_for_status()
+            status_data = await response.json()
+            api_status = status_data.get("status", "unhealthy")
+            uptime = status_data.get("uptime", "unknown")
+        end_time = asyncio.get_event_loop().time()
+        response_time = round(end_time - start_time, 6)
 
-    def to_dict(self) -> dict:
-        """Convert to dictionary for JSON serialization"""
-        return {
-            "node_id": self.node_id,
-            "display_name": self.config["display_name"],
-            "provider": self.config["provider"],
-            "role": self.config["role"],
-            "ip": self.config["ip"],
-            "health_status": self.health_status,
-            "api_status": self.api_status,
-            "uptime": self.uptime,
-            "version": self.version,
-            "last_check": self.last_check.isoformat() if self.last_check else None,
-            "response_time": self.response_time,
-            "error_message": self.error_message
-        }
-
-async def check_all_nodes() -> List[NodeStatus]:
-    """Check the status of all nodes concurrently"""
-    nodes = [NodeStatus(node_id, config) for node_id, config in NODES.items()]
+    except aiohttp.ClientError as e:
+        error_message = f"Client error: {e}"
+        health_status = "unreachable"
+        api_status = "unreachable"
+    except asyncio.TimeoutError:
+        error_message = "Timeout"
+        health_status = "timeout"
+        api_status = "timeout"
+    except json.JSONDecodeError:
+        error_message = "Invalid JSON response"
+        health_status = "invalid_response"
+        api_status = "invalid_response"
+    except Exception as e:
+        error_message = f"Unexpected error: {e}"
+        health_status = "error"
+        api_status = "error"
     
+    return {
+        "node_id": node_id,
+        "display_name": node['display_name'],
+        "ip": node_ip,
+        "provider": node['provider'],
+        "role": node['role'],
+        "health_status": health_status,
+        "api_status": api_status,
+        "version": version,
+        "uptime": uptime,
+        "error_message": error_message,
+        "response_time": response_time,
+        "last_check": last_check
+    }
+
+async def get_all_nodes_status():
+    """Aggregates status from all configured nodes concurrently."""
     async with aiohttp.ClientSession() as session:
-        tasks = [node.check_health(session) for node in nodes]
-        await asyncio.gather(*tasks, return_exceptions=True)
-    
-    return nodes
-
-@app.route('/')
-def home():
-    """Main status page"""
-    return jsonify({
-        "service": "CallableAPIs Status Dashboard",
-        "version": os.environ.get('CONTAINER_VERSION', 'unknown'),
-        "description": "Multi-cloud infrastructure status aggregation",
-        "endpoints": {
-            "status": "/api/status",
-            "health": "/health",
-            "nodes": "/api/nodes"
-        },
-        "timestamp": datetime.now().isoformat()
-    })
+        tasks = [fetch_node_status(session, node) for node in NODES]
+        return await asyncio.gather(*tasks)
 
 @app.route('/health')
 def health():
-    """Health check endpoint"""
+    """Health check endpoint for the status dashboard itself."""
     return jsonify({
+        "service": "status-dashboard",
         "status": "healthy",
-        "timestamp": datetime.now().isoformat(),
-        "service": "status-dashboard"
+        "timestamp": datetime.now().isoformat()
     })
 
 @app.route('/api/status')
-def status():
-    """Detailed status of all nodes"""
-    try:
-        # Run async health checks
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        nodes = loop.run_until_complete(check_all_nodes())
-        loop.close()
-        
-        # Calculate overall status
-        healthy_nodes = sum(1 for node in nodes if node.health_status == 'healthy')
-        total_nodes = len(nodes)
-        overall_status = "healthy" if healthy_nodes == total_nodes else "degraded" if healthy_nodes > 0 else "down"
-        
-        return jsonify({
-            "service": "CallableAPIs Status Dashboard",
-            "version": os.environ.get('CONTAINER_VERSION', 'unknown'),
-            "overall_status": overall_status,
-            "healthy_nodes": healthy_nodes,
-            "total_nodes": total_nodes,
-            "last_updated": datetime.now().isoformat(),
-            "nodes": [node.to_dict() for node in nodes]
-        })
-        
-    except Exception as e:
-        logger.error(f"Error checking node status: {e}")
-        return jsonify({
-            "service": "CallableAPIs Status Dashboard",
-            "version": os.environ.get('CONTAINER_VERSION', 'unknown'),
-            "overall_status": "error",
-            "error": str(e),
-            "last_updated": datetime.now().isoformat(),
-            "nodes": []
-        }), 500
-
-@app.route('/api/nodes')
-def nodes():
-    """Get individual node status"""
-    try:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        nodes = loop.run_until_complete(check_all_nodes())
-        loop.close()
-        
-        return jsonify({
-            "nodes": [node.to_dict() for node in nodes],
-            "last_updated": datetime.now().isoformat()
-        })
-        
-    except Exception as e:
-        logger.error(f"Error checking nodes: {e}")
-        return jsonify({"error": str(e)}), 500
+async def api_status():
+    """API endpoint to get aggregated status of all nodes."""
+    nodes_status = await get_all_nodes_status()
+    
+    overall_status = "healthy"
+    healthy_nodes = 0
+    for node in nodes_status:
+        if node["health_status"] != "healthy" or node["api_status"] != "running":
+            overall_status = "degraded"
+        else:
+            healthy_nodes += 1
+    
+    return jsonify({
+        "service": "CallableAPIs Status Dashboard",
+        "version": CONTAINER_VERSION,
+        "overall_status": overall_status,
+        "total_nodes": len(NODES),
+        "healthy_nodes": healthy_nodes,
+        "last_updated": datetime.now().isoformat(),
+        "nodes": nodes_status
+    })
 
 @app.route('/dashboard')
-def dashboard():
-    """HTML dashboard for status.callableapis.com"""
-    try:
-        # Get status data
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        nodes = loop.run_until_complete(check_all_nodes())
-        loop.close()
+async def dashboard():
+    """Web dashboard to display aggregated status of all nodes in a table format."""
+    nodes_status_data = await api_status()
+    nodes_status = json.loads(nodes_status_data.get_data(as_text=True))
+    
+    # Status color mapping
+    status_colors = {
+        "healthy": "#10B981",  # green
+        "degraded": "#F59E0B",  # yellow
+        "down": "#EF4444",     # red
+        "error": "#6B7280",    # gray
+        "timeout": "#F59E0B",  # yellow
+        "unknown": "#6B7280",   # gray
+        "unreachable": "#EF4444",  # red
+        "invalid_response": "#F59E0B"  # yellow
+    }
+    
+    # Provider color mapping
+    provider_colors = {
+        "Oracle Cloud": "provider-oracle",
+        "Google Cloud": "provider-google", 
+        "IBM Cloud": "provider-ibm"
+    }
+    
+    overall_color = status_colors.get(nodes_status['overall_status'], "#6B7280")
+    
+    # Generate table rows
+    table_rows = ""
+    for node in nodes_status['nodes']:
+        health_color = status_colors.get(node['health_status'], "#6B7280")
+        provider_class = provider_colors.get(node['provider'], "")
         
-        # Calculate overall status
-        healthy_nodes = sum(1 for node in nodes if node.health_status == 'healthy')
-        total_nodes = len(nodes)
-        overall_status = "healthy" if healthy_nodes == total_nodes else "degraded" if healthy_nodes > 0 else "down"
+        # Format response time
+        response_time_str = f"{node['response_time']:.3f}s" if node['response_time'] else "N/A"
         
-        # Status color mapping
-        status_colors = {
-            "healthy": "#10B981",  # green
-            "degraded": "#F59E0B",  # yellow
-            "down": "#EF4444",     # red
-            "error": "#6B7280",    # gray
-            "timeout": "#F59E0B",  # yellow
-            "unknown": "#6B7280"   # gray
-        }
+        # Format last check time
+        try:
+            last_check_dt = datetime.fromisoformat(node['last_check'].replace('Z', '+00:00'))
+            last_check_str = last_check_dt.strftime('%H:%M:%S')
+        except:
+            last_check_str = "Unknown"
         
-        overall_color = status_colors.get(overall_status, "#6B7280")
+        # Error message if any
+        error_cell = ""
+        if node['error_message']:
+            error_cell = f'<br><span class="error-message">Error: {node["error_message"]}</span>'
         
-        # Generate HTML
-        html = f"""
+        table_rows += f"""
+                    <tr>
+                        <td>
+                            <span class="status-indicator status-{node['health_status']}"></span>
+                            {node['health_status'].upper()}
+                        </td>
+                        <td class="node-name">{node['display_name']}</td>
+                        <td><span class="provider-badge {provider_class}">{node['provider']}</span></td>
+                        <td>{node['role']}</td>
+                        <td>{node['ip']}</td>
+                        <td>{node['version']}</td>
+                        <td>{node['uptime']}</td>
+                        <td class="response-time">{response_time_str}</td>
+                        <td>{last_check_str}{error_cell}</td>
+                    </tr>
+        """
+    
+    html = f"""
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CallableAPIs Status Dashboard</title>
+    <title>CallableAPIs Infrastructure Status</title>
     <style>
         body {{
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -257,66 +206,27 @@ def dashboard():
             color: #1f2937;
         }}
         .container {{
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
         }}
         .header {{
             text-align: center;
             margin-bottom: 30px;
         }}
+        .header h1 {{
+            font-size: 2.5em;
+            margin: 0;
+            color: #2d3748;
+        }}
         .status-badge {{
             display: inline-block;
             padding: 8px 16px;
             border-radius: 20px;
-            font-weight: 600;
-            color: white;
+            font-weight: bold;
+            font-size: 0.9em;
+            margin: 10px 0;
             background-color: {overall_color};
-        }}
-        .nodes-grid {{
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }}
-        .node-card {{
-            background: white;
-            border-radius: 8px;
-            padding: 20px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-            border-left: 4px solid {status_colors.get('healthy', '#6B7280')};
-        }}
-        .node-header {{
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-        }}
-        .node-name {{
-            font-weight: 600;
-            font-size: 1.1em;
-        }}
-        .node-status {{
-            padding: 4px 8px;
-            border-radius: 12px;
-            font-size: 0.8em;
-            font-weight: 500;
-        }}
-        .node-details {{
-            font-size: 0.9em;
-            color: #6b7280;
-        }}
-        .node-details div {{
-            margin-bottom: 5px;
-        }}
-        .error-message {{
-            color: #ef4444;
-            font-style: italic;
-            margin-top: 10px;
-        }}
-        .footer {{
-            text-align: center;
-            color: #6b7280;
-            font-size: 0.9em;
+            color: white;
         }}
         .refresh-info {{
             background: #f3f4f6;
@@ -325,14 +235,94 @@ def dashboard():
             margin-bottom: 20px;
             text-align: center;
         }}
+        .status-table {{
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }}
+        .table-header {{
+            background: #f8fafc;
+            padding: 20px;
+            border-bottom: 1px solid #e2e8f0;
+        }}
+        .table-header h2 {{
+            margin: 0;
+            color: #2d3748;
+            font-size: 1.5em;
+        }}
+        table {{
+            width: 100%;
+            border-collapse: collapse;
+        }}
+        th, td {{
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+        }}
+        th {{
+            background: #f8fafc;
+            font-weight: 600;
+            color: #374151;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }}
+        tr:hover {{
+            background: #f9fafb;
+        }}
+        .status-indicator {{
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }}
+        .status-healthy {{ background-color: #10B981; }}
+        .status-degraded {{ background-color: #F59E0B; }}
+        .status-down {{ background-color: #EF4444; }}
+        .status-error {{ background-color: #6B7280; }}
+        .status-timeout {{ background-color: #F59E0B; }}
+        .status-unknown {{ background-color: #6B7280; }}
+        .status-unreachable {{ background-color: #EF4444; }}
+        .status-invalid_response {{ background-color: #F59E0B; }}
+        .node-name {{
+            font-weight: 600;
+            color: #2d3748;
+        }}
+        .provider-badge {{
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: 500;
+        }}
+        .provider-oracle {{ background-color: #FF6B35; color: white; }}
+        .provider-google {{ background-color: #4285F4; color: white; }}
+        .provider-ibm {{ background-color: #0066CC; color: white; }}
+        .response-time {{
+            font-family: monospace;
+            font-size: 0.9em;
+        }}
+        .error-message {{
+            color: #ef4444;
+            font-style: italic;
+            font-size: 0.9em;
+        }}
+        .footer {{
+            text-align: center;
+            color: #6b7280;
+            font-size: 0.9em;
+            margin-top: 30px;
+        }}
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
             <h1>CallableAPIs Infrastructure Status</h1>
-            <div class="status-badge">{overall_status.upper()}</div>
-            <p>{{healthy_nodes}} of {total_nodes} nodes healthy</p>
+            <div class="status-badge">{nodes_status['overall_status'].upper()}</div>
+            <p>{nodes_status['healthy_nodes']} of {nodes_status['total_nodes']} nodes healthy</p>
         </div>
         
         <div class="refresh-info">
@@ -340,37 +330,28 @@ def dashboard():
             <p>This page refreshes automatically every 30 seconds</p>
         </div>
         
-        <div class="nodes-grid">
-"""
-        
-        # Add node cards
-        for node in nodes:
-            health_color = status_colors.get(node.health_status, "#6B7280")
-            node_html = f"""
-            <div class="node-card" style="border-left-color: {health_color};">
-                <div class="node-header">
-                    <div class="node-name">{node.config['display_name']}</div>
-                    <div class="node-status" style="background-color: {health_color}; color: white;">
-                        {node.health_status.upper()}
-                    </div>
-                </div>
-                <div class="node-details">
-                    <div><strong>Provider:</strong> {node.config['provider']}</div>
-                    <div><strong>Role:</strong> {node.config['role']}</div>
-                    <div><strong>IP:</strong> {node.config['ip']}</div>
-                    <div><strong>Version:</strong> {node.version or 'Unknown'}</div>
-                    <div><strong>Uptime:</strong> {node.uptime or 'Unknown'}</div>
-                    <div><strong>Response Time:</strong> {f"{node.response_time:.2f}s" if node.response_time else 'N/A'}</div>
-                    <div><strong>Last Check:</strong> {node.last_check.strftime('%H:%M:%S') if node.last_check else 'Never'}</div>
-                </div>
-"""
-            if node.error_message:
-                node_html += f'<div class="error-message">Error: {node.error_message}</div>'
-            
-            node_html += "</div>"
-            html += node_html
-        
-        html += """
+        <div class="status-table">
+            <div class="table-header">
+                <h2>Node Status Overview</h2>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Status</th>
+                        <th>Node</th>
+                        <th>Provider</th>
+                        <th>Role</th>
+                        <th>IP Address</th>
+                        <th>Version</th>
+                        <th>Uptime</th>
+                        <th>Response Time</th>
+                        <th>Last Check</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {table_rows}
+                </tbody>
+            </table>
         </div>
         
         <div class="footer">
@@ -381,50 +362,17 @@ def dashboard():
     
     <script>
         // Auto-refresh every 30 seconds
-        setTimeout(function() {
+        setTimeout(function() {{
             location.reload();
-        }, 30000);
+        }}, 30000);
     </script>
 </body>
 </html>
 """
-        
-        return html
-        
-    except Exception as e:
-        logger.error(f"Error generating dashboard: {e}")
-        return f"""
-        <html>
-        <body>
-            <h1>Error</h1>
-            <p>Failed to load status dashboard: {str(e)}</p>
-        </body>
-        </html>
-        """, 500
-
-@app.errorhandler(404)
-def not_found(error):
-    """404 error handler"""
-    return jsonify({
-        "error": "Not Found",
-        "message": "The requested resource was not found",
-        "status": 404
-    }), 404
-
-@app.errorhandler(500)
-def internal_error(error):
-    """500 error handler"""
-    logger.error(f"Internal server error: {error}")
-    return jsonify({
-        "error": "Internal Server Error",
-        "message": "An internal server error occurred",
-        "status": 500
-    }), 500
+    
+    return html
 
 if __name__ == '__main__':
-    # Get port from environment or default to 8080
     port = int(os.environ.get('PORT', 8080))
-    
-    # Run the application
     logger.info(f"Starting CallableAPIs Status Dashboard on port {port}")
     app.run(host='0.0.0.0', port=port, debug=False)
