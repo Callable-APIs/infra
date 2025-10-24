@@ -93,6 +93,12 @@ async def get_all_nodes_status():
         tasks = [fetch_node_status(session, node) for node in NODES]
         return await asyncio.gather(*tasks)
 
+@app.route('/')
+def root():
+    """Root endpoint - redirect to dashboard."""
+    from flask import redirect, url_for
+    return redirect('/dashboard')
+
 @app.route('/health')
 def health():
     """Health check endpoint for the status dashboard itself."""
