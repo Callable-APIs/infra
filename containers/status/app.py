@@ -103,9 +103,15 @@ def health():
     })
 
 @app.route('/api/status')
-async def api_status():
+def api_status():
     """API endpoint to get aggregated status of all nodes."""
-    nodes_status = await get_all_nodes_status()
+    # Run the async function in a new event loop
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        nodes_status = loop.run_until_complete(get_all_nodes_status())
+    finally:
+        loop.close()
     
     overall_status = "healthy"
     healthy_nodes = 0
@@ -126,10 +132,20 @@ async def api_status():
     })
 
 @app.route('/dashboard')
-async def dashboard():
+def dashboard():
     """Web dashboard to display aggregated status of all nodes in a table format."""
-    nodes_status_data = await api_status()
-    nodes_status = json.loads(nodes_status_data.get_data(as_text=True))
+    # Run the async function in a new event loop
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        nodes_status = loop.run_until_complete(get_all_nodes_status())
+    finally:
+        loop.close()
+    
+    # Calculate overall status
+    healthy_nodes = sum(1 for node in nodes_status if node["health_status"] == "healthy")
+    total_nodes = len(nodes_status)
+    overall_status = "healthy" if healthy_nodes == total_nodes else "degraded" if healthy_nodes > 0 else "down"
     
     # Status color mapping
     status_colors = {
@@ -150,11 +166,11 @@ async def dashboard():
         "IBM Cloud": "provider-ibm"
     }
     
-    overall_color = status_colors.get(nodes_status['overall_status'], "#6B7280")
+    overall_color = status_colors.get(overall_status, "#6B7280")
     
     # Generate table rows
     table_rows = ""
-    for node in nodes_status['nodes']:
+    for node in nodes_status:
         health_color = status_colors.get(node['health_status'], "#6B7280")
         provider_class = provider_colors.get(node['provider'], "")
         
@@ -321,8 +337,8 @@ async def dashboard():
     <div class="container">
         <div class="header">
             <h1>CallableAPIs Infrastructure Status</h1>
-            <div class="status-badge">{nodes_status['overall_status'].upper()}</div>
-            <p>{nodes_status['healthy_nodes']} of {nodes_status['total_nodes']} nodes healthy</p>
+            <div class="status-badge">{overall_status.upper()}</div>
+            <p>{healthy_nodes} of {total_nodes} nodes healthy</p>
         </div>
         
         <div class="refresh-info">
