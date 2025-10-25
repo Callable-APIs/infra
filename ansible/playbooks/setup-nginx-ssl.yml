@@ -1,6 +1,6 @@
 ---
 - name: Setup Nginx with SSL for Oracle Nodes
-  hosts: onode1,onode2
+  hosts: all
   become: yes
   vars:
     ssl_cert_dir: "/etc/ssl/callableapis"

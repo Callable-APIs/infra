@@ -1,6 +1,6 @@
 ---
 - name: Deploy SSL Certificates to Nodes
-  hosts: onode1,onode2  # Start with Oracle nodes
+  hosts: all  # Deploy to all nodes
   become: yes
   vars:
     ssl_cert_dir: "/etc/ssl/callableapis"
