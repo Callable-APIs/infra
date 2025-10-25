@@ -80,6 +80,12 @@ variable "gcp_credentials_file" {
   default     = "/app/google-credentials.json"
 }
 
+variable "cloudflare_csr" {
+  description = "Certificate Signing Request for Cloudflare Origin Certificate"
+  type        = string
+  sensitive   = true
+}
+
 # Oracle Cloud Configuration
 variable "tenancy_ocid" {
   description = "OCI tenancy OCID"

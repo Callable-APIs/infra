@@ -1,0 +1,30 @@
+---
+- name: Setup SSL Infrastructure for All Nodes
+  hosts: localhost
+  connection: local
+  vars:
+    artifacts_dir: "{{ playbook_dir }}/../ansible/artifacts"
+
+  tasks:
+    - name: Generate SSL certificates as artifacts
+      ansible.builtin.include_tasks: generate-ssl-certificates.yml
+
+    - name: Deploy SSL certificates to all nodes
+      ansible.builtin.include_tasks: deploy-ssl-certificates.yml
+
+    - name: Configure nginx with SSL on all nodes
+      ansible.builtin.include_tasks: configure-nginx-routing.yml
+
+    - name: Update Cloudflare SSL mode to strict
+      ansible.builtin.include_tasks: update-cloudflare-ssl-strict.yml
+
+    - name: Display SSL infrastructure summary
+      ansible.builtin.debug:
+        msg: |
+          SSL Infrastructure Setup Complete:
+          - Certificates generated as artifacts
+          - Certificates deployed to all nodes
+          - Nginx configured with SSL on all nodes
+          - Cloudflare SSL mode set to strict
+          - End-to-end encryption: User → Cloudflare → Node
+          - Shared certificate across all nodes

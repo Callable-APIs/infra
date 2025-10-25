@@ -1,0 +1,173 @@
+---
+- name: Configure Nginx Routing for Base + Services Containers
+  hosts: inode1
+  become: yes
+  vars:
+    nginx_config_path: "/etc/nginx/sites-available/callableapis"
+    nginx_config_link: "/etc/nginx/sites-enabled/callableapis"
+
+  tasks:
+    - name: Install nginx
+      ansible.builtin.apt:
+        name: nginx
+        state: present
+
+    - name: Remove default nginx site
+      ansible.builtin.file:
+        path: /etc/nginx/sites-enabled/default
+        state: absent
+
+    - name: Create nginx configuration for container routing (HTTP)
+      ansible.builtin.copy:
+        content: |
+          server {
+              listen 80;
+              server_name {{ inventory_hostname }}.callableapis.com;
+              
+              # Redirect HTTP to HTTPS
+              return 301 https://$server_name$request_uri;
+          }
+        dest: "{{ nginx_config_path }}"
+        mode: "0644"
+
+    - name: Check if SSL certificates exist
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      register: ssl_files
+      loop:
+        - "/etc/nginx/ssl/fullchain.pem"
+        - "/etc/nginx/ssl/privkey.pem"
+
+    - name: Fail if SSL certificates are missing
+      ansible.builtin.fail:
+        msg: "SSL certificates are missing. Please run deploy-ssl-certificates.yml first."
+      when: not ssl_files.results[0].stat.exists or not ssl_files.results[1].stat.exists
+
+    - name: Create HTTPS nginx configuration
+      ansible.builtin.copy:
+        content: |
+          server {
+              listen 80;
+              server_name {{ inventory_hostname }}.callableapis.com;
+              
+              # Redirect HTTP to HTTPS
+              return 301 https://$server_name$request_uri;
+          }
+
+          server {
+              listen 443 ssl http2;
+              server_name {{ inventory_hostname }}.callableapis.com;
+              
+              # SSL configuration
+              ssl_certificate /etc/nginx/ssl/fullchain.pem;
+              ssl_certificate_key /etc/nginx/ssl/privkey.pem;
+              ssl_protocols TLSv1.2 TLSv1.3;
+              ssl_ciphers ECDHE-RSA-AES256-GCM-SHA512:DHE-RSA-AES256-GCM-SHA512:ECDHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-GCM-SHA384;
+              ssl_prefer_server_ciphers off;
+              ssl_session_cache shared:SSL:10m;
+              ssl_session_timeout 10m;
+              
+              # Security headers
+              add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+              add_header X-Frame-Options DENY always;
+              add_header X-Content-Type-Options nosniff always;
+              add_header X-XSS-Protection "1; mode=block" always;
+              
+              # Health and status endpoints go to base container
+              location /health {
+                  proxy_pass http://localhost:8080;
+                  proxy_set_header Host $host;
+                  proxy_set_header X-Real-IP $remote_addr;
+                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto $scheme;
+                  proxy_set_header X-Forwarded-Host $host;
+                  proxy_set_header X-Forwarded-Port $server_port;
+              }
+              
+              location /api/status {
+                  proxy_pass http://localhost:8080;
+                  proxy_set_header Host $host;
+                  proxy_set_header X-Real-IP $remote_addr;
+                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto $scheme;
+                  proxy_set_header X-Forwarded-Host $host;
+                  proxy_set_header X-Forwarded-Port $server_port;
+              }
+              
+              # Service endpoints go to services container
+              location /api/v1/ {
+                  proxy_pass http://localhost:8082;
+                  proxy_set_header Host $host;
+                  proxy_set_header X-Real-IP $remote_addr;
+                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto $scheme;
+                  proxy_set_header X-Forwarded-Host $host;
+                  proxy_set_header X-Forwarded-Port $server_port;
+              }
+              
+              location /api/v2/ {
+                  proxy_pass http://localhost:8082;
+                  proxy_set_header Host $host;
+                  proxy_set_header X-Real-IP $remote_addr;
+                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto $scheme;
+                  proxy_set_header X-Forwarded-Host $host;
+                  proxy_set_header X-Forwarded-Port $server_port;
+              }
+              
+              # All other requests go to services container (web interface)
+              location / {
+                  proxy_pass http://localhost:8082;
+                  proxy_set_header Host $host;
+                  proxy_set_header X-Real-IP $remote_addr;
+                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto $scheme;
+                  proxy_set_header X-Forwarded-Host $host;
+                  proxy_set_header X-Forwarded-Port $server_port;
+              }
+          }
+        dest: "{{ nginx_config_path }}"
+        mode: "0644"
+
+    - name: Enable nginx site
+      ansible.builtin.file:
+        src: "{{ nginx_config_path }}"
+        dest: "{{ nginx_config_link }}"
+        state: link
+
+    - name: Test nginx configuration
+      ansible.builtin.command: nginx -t
+      register: nginx_test
+      changed_when: false
+
+    - name: Restart nginx
+      ansible.builtin.systemd:
+        name: nginx
+        state: restarted
+      when: nginx_test.rc == 0
+
+    - name: Display nginx status
+      ansible.builtin.systemd:
+        name: nginx
+        state: started
+      register: nginx_status
+
+    - name: Verify SSL certificate deployment
+      ansible.builtin.command: openssl x509 -in /etc/nginx/ssl/fullchain.pem -text -noout
+      register: cert_info
+      changed_when: false
+
+    - name: Display configuration summary
+      ansible.builtin.debug:
+        msg: |
+          Nginx SSL routing configured:
+          - SSL Certificate: Shared certificate for all nodes
+          - Certificate path: /etc/nginx/ssl/fullchain.pem
+          - Private key: /etc/nginx/ssl/privkey.pem
+          - HTTP → HTTPS redirect enabled
+          - /health, /api/status → Base container (port 8080)
+          - /api/v1/*, /api/v2/* → Services container (port 8082)  
+          - All other requests → Services container (port 8082)
+          - Security headers: HSTS, X-Frame-Options, X-Content-Type-Options
+          - Certificate status: {{ 'VALID' if cert_info.rc == 0 else 'INVALID' }}
+          - Nginx status: {{ 'running' if nginx_status.changed == false else 'restarted' }}

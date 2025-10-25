@@ -1,0 +1,69 @@
+---
+- name: Generate CSR for Cloudflare Origin Certificate
+  hosts: localhost
+  connection: local
+  vars:
+    artifacts_dir: "{{ playbook_dir }}/../ansible/artifacts"
+    cert_domain: "callableapis.com"
+
+  tasks:
+    - name: Create artifacts directory
+      ansible.builtin.file:
+        path: "{{ artifacts_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: Create SSL certificates directory
+      ansible.builtin.file:
+        path: "{{ artifacts_dir }}/ssl"
+        state: directory
+        mode: "0755"
+
+    - name: Generate private key
+      ansible.builtin.command: >
+        openssl genrsa -out {{ artifacts_dir }}/ssl/privkey.pem 2048
+      register: key_result
+
+    - name: Generate certificate signing request
+      ansible.builtin.command: >
+        openssl req -new -key {{ artifacts_dir }}/ssl/privkey.pem
+        -out {{ artifacts_dir }}/ssl/cert.csr
+        -subj "/C=US/ST=CA/L=San Francisco/O=CallableAPIs/CN={{ cert_domain}}"
+      register: csr_result
+
+    - name: Read CSR content
+      ansible.builtin.slurp:
+        src: "{{ artifacts_dir }}/ssl/cert.csr"
+      register: csr_content
+
+    - name: Convert CSR to single line with PEM headers
+      ansible.builtin.shell: |
+        echo "-----BEGIN CERTIFICATE REQUEST-----" > {{ artifacts_dir }}/ssl/cert_single_line.csr
+        cat {{ artifacts_dir }}/ssl/cert.csr | grep -v "BEGIN CERTIFICATE REQUEST" | grep -v "END CERTIFICATE REQUEST" | tr -d '\n' >> {{ artifacts_dir }}/ssl/cert_single_line.csr
+        echo "" >> {{ artifacts_dir }}/ssl/cert_single_line.csr
+        echo "-----END CERTIFICATE REQUEST-----" >> {{ artifacts_dir }}/ssl/cert_single_line.csr
+        cat {{ artifacts_dir }}/ssl/cert_single_line.csr
+      register: csr_single_line
+
+    - name: Save CSR to terraform variables
+      ansible.builtin.copy:
+        content: |
+          # Cloudflare Origin Certificate CSR
+          cloudflare_csr = <<EOF
+          {{ csr_single_line.stdout }}
+          EOF
+        dest: "{{ playbook_dir }}/../../terraform/cloudflare-csr.tfvars"
+        mode: "0644"
+
+    - name: Display CSR for Cloudflare
+      ansible.builtin.debug:
+        msg: |
+          CSR Generated for Cloudflare Origin Certificate:
+          - Private Key: {{ artifacts_dir }}/ssl/privkey.pem
+          - CSR: {{ artifacts_dir }}/ssl/cert.csr
+          - Terraform variables: terraform/cloudflare-csr.tfvars
+          
+          Next steps:
+          1. Run: terraform apply -var-file=cloudflare-csr.tfvars
+          2. This will generate the Cloudflare Origin Certificate
+          3. Deploy certificates to nodes using deploy-ssl-certificates.yml

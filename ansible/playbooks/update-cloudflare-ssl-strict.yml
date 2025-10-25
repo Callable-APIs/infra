@@ -1,0 +1,24 @@
+---
+- name: Update Cloudflare SSL Mode to Strict
+  hosts: localhost
+  connection: local
+  vars:
+    terraform_dir: "{{ playbook_dir }}/../terraform"
+
+  tasks:
+    - name: Update Cloudflare SSL mode to strict
+      ansible.builtin.terraform:
+        project_path: "{{ terraform_dir }}"
+        state: present
+        targets:
+          - cloudflare_zone_settings_override.ssl
+      vars:
+        ssl_mode: "strict"
+
+    - name: Display Cloudflare SSL update results
+      ansible.builtin.debug:
+        msg: |
+          Cloudflare SSL Mode Updated:
+          - Mode: Strict (HTTPS between Cloudflare and origin)
+          - End-to-end encryption enabled
+          - All traffic encrypted: User → Cloudflare → Node

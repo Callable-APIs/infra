@@ -1,0 +1,86 @@
+---
+- name: Generate Self-Signed SSL Certificates for Testing
+  hosts: localhost
+  connection: local
+  vars:
+    artifacts_dir: "{{ playbook_dir }}/../ansible/artifacts"
+    cert_domain: "callableapis.com"
+    cert_subdomains:
+      - "onode1.callableapis.com"
+      - "onode2.callableapis.com"
+      - "gnode1.callableapis.com"
+      - "inode1.callableapis.com"
+
+  tasks:
+    - name: Create artifacts directory
+      ansible.builtin.file:
+        path: "{{ artifacts_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: Create SSL certificates directory
+      ansible.builtin.file:
+        path: "{{ artifacts_dir }}/ssl"
+        state: directory
+        mode: "0755"
+
+    - name: Generate private key
+      ansible.builtin.command: >
+        openssl genrsa -out {{ artifacts_dir }}/ssl/privkey.pem 2048
+      register: key_result
+
+    - name: Generate certificate signing request
+      ansible.builtin.command: >
+        openssl req -new -key {{ artifacts_dir }}/ssl/privkey.pem
+        -out {{ artifacts_dir }}/ssl/cert.csr
+        -subj "/C=US/ST=CA/L=San Francisco/O=CallableAPIs/CN={{ cert_domain}}"
+      register: csr_result
+
+    - name: Create SAN configuration file
+      ansible.builtin.copy:
+        content: |
+          [v3_req]
+          subjectAltName=@alt_names
+          [alt_names]
+          DNS.1={{ cert_domain }}
+          DNS.2=*.{{ cert_domain }}
+        dest: "{{ artifacts_dir }}/ssl/san.conf"
+        mode: "0644"
+
+    - name: Generate self-signed certificate
+      ansible.builtin.command: >
+        openssl x509 -req -days 365 -in {{ artifacts_dir }}/ssl/cert.csr
+        -signkey {{ artifacts_dir }}/ssl/privkey.pem
+        -out {{ artifacts_dir }}/ssl/cert.pem
+        -extensions v3_req -extfile {{ artifacts_dir }}/ssl/san.conf
+      register: cert_result
+
+    - name: Create fullchain.pem (same as cert.pem for self-signed)
+      ansible.builtin.copy:
+        src: "{{ artifacts_dir }}/ssl/cert.pem"
+        dest: "{{ artifacts_dir }}/ssl/fullchain.pem"
+        mode: "0644"
+
+    - name: Create chain.pem (empty for self-signed)
+      ansible.builtin.file:
+        path: "{{ artifacts_dir }}/ssl/chain.pem"
+        state: touch
+        mode: "0644"
+
+    - name: Create certificate package
+      ansible.builtin.archive:
+        path: "{{ artifacts_dir }}/ssl"
+        dest: "{{ artifacts_dir }}/ssl-certificates.tar.gz"
+        format: gz
+        mode: "0644"
+
+    - name: Display certificate generation results
+      ansible.builtin.debug:
+        msg: |
+          Self-Signed SSL Certificate Generated:
+          - Domain: {{ cert_domain }}
+          - Subdomains: {{ cert_subdomains | join(', ') }}
+          - Certificate package: {{ artifacts_dir }}/ssl-certificates.tar.gz
+          - Valid for: 365 days
+          - Type: Self-signed (for testing)
+          - Status: SUCCESS

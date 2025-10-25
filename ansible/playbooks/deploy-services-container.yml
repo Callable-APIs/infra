@@ -1,0 +1,168 @@
+---
+- name: Deploy CallableAPIs Services Container
+  hosts: inode1 # Deploy to IBM Cloud node for services
+  become: yes
+  vars:
+    services_container_name: "callableapis-services"
+    services_container_image: "docker.io/rl337/callableapis:services"
+    services_container_port: 8080
+    services_host_port: 8080 # Same port as base container
+
+  tasks:
+    - name: Check if Docker is installed
+      ansible.builtin.command: which docker
+      register: docker_check
+      changed_when: false
+      ignore_errors: yes
+
+    - name: Fail if Docker is not installed
+      ansible.builtin.fail:
+        msg: "Docker is not installed on {{ inventory_hostname }}. Please run install-docker-standard.yml first."
+      when: docker_check.rc != 0
+
+    - name: Start Docker service
+      ansible.builtin.systemd:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Wait for Docker to be ready
+      ansible.builtin.wait_for:
+        port: 2376
+        host: localhost
+        timeout: 30
+      ignore_errors: yes
+
+    - name: Pull services container image
+      ansible.builtin.docker_image:
+        name: "{{ services_container_image }}"
+        source: pull
+        force_source: yes
+      register: pull_result
+
+    - name: Fail if image pull failed
+      ansible.builtin.fail:
+        msg: "Failed to pull services container image {{ services_container_image }}. Make sure the image exists in Docker Hub."
+      when: pull_result.failed
+
+    - name: Stop existing services container if running
+      ansible.builtin.docker_container:
+        name: "{{ services_container_name }}"
+        state: stopped
+      ignore_errors: yes
+
+    - name: Remove existing services container if exists
+      ansible.builtin.docker_container:
+        name: "{{ services_container_name }}"
+        state: absent
+      ignore_errors: yes
+
+    - name: Check if vault files exist on node
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      register: vault_files
+      loop:
+        - "/etc/vault-secrets/vault-password"
+        - "/etc/vault-secrets/secrets.vault"
+
+    - name: Fail if vault files are missing
+      ansible.builtin.fail:
+        msg: "Required vault files are missing. Please run deploy-secrets-simple.yml first to deploy vault files to the node."
+      when: not vault_files.results[0].stat.exists or not vault_files.results[1].stat.exists
+
+    - name: Deploy services container with vault parameters
+      ansible.builtin.docker_container:
+        name: "{{ services_container_name }}"
+        image: "{{ services_container_image }}"
+        state: started
+        restart_policy: "unless-stopped"
+        ports:
+          - "{{ services_host_port }}:{{ services_container_port }}"
+        volumes:
+          - "/etc/vault-secrets/vault-password:/app/vault-password:ro"
+          - "/etc/vault-secrets/secrets.vault:/app/secrets/secrets.vault:ro"
+        env:
+          CONTAINER_VERSION: "{{ ansible_date_time.iso8601 }}"
+        labels:
+          app: "callableapis"
+          service: "services"
+          managed_by: "ansible"
+          deployed_at: "{{ ansible_date_time.iso8601 }}"
+      register: deploy_result
+
+    - name: Wait for services container to start
+      ansible.builtin.wait_for:
+        port: "{{ services_host_port }}"
+        host: localhost
+        timeout: 30
+
+    - name: Check services container status
+      ansible.builtin.command: docker ps -f name={{ services_container_name }} --format "{{ '{{.Names}} {{.Status}}' }}"
+      register: container_status
+      changed_when: false
+
+    - name: Test services container health endpoint
+      ansible.builtin.uri:
+        url: "http://localhost:{{ services_host_port }}/health"
+        method: GET
+        status_code: 200
+      register: health_check_result
+      failed_when: false
+
+    - name: Test services container status endpoint
+      ansible.builtin.uri:
+        url: "http://localhost:{{ services_host_port }}/api/status"
+        method: GET
+        status_code: 200
+      register: status_check_result
+      failed_when: false
+
+    - name: Test services container service endpoints
+      ansible.builtin.uri:
+        url: "http://localhost:{{ services_host_port }}/api/v1/calendar"
+        method: GET
+        status_code: 200
+      register: calendar_check_result
+      failed_when: false
+
+    - name: Test services container astronomy endpoint
+      ansible.builtin.uri:
+        url: "http://localhost:{{ services_host_port }}/api/v1/astronomy"
+        method: GET
+        status_code: 200
+      register: astronomy_check_result
+      failed_when: false
+
+    - name: Display deployment results
+      ansible.builtin.debug:
+        msg: |
+          Services container deployment completed on {{ inventory_hostname }}
+          Container: {{ container_status.stdout_lines[0] | default('N/A') }}
+          Health endpoint: {{ 'PASSED' if health_check_result.status == 200 else 'FAILED' }}
+          Status endpoint: {{ 'PASSED' if status_check_result.status == 200 else 'FAILED' }}
+          Calendar service: {{ 'PASSED' if calendar_check_result.status == 200 else 'FAILED' }}
+          Astronomy service: {{ 'PASSED' if astronomy_check_result.status == 200 else 'FAILED' }}
+          Container port: {{ services_container_port }}
+          Host port: {{ services_host_port }}
+          Access URL: http://localhost:{{ services_host_port }}
+
+    - name: Verify services container is running
+      ansible.builtin.command: docker inspect -f '{{ "{{.State.Running}}" }}' {{ services_container_name }}
+      register: verify_running_result
+      failed_when: "'true' not in verify_running_result.stdout"
+      changed_when: false
+
+    - name: Display final container status
+      ansible.builtin.command: docker inspect -f '{{ "{{json .NetworkSettings.Ports}}" }}' {{ services_container_name }}
+      register: final_container_ports
+      changed_when: false
+
+    - name: Display final container status
+      ansible.builtin.debug:
+        msg: |
+          Final Services Container Status:
+          - Name: {{ services_container_name }}
+          - Status: {{ (verify_running_result.stdout | default('false')) | trim }}
+          - Started: {{ (deploy_result.container.State.StartedAt | default('N/A')) }}
+          - Image: {{ services_container_image }}
+          - Ports: {{ final_container_ports.stdout | default('N/A') }}

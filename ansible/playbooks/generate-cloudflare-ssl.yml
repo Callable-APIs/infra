@@ -1,0 +1,86 @@
+---
+- name: Generate Cloudflare Origin SSL Certificates
+  hosts: localhost
+  connection: local
+  vars:
+    artifacts_dir: "{{ playbook_dir }}/../ansible/artifacts"
+    cert_domain: "callableapis.com"
+    cert_subdomains:
+      - "onode1.callableapis.com"
+      - "onode2.callableapis.com" 
+      - "gnode1.callableapis.com"
+      - "inode1.callableapis.com"
+
+  tasks:
+    - name: Create artifacts directory
+      ansible.builtin.file:
+        path: "{{ artifacts_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: Create SSL certificates directory
+      ansible.builtin.file:
+        path: "{{ artifacts_dir }}/ssl"
+        state: directory
+        mode: "0755"
+
+    - name: Generate private key for Cloudflare Origin Certificate
+      ansible.builtin.command: >
+        openssl genrsa -out {{ artifacts_dir }}/ssl/privkey.pem 2048
+      register: key_result
+
+    - name: Generate certificate signing request for Cloudflare
+      ansible.builtin.command: >
+        openssl req -new -key {{ artifacts_dir }}/ssl/privkey.pem
+        -out {{ artifacts_dir }}/ssl/cert.csr
+        -subj "/C=US/ST=CA/L=San Francisco/O=CallableAPIs/CN={{ cert_domain}}"
+      register: csr_result
+
+    - name: Display CSR for Cloudflare Origin Certificate
+      ansible.builtin.debug:
+        msg: |
+          Cloudflare Origin Certificate Setup:
+          
+          To get your Cloudflare Origin Certificate:
+          1. Go to Cloudflare Dashboard → SSL/TLS → Origin Server
+          2. Click "Create Certificate"
+          3. Select "Let Cloudflare generate a private key and a CSR"
+          4. Add domains: {{ cert_subdomains | join(', ') }}
+          5. Set validity to 15 years
+          6. Download the certificate and save as: {{ artifacts_dir }}/ssl/cert.pem
+          7. Download the private key and save as: {{ artifacts_dir }}/ssl/privkey.pem
+          
+          Or use the CSR below to create a custom certificate:
+          CSR: {{ lookup('file', artifacts_dir + '/ssl/cert.csr') }}
+
+    - name: Create fullchain.pem (same as cert.pem for Cloudflare Origin)
+      ansible.builtin.copy:
+        src: "{{ artifacts_dir }}/ssl/cert.pem"
+        dest: "{{ artifacts_dir }}/ssl/fullchain.pem"
+        mode: "0644"
+      when: lookup('file', artifacts_dir + '/ssl/cert.pem', errors='ignore') | length > 0
+
+    - name: Create chain.pem (empty for Cloudflare Origin)
+      ansible.builtin.file:
+        path: "{{ artifacts_dir }}/ssl/chain.pem"
+        state: touch
+        mode: "0644"
+
+    - name: Create certificate package
+      ansible.builtin.archive:
+        path: "{{ artifacts_dir }}/ssl"
+        dest: "{{ artifacts_dir }}/ssl-certificates.tar.gz"
+        format: gz
+        mode: "0644"
+      when: lookup('file', artifacts_dir + '/ssl/cert.pem', errors='ignore') | length > 0
+
+    - name: Display certificate generation results
+      ansible.builtin.debug:
+        msg: |
+          Cloudflare Origin Certificate Setup:
+          - Domain: {{ cert_domain }}
+          - Subdomains: {{ cert_subdomains | join(', ') }}
+          - Certificate package: {{ artifacts_dir }}/ssl-certificates.tar.gz
+          - Valid for: 15 years (Cloudflare Origin Certificate)
+          - Type: Cloudflare Origin Certificate
+          - Status: READY FOR CLOUDFLARE DASHBOARD SETUP

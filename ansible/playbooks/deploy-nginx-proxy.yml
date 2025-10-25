@@ -4,25 +4,25 @@
   become: yes
 
   pre_tasks:
-    - name: Check if containerd is installed
+    - name: Check if Docker is installed
       stat:
-        path: /usr/bin/containerd
-      register: containerd_installed
+        path: /usr/bin/docker
+      register: docker_installed
 
-    - name: Check if containerd is running
+    - name: Check if Docker is running
       systemd:
-        name: containerd
-      register: containerd_running
+        name: docker
+      register: docker_running
       failed_when: false
 
-    - name: Fail if containerd is not installed or running
+    - name: Fail if Docker is not installed or running
       fail:
         msg: |
-          Containerd is not properly installed or running on {{ inventory_hostname }}!
+          Docker is not properly installed or running on {{ inventory_hostname }}!
 
-          Please run the containerd setup playbook first:
-          ansible-playbook -i inventory/production playbooks/containerd-setup.yml
-      when: not containerd_installed.stat.exists or containerd_running.failed
+          Please run the Docker setup playbook first:
+          ansible-playbook -i inventory/production playbooks/install-docker-standard.yml
+      when: not docker_installed.stat.exists or docker_running.failed
 
   tasks:
     - name: Include nginx-proxy role

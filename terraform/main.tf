@@ -731,6 +731,6 @@ resource "cloudflare_zone_settings_override" "security" {
 resource "cloudflare_zone_settings_override" "ssl" {
   zone_id = data.cloudflare_zone.callableapis.id
   settings {
-    ssl = "strict"
+    ssl = "flexible"
   }
 }

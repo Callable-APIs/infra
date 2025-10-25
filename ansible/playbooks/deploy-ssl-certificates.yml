@@ -1,0 +1,83 @@
+---
+- name: Deploy SSL Certificates to Nodes
+  hosts: onode1,onode2  # Start with Oracle nodes
+  become: yes
+  vars:
+    ssl_cert_dir: "/etc/ssl/callableapis"
+    nginx_ssl_dir: "/etc/nginx/ssl"
+
+  tasks:
+    - name: Create SSL certificate directory
+      ansible.builtin.file:
+        path: "{{ ssl_cert_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: Create Nginx SSL directory
+      ansible.builtin.file:
+        path: "{{ nginx_ssl_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: Copy private key from artifacts
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../ansible/artifacts/ssl/privkey.pem"
+        dest: "{{ ssl_cert_dir }}/privkey.pem"
+        mode: "0600"
+        owner: root
+        group: root
+
+    - name: Copy certificate from artifacts
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../ansible/artifacts/ssl/cert.pem"
+        dest: "{{ ssl_cert_dir }}/cert.pem"
+        mode: "0644"
+        owner: root
+        group: root
+
+    - name: Copy fullchain from artifacts
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../ansible/artifacts/ssl/fullchain.pem"
+        dest: "{{ ssl_cert_dir }}/fullchain.pem"
+        mode: "0644"
+        owner: root
+        group: root
+
+    - name: Copy chain from artifacts
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../ansible/artifacts/ssl/chain.pem"
+        dest: "{{ ssl_cert_dir }}/chain.pem"
+        mode: "0644"
+        owner: root
+        group: root
+
+    - name: Create symlinks for Nginx
+      ansible.builtin.file:
+        src: "{{ ssl_cert_dir }}/{{ item.src }}"
+        dest: "{{ nginx_ssl_dir }}/{{ item.dest }}"
+        state: link
+        force: yes
+      loop:
+        - { src: "privkey.pem", dest: "privkey.pem" }
+        - { src: "cert.pem", dest: "cert.pem" }
+        - { src: "fullchain.pem", dest: "fullchain.pem" }
+        - { src: "chain.pem", dest: "chain.pem" }
+
+    - name: Verify SSL certificate files
+      ansible.builtin.stat:
+        path: "{{ ssl_cert_dir }}/{{ item }}"
+      register: ssl_files
+      loop:
+        - "privkey.pem"
+        - "cert.pem"
+        - "fullchain.pem"
+        - "chain.pem"
+
+    - name: Display SSL certificate deployment results
+      ansible.builtin.debug:
+        msg: |
+          SSL Certificate Deployment Results for {{ inventory_hostname }}:
+          - SSL Directory: {{ ssl_cert_dir }}
+          - Nginx SSL Directory: {{ nginx_ssl_dir }}
+          - Files deployed: {{ ssl_files.results | map(attribute='stat.exists') | list }}
+          - Status: {{ 'SUCCESS' if ssl_files.results | selectattr('stat.exists') | list | length == 4 else 'FAILED' }}
