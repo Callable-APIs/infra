@@ -1,0 +1,170 @@
+---
+- name: Deploy All Containers Based on Host Groups
+  hosts: all
+  become: yes
+  vars:
+    base_container_name: "callableapis-base"
+    base_container_image: "docker.io/rl337/callableapis:base"
+    services_container_name: "callableapis-services"
+    services_container_image: "docker.io/rl337/callableapis:services"
+    status_container_name: "callableapis-status"
+    status_container_image: "docker.io/rl337/callableapis:status"
+
+  tasks:
+    - name: Check if Docker is installed
+      ansible.builtin.command: which docker
+      register: docker_check
+      changed_when: false
+      ignore_errors: yes
+
+    - name: Fail if Docker is not installed
+      ansible.builtin.fail:
+        msg: "Docker is not installed on {{ inventory_hostname }}. Please run install-docker-standard.yml first."
+      when: docker_check.rc != 0
+
+    - name: Start Docker service
+      ansible.builtin.systemd:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Wait for Docker to be ready
+      ansible.builtin.wait_for:
+        port: 2376
+        host: localhost
+        timeout: 30
+      ignore_errors: yes
+
+    - name: Stop and remove all existing containers
+      ansible.builtin.docker_container:
+        name: "{{ item }}"
+        state: stopped
+      loop:
+        - "{{ base_container_name }}"
+        - "{{ services_container_name }}"
+        - "{{ status_container_name }}"
+      ignore_errors: yes
+
+    - name: Remove all existing containers
+      ansible.builtin.docker_container:
+        name: "{{ item }}"
+        state: absent
+      loop:
+        - "{{ base_container_name }}"
+        - "{{ services_container_name }}"
+        - "{{ status_container_name }}"
+      ignore_errors: yes
+
+    - name: Deploy base container to base container hosts
+      ansible.builtin.docker_container:
+        name: "{{ base_container_name }}"
+        image: "{{ base_container_image }}"
+        state: started
+        restart_policy: "unless-stopped"
+        ports:
+          - "8080:8080"
+        env:
+          CONTAINER_VERSION: "{{ ansible_date_time.iso8601 }}"
+        labels:
+          app: "callableapis"
+          service: "base"
+          managed_by: "ansible"
+          deployed_at: "{{ ansible_date_time.iso8601 }}"
+      when: "'base_container_hosts' in group_names"
+
+    - name: Deploy services container to services container hosts
+      ansible.builtin.docker_container:
+        name: "{{ services_container_name }}"
+        image: "{{ services_container_image }}"
+        state: started
+        restart_policy: "unless-stopped"
+        ports:
+          - "8082:8080"  # Different port to avoid conflict with base container
+        env:
+          CONTAINER_VERSION: "{{ ansible_date_time.iso8601 }}"
+        labels:
+          app: "callableapis"
+          service: "services"
+          managed_by: "ansible"
+          deployed_at: "{{ ansible_date_time.iso8601 }}"
+      when: "'services_container_hosts' in group_names"
+
+    - name: Deploy status container to status container hosts
+      ansible.builtin.docker_container:
+        name: "{{ status_container_name }}"
+        image: "{{ status_container_image }}"
+        state: started
+        restart_policy: "unless-stopped"
+        ports:
+          - "8081:8080"  # Different port to avoid conflict with base container
+        env:
+          CONTAINER_VERSION: "{{ ansible_date_time.iso8601 }}"
+        labels:
+          app: "callableapis"
+          service: "status"
+          managed_by: "ansible"
+          deployed_at: "{{ ansible_date_time.iso8601 }}"
+      when: "'status_container_hosts' in group_names"
+
+    - name: Wait for base container to start
+      ansible.builtin.wait_for:
+        port: 8080
+        host: localhost
+        timeout: 30
+      when: "'base_container_hosts' in group_names"
+
+    - name: Wait for services container to start
+      ansible.builtin.wait_for:
+        port: 8082
+        host: localhost
+        timeout: 30
+      when: "'services_container_hosts' in group_names"
+
+    - name: Wait for status container to start
+      ansible.builtin.wait_for:
+        port: 8081
+        host: localhost
+        timeout: 30
+      when: "'status_container_hosts' in group_names"
+
+    - name: Test base container health endpoint
+      ansible.builtin.uri:
+        url: "http://localhost:8080/health"
+        method: GET
+        status_code: 200
+      register: base_health_check
+      failed_when: false
+      when: "'base_container_hosts' in group_names"
+
+    - name: Test services container health endpoint
+      ansible.builtin.uri:
+        url: "http://localhost:8082/health"
+        method: GET
+        status_code: 200
+      register: services_health_check
+      failed_when: false
+      when: "'services_container_hosts' in group_names"
+
+    - name: Test status container health endpoint
+      ansible.builtin.uri:
+        url: "http://localhost:8081/health"
+        method: GET
+        status_code: 200
+      register: status_health_check
+      failed_when: false
+      when: "'status_container_hosts' in group_names"
+
+    - name: Display deployment summary
+      ansible.builtin.debug:
+        msg: |
+          Container Deployment Summary for {{ inventory_hostname }}:
+          {% if 'base_container_hosts' in group_names %}
+          - Base Container: {{ base_container_name }} on port 8080
+          {% endif %}
+          {% if 'services_container_hosts' in group_names %}
+          - Services Container: {{ services_container_name }} on port 8082
+          {% endif %}
+          {% if 'status_container_hosts' in group_names %}
+          - Status Container: {{ status_container_name }} on port 8081
+          {% endif %}
+          - Total containers running: {{ ansible_facts['docker_containers'] | length if ansible_facts['docker_containers'] is defined else 'Unknown' }}

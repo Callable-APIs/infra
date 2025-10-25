@@ -1,0 +1,86 @@
+---
+- name: Generate Cloudflare Origin Certificate
+  hosts: localhost
+  connection: local
+  vars:
+    artifacts_dir: "{{ playbook_dir }}/../ansible/artifacts"
+    cert_domain: "callableapis.com"
+    cert_subdomains:
+      - "onode1.callableapis.com"
+      - "onode2.callableapis.com" 
+      - "gnode1.callableapis.com"
+      - "inode1.callableapis.com"
+
+  tasks:
+    - name: Create artifacts directory
+      ansible.builtin.file:
+        path: "{{ artifacts_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: Create SSL certificates directory
+      ansible.builtin.file:
+        path: "{{ artifacts_dir }}/ssl"
+        state: directory
+        mode: "0755"
+
+    - name: Generate private key for Cloudflare Origin Certificate
+      ansible.builtin.command: >
+        openssl genrsa -out {{ artifacts_dir }}/ssl/origin-key.pem 2048
+      register: key_result
+
+    - name: Generate certificate signing request for Cloudflare
+      ansible.builtin.command: >
+        openssl req -new -key {{ artifacts_dir }}/ssl/origin-key.pem
+        -out {{ artifacts_dir }}/ssl/origin-csr.pem
+        -subj "/C=US/ST=CA/L=San Francisco/O=CallableAPIs/CN={{ cert_domain}}"
+      register: csr_result
+
+    - name: Create SAN configuration file for origin certificate
+      ansible.builtin.copy:
+        content: |
+          [v3_req]
+          subjectAltName=@alt_names
+          [alt_names]
+          DNS.1={{ cert_domain }}
+          DNS.2=*.{{ cert_domain }}
+        dest: "{{ artifacts_dir }}/ssl/origin-san.conf"
+        mode: "0644"
+
+    - name: Generate self-signed certificate for Cloudflare Origin
+      ansible.builtin.command: >
+        openssl x509 -req -days 365 -in {{ artifacts_dir }}/ssl/origin-csr.pem
+        -signkey {{ artifacts_dir }}/ssl/origin-key.pem
+        -out {{ artifacts_dir }}/ssl/origin-cert.pem
+        -extensions v3_req -extfile {{ artifacts_dir }}/ssl/origin-san.conf
+      register: cert_result
+
+    - name: Verify origin certificate
+      ansible.builtin.command: >
+        openssl x509 -in {{ artifacts_dir }}/ssl/origin-cert.pem -text -noout
+      register: cert_verify
+      changed_when: false
+
+    - name: Create certificate package
+      ansible.builtin.archive:
+        path: "{{ artifacts_dir }}/ssl"
+        dest: "{{ artifacts_dir }}/cloudflare-origin-certificates.tar.gz"
+        format: gz
+        mode: "0644"
+
+    - name: Display origin certificate generation results
+      ansible.builtin.debug:
+        msg: |
+          Cloudflare Origin Certificate Generated:
+          - Domain: {{ cert_domain }}
+          - Subdomains: {{ cert_subdomains | join(', ') }}
+          - Certificate: {{ artifacts_dir }}/ssl/origin-cert.pem
+          - Private Key: {{ artifacts_dir }}/ssl/origin-key.pem
+          - Certificate package: {{ artifacts_dir }}/cloudflare-origin-certificates.tar.gz
+          - Valid for: 365 days
+          - Type: Self-signed (for Cloudflare Origin)
+          - Status: SUCCESS
+          
+          Next steps:
+          1. Deploy to webapp hosts: ansible-playbook -i inventory/production playbooks/setup-webapp-hosts.yml
+          2. Configure Cloudflare SSL mode to "Full (Strict)"

@@ -1,0 +1,119 @@
+---
+- name: Deploy Status Containers to Status Container Hosts
+  hosts: status_container_hosts
+  become: yes
+  vars:
+    status_container_name: "callableapis-status"
+    status_container_image: "docker.io/rl337/callableapis:status"
+    status_container_port: 8080
+    status_host_port: 8081  # Different port to avoid conflict with base container
+
+  tasks:
+    - name: Check if Docker is installed
+      ansible.builtin.command: which docker
+      register: docker_check
+      changed_when: false
+      ignore_errors: yes
+
+    - name: Fail if Docker is not installed
+      ansible.builtin.fail:
+        msg: "Docker is not installed on {{ inventory_hostname }}. Please run install-docker-standard.yml first."
+      when: docker_check.rc != 0
+
+    - name: Start Docker service
+      ansible.builtin.systemd:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Wait for Docker to be ready
+      ansible.builtin.wait_for:
+        port: 2376
+        host: localhost
+        timeout: 30
+      ignore_errors: yes
+
+    - name: Pull status container image
+      ansible.builtin.docker_image:
+        name: "{{ status_container_image }}"
+        source: pull
+        force_source: yes
+      register: pull_result
+
+    - name: Fail if image pull failed
+      ansible.builtin.fail:
+        msg: "Failed to pull status container image {{ status_container_image }}. Make sure the image exists in Docker Hub."
+      when: pull_result.failed
+
+    - name: Stop existing status container if running
+      ansible.builtin.docker_container:
+        name: "{{ status_container_name }}"
+        state: stopped
+      ignore_errors: yes
+
+    - name: Remove existing status container if exists
+      ansible.builtin.docker_container:
+        name: "{{ status_container_name }}"
+        state: absent
+      ignore_errors: yes
+
+    - name: Deploy status container
+      ansible.builtin.docker_container:
+        name: "{{ status_container_name }}"
+        image: "{{ status_container_image }}"
+        state: started
+        restart_policy: "unless-stopped"
+        ports:
+          - "{{ status_host_port }}:{{ status_container_port }}"
+        env:
+          CONTAINER_VERSION: "{{ ansible_date_time.iso8601 }}"
+        labels:
+          app: "callableapis"
+          service: "status"
+          managed_by: "ansible"
+          deployed_at: "{{ ansible_date_time.iso8601 }}"
+      register: deploy_result
+
+    - name: Wait for status container to start
+      ansible.builtin.wait_for:
+        port: "{{ status_host_port }}"
+        host: localhost
+        timeout: 30
+
+    - name: Test status container health endpoint
+      ansible.builtin.uri:
+        url: "http://localhost:{{ status_host_port }}/health"
+        method: GET
+        status_code: 200
+      register: health_check_result
+      failed_when: false
+
+    - name: Test status container status endpoint
+      ansible.builtin.uri:
+        url: "http://localhost:{{ status_host_port }}/api/status"
+        method: GET
+        status_code: 200
+      register: status_check_result
+      failed_when: false
+
+    - name: Test status container dashboard endpoint
+      ansible.builtin.uri:
+        url: "http://localhost:{{ status_host_port }}/dashboard"
+        method: GET
+        status_code: 200
+      register: dashboard_check_result
+      failed_when: false
+
+    - name: Display status container deployment results
+      ansible.builtin.debug:
+        msg: |
+          Status Container Deployment Results for {{ inventory_hostname }}:
+          - Container: {{ status_container_name }}
+          - Image: {{ status_container_image }}
+          - Container Port: {{ status_container_port }}
+          - Host Port: {{ status_host_port }}
+          - Health endpoint: {{ 'PASSED' if health_check_result.status == 200 else 'FAILED' }}
+          - Status endpoint: {{ 'PASSED' if status_check_result.status == 200 else 'FAILED' }}
+          - Dashboard endpoint: {{ 'PASSED' if dashboard_check_result.status == 200 else 'FAILED' }}
+          - Access URL: http://localhost:{{ status_host_port }}
+          - Dashboard URL: http://localhost:{{ status_host_port }}/dashboard

@@ -1,0 +1,102 @@
+---
+- name: Deploy Base Containers to Base Container Hosts
+  hosts: base_container_hosts
+  become: yes
+  vars:
+    container_name: "callableapis-base"
+    container_image: "docker.io/rl337/callableapis:base"
+    container_port: 8080
+
+  tasks:
+    - name: Check if Docker is installed
+      ansible.builtin.command: which docker
+      register: docker_check
+      changed_when: false
+      ignore_errors: yes
+
+    - name: Fail if Docker is not installed
+      ansible.builtin.fail:
+        msg: "Docker is not installed on {{ inventory_hostname }}. Please run install-docker-standard.yml first."
+      when: docker_check.rc != 0
+
+    - name: Start Docker service
+      ansible.builtin.systemd:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Wait for Docker to be ready
+      ansible.builtin.wait_for:
+        port: 2376
+        host: localhost
+        timeout: 30
+      ignore_errors: yes
+
+    - name: Pull base container image
+      ansible.builtin.docker_image:
+        name: "{{ container_image }}"
+        source: pull
+        force_source: yes
+      register: pull_result
+
+    - name: Stop existing container if running
+      ansible.builtin.docker_container:
+        name: "{{ container_name }}"
+        state: stopped
+      ignore_errors: yes
+
+    - name: Remove existing container if exists
+      ansible.builtin.docker_container:
+        name: "{{ container_name }}"
+        state: absent
+      ignore_errors: yes
+
+    - name: Deploy base container
+      ansible.builtin.docker_container:
+        name: "{{ container_name }}"
+        image: "{{ container_image }}"
+        state: started
+        restart_policy: "unless-stopped"
+        ports:
+          - "{{ container_port }}:{{ container_port }}"
+        env:
+          CONTAINER_VERSION: "{{ ansible_date_time.iso8601 }}"
+        labels:
+          app: "callableapis"
+          service: "base"
+          managed_by: "ansible"
+          deployed_at: "{{ ansible_date_time.iso8601 }}"
+      register: deploy_result
+
+    - name: Wait for container to start
+      ansible.builtin.wait_for:
+        port: "{{ container_port }}"
+        host: localhost
+        timeout: 30
+
+    - name: Test container health endpoint
+      ansible.builtin.uri:
+        url: "http://localhost:{{ container_port }}/health"
+        method: GET
+        status_code: 200
+      register: health_check_result
+      failed_when: false
+
+    - name: Test container status endpoint
+      ansible.builtin.uri:
+        url: "http://localhost:{{ container_port }}/api/status"
+        method: GET
+        status_code: 200
+      register: status_check_result
+      failed_when: false
+
+    - name: Display base container deployment results
+      ansible.builtin.debug:
+        msg: |
+          Base Container Deployment Results for {{ inventory_hostname }}:
+          - Container: {{ container_name }}
+          - Image: {{ container_image }}
+          - Port: {{ container_port }}
+          - Health endpoint: {{ 'PASSED' if health_check_result.status == 200 else 'FAILED' }}
+          - Status endpoint: {{ 'PASSED' if status_check_result.status == 200 else 'FAILED' }}
+          - Access URL: http://localhost:{{ container_port }}
