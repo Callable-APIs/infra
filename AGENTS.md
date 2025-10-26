@@ -543,6 +543,69 @@ ansible onode1 -i ansible/inventory/production -m shell -a "nginx -t" --become
 - ✅ Test services from inside the node when external tests fail
 - ✅ Use Ansible for internal connectivity verification
 
+## Container Deployment Verification
+
+**CRITICAL: Verify containers are running where expected based on inventory groups**
+
+### Container Deployment Rules
+Containers must run only on hosts assigned in inventory groups:
+- **Base Container**: Only on hosts in `base_container_hosts` group
+- **Status Container**: Only on hosts in `status_container_hosts` group
+- **Services Container**: Only on hosts in `services_container_hosts` group
+- **Mutual Exclusion**: A host should only run containers for which it's explicitly assigned
+
+### Checking Current Container Status
+```bash
+# Verify container deployment matches inventory expectations
+ansible-playbook -i ansible/inventory/production ansible/playbooks/verify-container-deployment.yml
+
+# Check which containers are running on a specific host
+ansible onode1 -i ansible/inventory/production -m shell -a "docker ps" --become
+
+# Check container port assignments
+ansible onode1 -i ansible/inventory/production -m shell -a "docker port $(docker ps -q)" --become
+```
+
+### Resolving Container Misconfigurations
+When containers are running on wrong hosts:
+
+1. **Stop Incorrect Containers**
+   ```bash
+   # Stop containers that shouldn't be running
+   ansible onode1 -i ansible/inventory/production -m shell -a "docker stop callableapis-status" --become
+   ```
+
+2. **Start Expected Containers**
+   ```bash
+   # Use the deployment playbook to start correct containers
+   ansible-playbook -i ansible/inventory/production ansible/playbooks/containers/deploy-containers.yml
+   ```
+
+3. **Verify After Deploy**
+   ```bash
+   # Re-run verification
+   ansible-playbook -i ansible/inventory/production ansible/playbooks/verify-container-deployment.yml
+   ```
+
+### Inventory Group Definition
+Current assignment (from `ansible/inventory/production`):
+- **base_container_hosts**: onode1, onode2, gnode1
+- **status_container_hosts**: gnode1
+- **services_container_hosts**: inode1
+
+### Signs of Container Misconfiguration
+- ❌ Container running on node not in its inventory group
+- ❌ Multiple container types running on same host when only one is assigned
+- ❌ Expected container not running on assigned host
+- ❌ Port conflicts between containers
+
+### Required Actions
+- ✅ Use verification playbook to check container deployment
+- ✅ Ensure containers only run on explicitly assigned hosts
+- ✅ Stop incorrectly placed containers
+- ✅ Deploy containers based on inventory groups
+- ✅ Verify DNS records point to correct hosts for their assigned containers
+
 # Task Instruction
 All work and changes to the repository should be part of a task.  A task has a distinct starting point and measurable end goal.  If you feel like you are not presently in a task, ask for more detailed instructions or clarity on any underdeveloped parts of the problem.  Once the problem is well understood and appropriately broken down it will be tracked in a Github Issue.
 

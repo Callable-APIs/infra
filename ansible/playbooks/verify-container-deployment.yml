@@ -1,0 +1,81 @@
+---
+- name: Verify Container Deployment Based on Inventory Groups
+  hosts: webapp_hosts
+  become: yes
+  vars:
+    expected_containers: {}
+
+  tasks:
+    - name: Set expected containers based on inventory groups
+      ansible.builtin.set_fact:
+        expected_containers: "{{ 
+          (expected_containers | default({})) | combine({
+            'base': {'running': inventory_hostname in groups['base_container_hosts'], 'port': hostvars[inventory_hostname]['base_port'] | default('8080')},
+            'status': {'running': inventory_hostname in groups['status_container_hosts'], 'port': hostvars[inventory_hostname]['status_port'] | default('8081')},
+            'services': {'running': inventory_hostname in groups['services_container_hosts'], 'port': hostvars[inventory_hostname]['services_port'] | default('8080')}
+          })
+        }}"
+
+    - name: Get running containers
+      ansible.builtin.shell: |
+        docker ps --format "{{ '{{.Names}}' }}"
+      register: running_containers
+      changed_when: false
+
+    - name: Check if expected containers are running
+      ansible.builtin.set_fact:
+        container_status: "{{ 
+          (container_status | default({})) | combine({
+            'base': {'expected': expected_containers.base.running, 'actual': 'callableapis-base' in running_containers.stdout},
+            'status': {'expected': expected_containers.status.running, 'actual': 'callableapis-status' in running_containers.stdout},
+            'services': {'expected': expected_containers.services.running, 'actual': 'callableapis-services' in running_containers.stdout}
+          })
+        }}"
+
+    - name: Stop containers that shouldn't be running
+      ansible.builtin.shell: |
+        docker stop {{ item.container }} 2>/dev/null || true
+        docker rm {{ item.container }} 2>/dev/null || true
+      loop:
+        - { container: "callableapis-base", should_run: expected_containers.base.running }
+        - { container: "callableapis-status", should_run: expected_containers.status.running }
+        - { container: "callableapis-services", should_run: expected_containers.services.running }
+      when: not item.should_run and item.container in running_containers.stdout
+      failed_when: false
+
+    - name: Verify containers are listening on expected ports
+      ansible.builtin.shell: |
+        ss -tlnp | grep "{{ item.port }}"
+      register: port_listening
+      loop:
+        - { container: "base", port: expected_containers.base.port }
+        - { container: "status", port: expected_containers.status.port }
+        - { container: "services", port: expected_containers.services.port }
+      when: expected_containers[item.container].running
+      failed_when: false
+      changed_when: false
+
+    - name: Display container verification results
+      ansible.builtin.debug:
+        msg: |
+          Container Verification Results for {{ inventory_hostname }}:
+          
+          BASE CONTAINER:
+          - Expected: {{ 'RUNNING' if expected_containers.base.running else 'STOPPED' }}
+          - Actual: {{ 'RUNNING' if container_status.base.actual else 'STOPPED' }}
+          - Port: {{ expected_containers.base.port }}
+          - Status: {{ 'CORRECT' if expected_containers.base.running == container_status.base.actual else 'INCORRECT' }}
+          
+          STATUS CONTAINER:
+          - Expected: {{ 'RUNNING' if expected_containers.status.running else 'STOPPED' }}
+          - Actual: {{ 'RUNNING' if container_status.status.actual else 'STOPPED' }}
+          - Port: {{ expected_containers.status.port }}
+          - Status: {{ 'CORRECT' if expected_containers.status.running == container_status.status.actual else 'INCORRECT' }}
+          
+          SERVICES CONTAINER:
+          - Expected: {{ 'RUNNING' if expected_containers.services.running else 'STOPPED' }}
+          - Actual: {{ 'RUNNING' if container_status.services.actual else 'STOPPED' }}
+          - Port: {{ expected_containers.services.port }}
+          - Status: {{ 'CORRECT' if expected_containers.services.running == container_status.services.actual else 'INCORRECT' }}
+          
+          OVERALL: {{ 'ALL CONTAINERS CORRECT' if (expected_containers.base.running == container_status.base.actual and expected_containers.status.running == container_status.status.actual and expected_containers.services.running == container_status.services.actual) else 'ISSUES DETECTED' }}

@@ -709,9 +709,9 @@ resource "cloudflare_record" "status" {
   zone_id = data.cloudflare_zone.callableapis.id
   name    = "status"
   type    = "A"
-  content = "192.9.154.97" # Oracle Cloud Node 1
+  content = google_compute_instance.callableapis_e2_micro.network_interface[0].access_config[0].nat_ip
   proxied = true
-  comment = "Status Dashboard - Direct to Oracle Node"
+  comment = "Status Dashboard - Google Cloud Node"
 }
 
 # Cloudflare Worker for Status Dashboard
