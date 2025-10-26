@@ -1,0 +1,232 @@
+---
+- name: Comprehensive SSL Certificate Management
+  hosts: localhost
+  become: no
+  vars:
+    artifacts_dir: "{{ playbook_dir }}/../artifacts"
+    ssl_artifacts_dir: "{{ artifacts_dir }}/ssl"
+    terraform_dir: "{{ playbook_dir }}/../../terraform"
+    cloudflare_csr_file: "{{ terraform_dir }}/cloudflare-csr.tfvars"
+
+  tasks:
+    - name: Create artifacts directory
+      ansible.builtin.file:
+        path: "{{ ssl_artifacts_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: Check if valid SSL artifacts exist
+      ansible.builtin.stat:
+        path: "{{ ssl_artifacts_dir }}/{{ item }}"
+      register: artifact_check
+      loop:
+        - privkey.pem
+        - cert.pem
+        - fullchain.pem
+        - chain.pem
+
+    - name: Check if CSR file exists
+      ansible.builtin.stat:
+        path: "{{ cloudflare_csr_file }}"
+      register: csr_check
+
+    - name: Check if certificate files are too small (indicating old self-signed certs)
+      ansible.builtin.stat:
+        path: "{{ ssl_artifacts_dir }}/cert.pem"
+      register: cert_size_check
+
+    - name: Determine if certificate generation is needed
+      ansible.builtin.set_fact:
+        cert_generation_needed: "{{ 
+          artifact_check.results | selectattr('stat.exists', 'equalto', false) | list | length > 0 or
+          not csr_check.stat.exists or
+          (cert_size_check.stat.exists and cert_size_check.stat.size < 1500)
+        }}"
+
+    - name: Generate CSR if needed
+      ansible.builtin.include_tasks: generate-csr-tasks.yml
+      when: cert_generation_needed
+
+    - name: Create Cloudflare Origin Certificate if needed
+      ansible.builtin.include_tasks: create-cloudflare-cert-tasks.yml
+      when: cert_generation_needed
+
+    - name: Retrieve Cloudflare Certificate if needed
+      ansible.builtin.include_tasks: retrieve-cloudflare-cert-tasks.yml
+      when: cert_generation_needed
+
+    - name: Verify SSL artifacts are valid
+      ansible.builtin.include_tasks: verify-ssl-artifacts-tasks.yml
+
+    - name: Display SSL certificate management summary
+      ansible.builtin.debug:
+        msg: |
+          SSL Certificate Management Complete
+          - Artifacts Directory: {{ ssl_artifacts_dir }}
+          - Certificate Generation: {{ 'PERFORMED' if cert_generation_needed else 'SKIPPED (existing valid cert)' }}
+          - Status: SUCCESS
+          - Ready for deployment to nodes
+
+- name: Deploy SSL certificates to all nodes
+  hosts: onode1,onode2,gnode1,inode1
+  become: yes
+  vars:
+    ssl_cert_dir: "/etc/ssl/callableapis"
+    nginx_ssl_dir: "/etc/nginx/ssl"
+    artifacts_dir: "{{ playbook_dir }}/../artifacts"
+
+  tasks:
+    - name: Create SSL certificate directory
+      ansible.builtin.file:
+        path: "{{ ssl_cert_dir }}"
+        state: directory
+        mode: "0755"
+        owner: root
+        group: root
+
+    - name: Create Nginx SSL directory
+      ansible.builtin.file:
+        path: "{{ nginx_ssl_dir }}"
+        state: directory
+        mode: "0755"
+        owner: root
+        group: root
+
+    - name: Check current certificate files
+      ansible.builtin.stat:
+        path: "{{ ssl_cert_dir }}/{{ item }}"
+      register: current_certs
+      loop:
+        - privkey.pem
+        - cert.pem
+        - fullchain.pem
+        - chain.pem
+
+    - name: Check certificate file sizes
+      ansible.builtin.stat:
+        path: "{{ ssl_cert_dir }}/cert.pem"
+      register: cert_size_check
+
+    - name: Check if certificates need updating
+      ansible.builtin.set_fact:
+        certs_need_update: "{{ 
+          current_certs.results | selectattr('stat.exists', 'equalto', false) | list | length > 0 or
+          (cert_size_check.stat.exists and cert_size_check.stat.size < 1500)
+        }}"
+
+    - name: Copy private key from artifacts
+      ansible.builtin.copy:
+        src: "{{ artifacts_dir }}/ssl/privkey.pem"
+        dest: "{{ ssl_cert_dir }}/privkey.pem"
+        mode: "0600"
+        owner: root
+        group: root
+        backup: yes
+        remote_src: no
+      when: certs_need_update
+
+    - name: Copy certificate from artifacts
+      ansible.builtin.copy:
+        src: "{{ artifacts_dir }}/ssl/cert.pem"
+        dest: "{{ ssl_cert_dir }}/cert.pem"
+        mode: "0644"
+        owner: root
+        group: root
+        backup: yes
+        remote_src: no
+      when: certs_need_update
+
+    - name: Copy fullchain from artifacts
+      ansible.builtin.copy:
+        src: "{{ artifacts_dir }}/ssl/fullchain.pem"
+        dest: "{{ ssl_cert_dir }}/fullchain.pem"
+        mode: "0644"
+        owner: root
+        group: root
+        backup: yes
+        remote_src: no
+      when: certs_need_update
+
+    - name: Copy chain from artifacts
+      ansible.builtin.copy:
+        src: "{{ artifacts_dir }}/ssl/chain.pem"
+        dest: "{{ ssl_cert_dir }}/chain.pem"
+        mode: "0644"
+        owner: root
+        group: root
+        backup: yes
+        remote_src: no
+      when: certs_need_update
+
+    - name: Create symlinks for Nginx
+      ansible.builtin.file:
+        src: "{{ ssl_cert_dir }}/{{ item.src }}"
+        dest: "{{ nginx_ssl_dir }}/{{ item.dest }}"
+        state: link
+        force: yes
+      loop:
+        - { src: "privkey.pem", dest: "privkey.pem" }
+        - { src: "cert.pem", dest: "cert.pem" }
+        - { src: "fullchain.pem", dest: "fullchain.pem" }
+        - { src: "chain.pem", dest: "chain.pem" }
+
+    - name: Check if Nginx is listening on port 443
+      ansible.builtin.shell: ss -tlnp | grep :443 | grep nginx
+      register: nginx_ssl_check
+      failed_when: false
+
+    - name: Check if Nginx needs restart
+      ansible.builtin.set_fact:
+        nginx_needs_restart: "{{ 
+          certs_need_update or 
+          nginx_ssl_check.rc != 0 or
+          (nginx_ssl_check.stdout is defined and nginx_ssl_check.stdout == '')
+        }}"
+
+    - name: Restart Nginx if needed
+      ansible.builtin.systemd:
+        name: nginx
+        state: restarted
+      when: nginx_needs_restart
+
+    - name: Verify Nginx is listening on port 443 after restart
+      ansible.builtin.shell: ss -tlnp | grep :443 | grep nginx
+      register: nginx_ssl_verify
+      failed_when: nginx_ssl_verify.rc != 0
+      when: nginx_needs_restart
+
+    - name: Verify certificate and key match
+      ansible.builtin.command: >
+        openssl x509 -noout -modulus -in {{ ssl_cert_dir }}/cert.pem |
+        openssl md5
+      register: cert_modulus
+      failed_when: false
+
+    - name: Verify private key modulus
+      ansible.builtin.command: >
+        openssl rsa -noout -modulus -in {{ ssl_cert_dir }}/privkey.pem |
+        openssl md5
+      register: key_modulus
+      failed_when: false
+
+    - name: Check if certificates match
+      ansible.builtin.set_fact:
+        certs_match: "{{ cert_modulus.stdout == key_modulus.stdout }}"
+
+    - name: Test nginx configuration
+      ansible.builtin.command: nginx -t
+      register: nginx_test
+      failed_when: false
+
+    - name: Display SSL certificate deployment results
+      ansible.builtin.debug:
+        msg: |
+          SSL Certificate Deployment Results for {{ inventory_hostname }}:
+          - SSL Directory: {{ ssl_cert_dir }}
+          - Nginx SSL Directory: {{ nginx_ssl_dir }}
+          - Update Required: {{ 'YES' if certs_need_update else 'NO' }}
+          - Nginx Restart: {{ 'YES' if nginx_needs_restart else 'NO' }}
+          - Certificate/Key Match: {{ 'YES' if certs_match else 'NO' }}
+          - Nginx Test: {{ 'PASSED' if nginx_test.rc == 0 else 'FAILED' }}
+          - Port 443 Listening: {{ 'YES' if (nginx_ssl_verify is defined and nginx_ssl_verify.rc == 0) or (nginx_ssl_check is defined and nginx_ssl_check.rc == 0) else 'NO' }}
+          - Status: {{ 'UPDATED' if certs_need_update else 'UP TO DATE' }}

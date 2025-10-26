@@ -1,29 +1,37 @@
 ---
-- name: Deploy Base Containers to Base Container Hosts
-  hosts: base_container_hosts
+- name: Deploy Base Containers Conditionally
+  hosts: all
   become: yes
   vars:
     container_name: "callableapis-base"
     container_image: "docker.io/rl337/callableapis:base"
     container_port: 8080
+    host_port: "{{ base_port | default(8080) }}" # Use host variable with default
 
   tasks:
+    - name: Skip deployment if base_port is not defined
+      ansible.builtin.debug:
+        msg: "Skipping base container deployment on {{ inventory_hostname }} - base_port not defined"
+      when: base_port is not defined
+
     - name: Check if Docker is installed
       ansible.builtin.command: which docker
       register: docker_check
       changed_when: false
       ignore_errors: yes
+      when: base_port is defined
 
     - name: Fail if Docker is not installed
       ansible.builtin.fail:
         msg: "Docker is not installed on {{ inventory_hostname }}. Please run install-docker-standard.yml first."
-      when: docker_check.rc != 0
+      when: base_port is defined and docker_check.rc != 0
 
     - name: Start Docker service
       ansible.builtin.systemd:
         name: docker
         state: started
         enabled: yes
+      when: base_port is defined
 
     - name: Wait for Docker to be ready
       ansible.builtin.wait_for:
@@ -31,6 +39,7 @@
         host: localhost
         timeout: 30
       ignore_errors: yes
+      when: base_port is defined
 
     - name: Pull base container image
       ansible.builtin.docker_image:
@@ -58,7 +67,7 @@
         state: started
         restart_policy: "unless-stopped"
         ports:
-          - "{{ container_port }}:{{ container_port }}"
+          - "{{ host_port }}:{{ container_port }}"
         env:
           CONTAINER_VERSION: "{{ ansible_date_time.iso8601 }}"
         labels:

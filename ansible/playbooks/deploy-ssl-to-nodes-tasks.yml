@@ -1,0 +1,100 @@
+---
+# Tasks for deploying SSL certificates to all nodes
+- name: Create SSL certificate directory
+  ansible.builtin.file:
+    path: "{{ ssl_cert_dir | default('/etc/ssl/callableapis') }}"
+    state: directory
+    mode: "0755"
+    owner: root
+    group: root
+
+- name: Create Nginx SSL directory
+  ansible.builtin.file:
+    path: "{{ nginx_ssl_dir | default('/etc/nginx/ssl') }}"
+    state: directory
+    mode: "0755"
+    owner: root
+    group: root
+
+- name: Check current certificate files
+  ansible.builtin.stat:
+    path: "{{ ssl_cert_dir | default('/etc/ssl/callableapis') }}/{{ item }}"
+  register: current_certs
+  loop:
+    - privkey.pem
+    - cert.pem
+    - fullchain.pem
+    - chain.pem
+
+- name: Check if certificates need updating
+  ansible.builtin.set_fact:
+    certs_need_update: |
+      {{
+        current_certs.results | selectattr('stat.exists', 'equalto', false) | list | length > 0 or
+        (current_certs.results | selectattr('stat.exists', 'equalto', true) | first | attr('stat') | attr('size') < 1500)
+      }}
+
+- name: Copy private key from artifacts
+  ansible.builtin.copy:
+    src: "{{ artifacts_dir | default(playbook_dir + '/../artifacts') }}/ssl/privkey.pem"
+    dest: "{{ ssl_cert_dir | default('/etc/ssl/callableapis') }}/privkey.pem"
+    mode: "0600"
+    owner: root
+    group: root
+    backup: yes
+    remote_src: no
+  when: certs_need_update
+
+- name: Copy certificate from artifacts
+  ansible.builtin.copy:
+    src: "{{ artifacts_dir | default(playbook_dir + '/../artifacts') }}/ssl/cert.pem"
+    dest: "{{ ssl_cert_dir | default('/etc/ssl/callableapis') }}/cert.pem"
+    mode: "0644"
+    owner: root
+    group: root
+    backup: yes
+    remote_src: no
+  when: certs_need_update
+
+- name: Copy fullchain from artifacts
+  ansible.builtin.copy:
+    src: "{{ artifacts_dir | default(playbook_dir + '/../artifacts') }}/ssl/fullchain.pem"
+    dest: "{{ ssl_cert_dir | default('/etc/ssl/callableapis') }}/fullchain.pem"
+    mode: "0644"
+    owner: root
+    group: root
+    backup: yes
+    remote_src: no
+  when: certs_need_update
+
+- name: Copy chain from artifacts
+  ansible.builtin.copy:
+    src: "{{ artifacts_dir | default(playbook_dir + '/../artifacts') }}/ssl/chain.pem"
+    dest: "{{ ssl_cert_dir | default('/etc/ssl/callableapis') }}/chain.pem"
+    mode: "0644"
+    owner: root
+    group: root
+    backup: yes
+    remote_src: no
+  when: certs_need_update
+
+- name: Create symlinks for Nginx
+  ansible.builtin.file:
+    src: "{{ ssl_cert_dir | default('/etc/ssl/callableapis') }}/{{ item.src }}"
+    dest: "{{ nginx_ssl_dir | default('/etc/nginx/ssl') }}/{{ item.dest }}"
+    state: link
+    force: yes
+  loop:
+    - { src: "privkey.pem", dest: "privkey.pem" }
+    - { src: "cert.pem", dest: "cert.pem" }
+    - { src: "fullchain.pem", dest: "fullchain.pem" }
+    - { src: "chain.pem", dest: "chain.pem" }
+
+- name: Display SSL certificate deployment results
+  ansible.builtin.debug:
+    msg: |
+      SSL Certificate Deployment Results for {{ inventory_hostname }}:
+      - SSL Directory: {{ ssl_cert_dir | default('/etc/ssl/callableapis') }}
+      - Nginx SSL Directory: {{ nginx_ssl_dir | default('/etc/nginx/ssl') }}
+      - Update Required: {{ 'YES' if certs_need_update else 'NO' }}
+      - Status: {{ 'UPDATED' if certs_need_update else 'UP TO DATE' }}

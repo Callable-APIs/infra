@@ -336,17 +336,17 @@ resource "oci_core_security_list" "callableapis_sl" {
     }
   }
 
-  # HTTPS disabled - SSL terminated at Cloudflare
-  # ingress_security_rules {
-  #   protocol  = "6"
-  #   source    = "0.0.0.0/0"
-  #   stateless = false
-  #
-  #   tcp_options {
-  #     min = 443
-  #     max = 443
-  #   }
-  # }
+  # HTTPS access
+  ingress_security_rules {
+    protocol  = "6"
+    source    = "0.0.0.0/0"
+    stateless = false
+
+    tcp_options {
+      min = 443
+      max = 443
+    }
+  }
 
   ingress_security_rules {
     protocol  = "6"
@@ -684,6 +684,15 @@ resource "cloudflare_record" "onode1" {
   content = oci_core_instance.callableapis_arm_1.public_ip
   proxied = true
   comment = "Oracle Cloud primary node"
+}
+
+resource "cloudflare_record" "onode2" {
+  zone_id = data.cloudflare_zone.callableapis.id
+  name    = "onode2"
+  type    = "A"
+  content = oci_core_instance.callableapis_arm_2.public_ip
+  proxied = true
+  comment = "Oracle Cloud secondary node"
 }
 
 resource "cloudflare_record" "inode1" {

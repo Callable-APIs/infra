@@ -1,0 +1,85 @@
+---
+# Tasks for deploying status container conditionally
+- name: Check if Docker is installed
+  ansible.builtin.command: which docker
+  register: docker_check
+  changed_when: false
+  ignore_errors: yes
+
+- name: Fail if Docker is not installed
+  ansible.builtin.fail:
+    msg: "Docker is not installed on {{ inventory_hostname }}. Please run install-docker-standard.yml first."
+  when: docker_check.rc != 0
+
+- name: Start Docker service
+  ansible.builtin.systemd:
+    name: docker
+    state: started
+    enabled: yes
+
+- name: Pull status container image
+  ansible.builtin.docker_image:
+    name: "{{ container_image | default('docker.io/rl337/callableapis:status') }}"
+    source: pull
+    force_source: yes
+  register: pull_result
+
+- name: Stop existing status container if running
+  ansible.builtin.docker_container:
+    name: "{{ container_name | default('callableapis-status') }}"
+    state: stopped
+  ignore_errors: yes
+
+- name: Remove existing status container if exists
+  ansible.builtin.docker_container:
+    name: "{{ container_name | default('callableapis-status') }}"
+    state: absent
+  ignore_errors: yes
+
+- name: Deploy status container
+  ansible.builtin.docker_container:
+    name: "{{ container_name | default('callableapis-status') }}"
+    image: "{{ container_image | default('docker.io/rl337/callableapis:status') }}"
+    state: started
+    restart_policy: "unless-stopped"
+    ports:
+      - "{{ host_port | default(status_port | default(8081)) }}:{{ container_port | default(8080) }}"
+    env:
+      CONTAINER_VERSION: "{{ ansible_date_time.iso8601 }}"
+    labels:
+      app: "callableapis"
+      service: "status"
+      managed_by: "ansible"
+      deployed_at: "{{ ansible_date_time.iso8601 }}"
+  register: deploy_result
+
+- name: Wait for status container to start
+  ansible.builtin.wait_for:
+    port: "{{ host_port | default(status_port | default(8081)) }}"
+    host: localhost
+    timeout: 30
+
+- name: Test status container health endpoint
+  ansible.builtin.uri:
+    url: "http://localhost:{{ host_port | default(status_port | default(8081)) }}/health"
+    method: GET
+    status_code: 200
+  register: health_check_result
+  failed_when: false
+
+- name: Test status container API status endpoint
+  ansible.builtin.uri:
+    url: "http://localhost:{{ host_port | default(status_port | default(8081)) }}/api/status"
+    method: GET
+    status_code: 200
+  register: status_check_result
+  failed_when: false
+
+- name: Display status container deployment results
+  ansible.builtin.debug:
+    msg: |
+      Status container deployed on {{ inventory_hostname }}
+      - Port: {{ host_port | default(status_port | default(8081)) }}
+      - Health: {{ 'PASSED' if health_check_result.status == 200 else 'FAILED' }}
+      - API Status: {{ 'PASSED' if status_check_result.status == 200 else 'FAILED' }}
+      - URL: http://localhost:{{ host_port | default(status_port | default(8081)) }}

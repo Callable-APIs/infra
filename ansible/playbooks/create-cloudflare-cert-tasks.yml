@@ -1,0 +1,36 @@
+---
+# Tasks for creating Cloudflare Origin Certificate
+- name: Check if terraform is initialized
+  ansible.builtin.stat:
+    path: "{{ terraform_dir }}/.terraform"
+  register: terraform_init_check
+
+- name: Initialize terraform if needed
+  ansible.builtin.command: terraform init
+  args:
+    chdir: "{{ terraform_dir }}"
+  when: not terraform_init_check.stat.exists
+
+- name: Create Cloudflare Origin Certificate
+  ansible.builtin.command: >
+    terraform apply -var-file=cloudflare-csr.tfvars
+    -target=cloudflare_origin_ca_certificate.callableapis_origin_cert
+    -auto-approve
+  args:
+    chdir: "{{ terraform_dir }}"
+  register: terraform_apply_result
+  failed_when: false
+
+- name: Check if certificate creation was successful
+  ansible.builtin.set_fact:
+    cert_creation_success: "{{ 'SUCCESS' in terraform_apply_result.stdout }}"
+
+- name: Display certificate creation results
+  ansible.builtin.debug:
+    msg: |
+      Cloudflare Certificate Creation: {{ cert_creation_success }}
+      {% if cert_creation_success %}
+      - Certificate created successfully
+      {% else %}
+      - Error: {{ terraform_apply_result.stderr | default('Unknown error') }}
+      {% endif %}

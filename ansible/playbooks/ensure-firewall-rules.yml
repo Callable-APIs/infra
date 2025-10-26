@@ -1,0 +1,104 @@
+---
+- name: Ensure Firewall Rules for HTTPS (Port 443) on All Cloud Providers
+  hosts: localhost
+  become: no
+  vars:
+    terraform_dir: "{{ playbook_dir }}/../../terraform"
+
+  tasks:
+    - name: Check Google Cloud HTTPS firewall rule
+      ansible.builtin.shell: |
+        docker run --rm -v $(pwd):/app -w /app \
+          -e GOOGLE_APPLICATION_CREDENTIALS="/app/google-credentials.json" \
+          callableapis:infra bash -c "
+            gcloud auth activate-service-account --key-file=/app/google-credentials.json &&
+            gcloud config set project callableapis &&
+            gcloud compute firewall-rules list --filter='name=callableapis-allow-https' --format='value(name)'
+          "
+      args:
+        chdir: "{{ terraform_dir }}"
+      register: gcp_https_firewall
+      failed_when: false
+
+    - name: Create Google Cloud HTTPS firewall rule if missing
+      ansible.builtin.shell: |
+        docker run --rm -v $(pwd):/app -w /app \
+          -e GOOGLE_APPLICATION_CREDENTIALS="/app/google-credentials.json" \
+          callableapis:infra bash -c "
+            gcloud auth activate-service-account --key-file=/app/google-credentials.json &&
+            gcloud config set project callableapis &&
+            gcloud compute firewall-rules create callableapis-allow-https \
+              --network=callableapis-vpc \
+              --allow=tcp:443 \
+              --source-ranges=0.0.0.0/0 \
+              --target-tags=callableapis-web
+          "
+      args:
+        chdir: "{{ terraform_dir }}"
+      when: gcp_https_firewall.stdout == ""
+
+    - name: Check Oracle Cloud Security List for HTTPS
+      ansible.builtin.shell: |
+        docker run --rm -v $(pwd):/app -w /app \
+          -e AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" \
+          -e AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" \
+          -e OCI_TENANCY_OCID="$OCI_TENANCY_OCID" \
+          -e OCI_USER_OCID="$OCI_USER_OCID" \
+          -e OCI_FINGERPRINT="$OCI_FINGERPRINT" \
+          -e OCI_PRIVATE_KEY_PATH="/app/oci-private-key.pem" \
+          -e OCI_COMPARTMENT_ID="$OCI_COMPARTMENT_ID" \
+          -e OCI_REGION="$OCI_REGION" \
+          callableapis:infra terraform state show oci_core_security_list.callableapis_sl | grep -A 10 -B 5 "443"
+      args:
+        chdir: "{{ terraform_dir }}"
+      register: oci_https_check
+      failed_when: false
+
+    - name: Apply Oracle Cloud Security List updates
+      ansible.builtin.shell: |
+        docker run --rm -v $(pwd):/app -w /app \
+          -e AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" \
+          -e AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" \
+          -e OCI_TENANCY_OCID="$OCI_TENANCY_OCID" \
+          -e OCI_USER_OCID="$OCI_USER_OCID" \
+          -e OCI_FINGERPRINT="$OCI_FINGERPRINT" \
+          -e OCI_PRIVATE_KEY_PATH="/app/oci-private-key.pem" \
+          -e OCI_COMPARTMENT_ID="$OCI_COMPARTMENT_ID" \
+          -e OCI_REGION="$OCI_REGION" \
+          callableapis:infra terraform apply -target=oci_core_security_list.callableapis_sl -auto-approve
+      args:
+        chdir: "{{ terraform_dir }}"
+      when: "'443' not in oci_https_check.stdout"
+
+    - name: Check IBM Cloud Security Group for HTTPS
+      ansible.builtin.shell: |
+        docker run --rm -v $(pwd):/app -w /app \
+          -e AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" \
+          -e AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" \
+          -e IBMCLOUD_API_KEY="$IBMCLOUD_API_KEY" \
+          -e IBMCLOUD_REGION="$IBMCLOUD_REGION" \
+          callableapis:infra terraform state show ibm_is_security_group_rule.callableapis_https | grep -A 5 -B 5 "443"
+      args:
+        chdir: "{{ terraform_dir }}"
+      register: ibm_https_check
+      failed_when: false
+
+    - name: Apply IBM Cloud Security Group updates
+      ansible.builtin.shell: |
+        docker run --rm -v $(pwd):/app -w /app \
+          -e AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" \
+          -e AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" \
+          -e IBMCLOUD_API_KEY="$IBMCLOUD_API_KEY" \
+          -e IBMCLOUD_REGION="$IBMCLOUD_REGION" \
+          callableapis:infra terraform apply -target=ibm_is_security_group_rule.callableapis_https -auto-approve
+      args:
+        chdir: "{{ terraform_dir }}"
+      when: "'443' not in ibm_https_check.stdout"
+
+    - name: Display firewall rule status
+      ansible.builtin.debug:
+        msg: |
+          Firewall Rules Status:
+          - Google Cloud HTTPS: {{ 'EXISTS' if gcp_https_firewall.stdout != '' else 'CREATED' }}
+          - Oracle Cloud HTTPS: {{ 'EXISTS' if '443' in oci_https_check.stdout else 'UPDATED' }}
+          - IBM Cloud HTTPS: {{ 'EXISTS' if '443' in ibm_https_check.stdout else 'UPDATED' }}

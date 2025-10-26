@@ -6,7 +6,7 @@
     services_container_name: "callableapis-services"
     services_container_image: "docker.io/rl337/callableapis:services"
     services_container_port: 8080
-    services_host_port: 8080 # Same port as base container
+    services_host_port: "{{ services_port | default(8080) }}" # Use host variable with default
 
   tasks:
     - name: Check if Docker is installed
@@ -79,7 +79,7 @@
         ports:
           - "{{ services_host_port }}:{{ services_container_port }}"
         volumes:
-          - "/etc/vault-secrets/vault-password:/app/vault-password:ro"
+          - "/etc/vault-secrets/vault-password:/app/vault-password/vault-password:ro"
           - "/etc/vault-secrets/secrets.vault:/app/secrets/secrets.vault:ro"
         env:
           CONTAINER_VERSION: "{{ ansible_date_time.iso8601 }}"

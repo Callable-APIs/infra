@@ -1,0 +1,98 @@
+---
+# Tasks for configuring dynamic nginx routing
+- name: Install nginx if not present
+  ansible.builtin.apt:
+    name: nginx
+    state: present
+    update_cache: yes
+
+- name: Start and enable nginx
+  ansible.builtin.systemd:
+    name: nginx
+    state: started
+    enabled: yes
+
+- name: Create nginx sites-available directory
+  ansible.builtin.file:
+    path: /etc/nginx/sites-available
+    state: directory
+    mode: "0755"
+
+- name: Create nginx sites-enabled directory
+  ansible.builtin.file:
+    path: /etc/nginx/sites-enabled
+    state: directory
+    mode: "0755"
+
+- name: Remove default nginx site
+  ansible.builtin.file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+
+- name: Determine container configuration
+  ansible.builtin.set_fact:
+    container_configs: |
+      {%- set configs = [] -%}
+      {%- if base_port is defined -%}
+        {%- set _ = configs.append({
+          'name': 'base',
+          'port': base_port | default(8080),
+          'path': base_path | default('/'),
+          'upstream': 'base_backend'
+        }) -%}
+      {%- endif -%}
+      {%- if services_port is defined -%}
+        {%- set _ = configs.append({
+          'name': 'services',
+          'port': services_port | default(8080),
+          'path': services_path | default('/api/v1/'),
+          'upstream': 'services_backend'
+        }) -%}
+      {%- endif -%}
+      {%- if status_port is defined -%}
+        {%- set _ = configs.append({
+          'name': 'status',
+          'port': status_port | default(8081),
+          'path': status_path | default('/api/status'),
+          'upstream': 'status_backend'
+        }) -%}
+      {%- endif -%}
+      {{ configs }}
+
+- name: Set SSL certificate directory
+  ansible.builtin.set_fact:
+    ssl_cert_dir: "/etc/nginx/ssl"
+
+- name: Create dynamic nginx configuration
+  ansible.builtin.template:
+    src: ../templates/dynamic-nginx.conf.j2
+    dest: "{{ nginx_config_path | default('/etc/nginx/sites-available/callableapis.conf') }}"
+    mode: "0644"
+    backup: yes
+  register: nginx_config_result
+
+- name: Enable nginx site
+  ansible.builtin.file:
+    src: "{{ nginx_config_path | default('/etc/nginx/sites-available/callableapis.conf') }}"
+    dest: /etc/nginx/sites-enabled/callableapis.conf
+    state: link
+    force: yes
+
+- name: Test nginx configuration
+  ansible.builtin.command: nginx -t
+  register: nginx_test_result
+  failed_when: nginx_test_result.rc != 0
+
+- name: Restart nginx if configuration changed
+  ansible.builtin.systemd:
+    name: nginx
+    state: restarted
+  when: nginx_config_result.changed
+
+- name: Display nginx configuration results
+  ansible.builtin.debug:
+    msg: |
+      Nginx configuration completed for {{ inventory_hostname }}
+      - Configuration: {{ nginx_config_path | default('/etc/nginx/sites-available/callableapis.conf') }}
+      - Test: {{ 'PASSED' if nginx_test_result.rc == 0 else 'FAILED' }}
+      - Containers configured: {{ container_configs | length }}

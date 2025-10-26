@@ -1,0 +1,73 @@
+---
+# Tasks for generating CSR
+- name: Generate private key
+  ansible.builtin.command: >
+    openssl genrsa -out {{ ssl_artifacts_dir }}/privkey.pem 2048
+  args:
+    creates: "{{ ssl_artifacts_dir }}/privkey.pem"
+
+- name: Create SAN configuration file
+  ansible.builtin.copy:
+    content: |
+      [req]
+      default_bits = 2048
+      prompt = no
+      default_md = sha256
+      distinguished_name = dn
+      req_extensions = v3_req
+
+      [dn]
+      C=US
+      ST=State
+      L=City
+      O=CallableAPIs
+      OU=IT Department
+      CN=callableapis.com
+
+      [v3_req]
+      basicConstraints = CA:FALSE
+      keyUsage = nonRepudiation, digitalSignature, keyEncipherment
+      subjectAltName = @alt_names
+
+      [alt_names]
+      DNS.1 = onode1.callableapis.com
+      DNS.2 = onode2.callableapis.com
+      DNS.3 = gnode1.callableapis.com
+      DNS.4 = inode1.callableapis.com
+    dest: "{{ ssl_artifacts_dir }}/san.conf"
+    mode: "0644"
+
+- name: Generate CSR
+  ansible.builtin.command: >
+    openssl req -new -key {{ ssl_artifacts_dir }}/privkey.pem
+    -out {{ ssl_artifacts_dir }}/cert.csr
+    -config {{ ssl_artifacts_dir }}/san.conf
+  args:
+    creates: "{{ ssl_artifacts_dir }}/cert.csr"
+
+- name: Convert CSR to single line with PEM headers
+  ansible.builtin.shell: |
+    echo "-----BEGIN CERTIFICATE REQUEST-----" > {{ ssl_artifacts_dir }}/cert_single_line.csr
+    cat {{ ssl_artifacts_dir }}/cert.csr | grep -v "BEGIN CERTIFICATE REQUEST" | grep -v "END CERTIFICATE REQUEST" | tr -d '\n' >> {{ ssl_artifacts_dir }}/cert_single_line.csr
+    echo "" >> {{ ssl_artifacts_dir }}/cert_single_line.csr
+    echo "-----END CERTIFICATE REQUEST-----" >> {{ ssl_artifacts_dir }}/cert_single_line.csr
+    cat {{ ssl_artifacts_dir }}/cert_single_line.csr
+  register: csr_single_line
+
+- name: Save CSR to terraform variables
+  ansible.builtin.copy:
+    content: |
+      # Cloudflare Origin Certificate CSR
+      cloudflare_csr = <<EOF
+      {{ csr_single_line.stdout }}
+      EOF
+    dest: "{{ cloudflare_csr_file }}"
+    mode: "0644"
+
+- name: Display CSR generation results
+  ansible.builtin.debug:
+    msg: |
+      CSR Generation Complete
+      - Private Key: {{ ssl_artifacts_dir }}/privkey.pem
+      - CSR: {{ ssl_artifacts_dir }}/cert.csr
+      - Terraform Variables: {{ cloudflare_csr_file }}

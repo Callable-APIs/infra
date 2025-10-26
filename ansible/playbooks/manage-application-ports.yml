@@ -1,0 +1,129 @@
+---
+- name: Manage Application Port Facts
+  hosts: all
+  become: yes
+  vars:
+    facts_dir: "/etc/ansible/facts.d"
+    port_mapping_file: "{{ facts_dir }}/application_ports.json"
+
+  tasks:
+    - name: Create facts directory
+      ansible.builtin.file:
+        path: "{{ facts_dir }}"
+        state: directory
+        mode: "0755"
+        owner: root
+        group: root
+
+    - name: Determine current application assignments
+      ansible.builtin.set_fact:
+        current_applications: |
+          {%- set apps = {} -%}
+          {%- if base_port is defined -%}
+            {%- set _ = apps.update({'base': {'port': base_port, 'path': base_path | default('/')}}) -%}
+          {%- endif -%}
+          {%- if services_port is defined -%}
+            {%- set _ = apps.update({'services': {'port': services_port, 'path': services_path | default('/api/v1/')}}) -%}
+          {%- endif -%}
+          {%- if status_port is defined -%}
+            {%- set _ = apps.update({'status': {'port': status_port, 'path': status_path | default('/api/status')}}) -%}
+          {%- endif -%}
+          {{ apps }}
+
+    - name: Check for port conflicts
+      ansible.builtin.set_fact:
+        port_conflicts: |
+          {%- set conflicts = [] -%}
+          {%- set ports_used = {} -%}
+          {%- for app_name, app_config in current_applications.items() -%}
+            {%- set port = app_config.port -%}
+            {%- if port in ports_used -%}
+              {%- set _ = conflicts.append({'port': port, 'apps': [ports_used[port], app_name]}) -%}
+            {%- else -%}
+              {%- set _ = ports_used.update({port: app_name}) -%}
+            {%- endif -%}
+          {%- endfor -%}
+          {{ conflicts }}
+
+    - name: Fail if port conflicts detected
+      ansible.builtin.fail:
+        msg: |
+          Port conflicts detected on {{ inventory_hostname }}:
+          {%- for conflict in port_conflicts %}
+          - Port {{ conflict.port }}: {{ conflict.apps | join(' and ') }}
+          {%- endfor %}
+      when: port_conflicts | length > 0
+
+    - name: Read existing port mapping
+      ansible.builtin.slurp:
+        src: "{{ port_mapping_file }}"
+      register: existing_mapping
+      failed_when: false
+
+    - name: Parse existing port mapping
+      ansible.builtin.set_fact:
+        existing_applications: "{{ existing_mapping.content | b64decode | from_json | default({}) }}"
+      when: existing_mapping.content is defined
+
+    - name: Set default existing applications
+      ansible.builtin.set_fact:
+        existing_applications: "{}"
+      when: existing_mapping.content is not defined
+
+    - name: Determine applications to stop
+      ansible.builtin.set_fact:
+        applications_to_stop: |
+          {%- set to_stop = [] -%}
+          {%- for app_name, app_config in existing_applications.items() -%}
+            {%- if app_name not in current_applications -%}
+              {%- set _ = to_stop.append(app_name) -%}
+            {%- endif -%}
+          {%- endfor -%}
+          {{ to_stop }}
+
+    - name: Stop containers for removed applications
+      ansible.builtin.docker_container:
+        name: "callableapis-{{ item }}"
+        state: stopped
+      register: stop_result
+      failed_when: false
+      loop: "{{ applications_to_stop }}"
+      when: applications_to_stop | length > 0
+
+    - name: Remove containers for removed applications
+      ansible.builtin.docker_container:
+        name: "callableapis-{{ item }}"
+        state: absent
+      register: remove_result
+      failed_when: false
+      loop: "{{ applications_to_stop }}"
+      when: applications_to_stop | length > 0
+
+    - name: Write updated port mapping
+      ansible.builtin.copy:
+        content: "{{ current_applications | to_nice_json }}"
+        dest: "{{ port_mapping_file }}"
+        mode: "0644"
+        owner: root
+        group: root
+        backup: yes
+
+    - name: Display application port mapping
+      ansible.builtin.debug:
+        msg: |
+          Application Port Mapping for {{ inventory_hostname }}:
+          {%- for app_name, app_config in current_applications.items() %}
+          - {{ app_name }}: Port {{ app_config.port }}, Path {{ app_config.path }}
+          {%- endfor %}
+          {%- if applications_to_stop | length > 0 %}
+
+          Applications Stopped:
+          {%- for app in applications_to_stop %}
+          - {{ app }}
+          {%- endfor %}
+          {%- endif %}
+
+    - name: Set port mapping facts for current run
+      ansible.builtin.set_fact:
+        application_ports: "{{ current_applications }}"
+        applications_stopped: "{{ applications_to_stop }}"

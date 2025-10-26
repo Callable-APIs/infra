@@ -1,0 +1,80 @@
+---
+- name: Verify SSL deployment on all nodes
+  hosts: onode1,onode2,gnode1,inode1
+  become: yes
+  vars:
+    ssl_cert_dir: "/etc/ssl/callableapis"
+    nginx_ssl_dir: "/etc/nginx/ssl"
+
+  tasks:
+    - name: Verify SSL certificate files exist
+      ansible.builtin.stat:
+        path: "{{ ssl_cert_dir }}/{{ item }}"
+      register: ssl_files
+      loop:
+        - "privkey.pem"
+        - "cert.pem"
+        - "fullchain.pem"
+        - "chain.pem"
+
+    - name: Verify Nginx symlinks exist
+      ansible.builtin.stat:
+        path: "{{ nginx_ssl_dir }}/{{ item }}"
+      register: nginx_symlinks
+      loop:
+        - "privkey.pem"
+        - "cert.pem"
+        - "fullchain.pem"
+        - "chain.pem"
+
+    - name: Check certificate permissions
+      ansible.builtin.stat:
+        path: "{{ ssl_cert_dir }}/privkey.pem"
+      register: privkey_perms
+
+    - name: Verify certificate and key match
+      ansible.builtin.command: >
+        openssl x509 -noout -modulus -in {{ ssl_cert_dir }}/cert.pem |
+        openssl md5
+      register: cert_modulus
+      failed_when: false
+
+    - name: Verify private key modulus
+      ansible.builtin.command: >
+        openssl rsa -noout -modulus -in {{ ssl_cert_dir }}/privkey.pem |
+        openssl md5
+      register: key_modulus
+      failed_when: false
+
+    - name: Check if certificates match
+      ansible.builtin.set_fact:
+        certs_match: "{{ cert_modulus.stdout == key_modulus.stdout }}"
+
+    - name: Test nginx configuration
+      ansible.builtin.command: nginx -t
+      register: nginx_test
+      failed_when: false
+
+    - name: Determine overall SSL status
+      ansible.builtin.set_fact:
+        ssl_status: |
+          {{
+            'SUCCESS' if (
+              ssl_files.results | selectattr('stat.exists', 'equalto', true) | list | length == 4 and
+              nginx_symlinks.results | selectattr('stat.exists', 'equalto', true) | list | length == 4 and
+              privkey_perms.stat.mode == '0600' and
+              certs_match and
+              nginx_test.rc == 0
+            ) else 'ISSUES_DETECTED'
+          }}
+
+    - name: Display SSL verification results
+      ansible.builtin.debug:
+        msg: |
+          SSL Verification Results for {{ inventory_hostname }}:
+          - SSL Files: {{ ssl_files.results | selectattr('stat.exists', 'equalto', true) | list | length }}/4
+          - Nginx Symlinks: {{ nginx_symlinks.results | selectattr('stat.exists', 'equalto', true) | list | length }}/4
+          - Private Key Permissions: {{ privkey_perms.stat.mode | default('MISSING') }}
+          - Certificate/Key Match: {{ 'YES' if certs_match else 'NO' }}
+          - Nginx Test: {{ 'PASSED' if nginx_test.rc == 0 else 'FAILED' }}
+          - Overall Status: {{ ssl_status }}

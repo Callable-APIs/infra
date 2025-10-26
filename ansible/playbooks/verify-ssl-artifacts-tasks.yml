@@ -1,0 +1,45 @@
+---
+# Tasks for verifying SSL artifacts
+- name: Verify SSL artifacts exist and are valid
+  ansible.builtin.stat:
+    path: "{{ ssl_artifacts_dir }}/{{ item }}"
+  register: artifact_verification
+  loop:
+    - privkey.pem
+    - cert.pem
+    - fullchain.pem
+    - chain.pem
+
+- name: Check certificate size (should be > 1500 bytes for Cloudflare cert)
+  ansible.builtin.stat:
+    path: "{{ ssl_artifacts_dir }}/cert.pem"
+  register: cert_size_check
+
+- name: Verify private key format
+  ansible.builtin.command: openssl rsa -in {{ ssl_artifacts_dir }}/privkey.pem -check -noout
+  register: privkey_check
+  failed_when: false
+
+- name: Verify certificate format
+  ansible.builtin.command: openssl x509 -in {{ ssl_artifacts_dir }}/cert.pem -text -noout
+  register: cert_check
+  failed_when: false
+
+- name: Check if all artifacts are valid
+  ansible.builtin.set_fact:
+    artifacts_valid: |
+      {{
+        artifact_verification.results | selectattr('stat.exists', 'equalto', true) | list | length == 4 and
+        cert_size_check.stat.size > 1500 and
+        privkey_check.rc == 0 and
+        cert_check.rc == 0
+      }}
+
+- name: Display artifact verification results
+  ansible.builtin.debug:
+    msg: |
+      SSL Artifacts Verification: {{ 'VALID' if artifacts_valid else 'INVALID' }}
+      - Files exist: {{ artifact_verification.results | selectattr('stat.exists', 'equalto', true) | list | length }}/4
+      - Certificate size: {{ cert_size_check.stat.size | default(0) }} bytes
+      - Private key valid: {{ 'YES' if privkey_check.rc == 0 else 'NO' }}
+      - Certificate valid: {{ 'YES' if cert_check.rc == 0 else 'NO' }}

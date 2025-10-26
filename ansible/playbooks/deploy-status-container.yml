@@ -6,7 +6,7 @@
     status_container_name: "callableapis-status"
     status_container_image: "docker.io/rl337/callableapis:status"
     status_container_port: 8080
-    status_host_port: 8081 # Different port to avoid conflict with base container
+    status_host_port: "{{ status_port | default(8081) }}" # Use host variable with default
 
   tasks:
     - name: Check if Docker is installed

@@ -1,45 +1,46 @@
 ---
-- name: Deploy Cloudflare Origin Certificates to Nodes
-  hosts: all # Deploy to all nodes
+- name: Deploy SSL certificates to all nodes
+  hosts: onode1,onode2,gnode1,inode1
   become: yes
   vars:
     ssl_cert_dir: "/etc/ssl/callableapis"
     nginx_ssl_dir: "/etc/nginx/ssl"
-    artifacts_dir: "{{ playbook_dir }}/../ansible/artifacts"
+    artifacts_dir: "{{ playbook_dir }}/../artifacts"
 
   tasks:
-    - name: Check if SSL artifacts exist
-      ansible.builtin.stat:
-        path: "{{ artifacts_dir }}/ssl/{{ item }}"
-      register: artifact_check
-      delegate_to: localhost
-      become: no
-      loop:
-        - privkey.pem
-        - cert.pem
-        - fullchain.pem
-        - chain.pem
-
-    - name: Fail if required SSL artifacts are missing
-      ansible.builtin.fail:
-        msg: |
-          Required SSL artifacts are missing! Please run:
-          1. ansible-playbook generate-cloudflare-origin-certificates.yml
-          2. terraform apply -var-file=cloudflare-csr.tfvars -target=cloudflare_origin_ca_certificate.callableapis_origin_cert
-          3. ansible-playbook retrieve-cloudflare-certificate.yml
-      when: artifact_check.results | selectattr('stat.exists', 'equalto', false) | list | length > 0
-
     - name: Create SSL certificate directory
       ansible.builtin.file:
         path: "{{ ssl_cert_dir }}"
         state: directory
         mode: "0755"
+        owner: root
+        group: root
 
     - name: Create Nginx SSL directory
       ansible.builtin.file:
         path: "{{ nginx_ssl_dir }}"
         state: directory
         mode: "0755"
+        owner: root
+        group: root
+
+    - name: Check current certificate files
+      ansible.builtin.stat:
+        path: "{{ ssl_cert_dir }}/{{ item }}"
+      register: current_certs
+      loop:
+        - privkey.pem
+        - cert.pem
+        - fullchain.pem
+        - chain.pem
+
+    - name: Check if certificates need updating
+      ansible.builtin.set_fact:
+        certs_need_update: |
+          {{
+            current_certs.results | selectattr('stat.exists', 'equalto', false) | list | length > 0 or
+            (current_certs.results | selectattr('stat.exists', 'equalto', true) | first | attr('stat') | attr('size') < 1500)
+          }}
 
     - name: Copy private key from artifacts
       ansible.builtin.copy:
@@ -49,6 +50,8 @@
         owner: root
         group: root
         backup: yes
+        remote_src: no
+      when: certs_need_update
 
     - name: Copy certificate from artifacts
       ansible.builtin.copy:
@@ -58,6 +61,8 @@
         owner: root
         group: root
         backup: yes
+        remote_src: no
+      when: certs_need_update
 
     - name: Copy fullchain from artifacts
       ansible.builtin.copy:
@@ -67,6 +72,8 @@
         owner: root
         group: root
         backup: yes
+        remote_src: no
+      when: certs_need_update
 
     - name: Copy chain from artifacts
       ansible.builtin.copy:
@@ -76,6 +83,8 @@
         owner: root
         group: root
         backup: yes
+        remote_src: no
+      when: certs_need_update
 
     - name: Create symlinks for Nginx
       ansible.builtin.file:
@@ -89,21 +98,11 @@
         - { src: "fullchain.pem", dest: "fullchain.pem" }
         - { src: "chain.pem", dest: "chain.pem" }
 
-    - name: Verify SSL certificate files
-      ansible.builtin.stat:
-        path: "{{ ssl_cert_dir }}/{{ item }}"
-      register: ssl_files
-      loop:
-        - "privkey.pem"
-        - "cert.pem"
-        - "fullchain.pem"
-        - "chain.pem"
-
     - name: Display SSL certificate deployment results
       ansible.builtin.debug:
         msg: |
           SSL Certificate Deployment Results for {{ inventory_hostname }}:
           - SSL Directory: {{ ssl_cert_dir }}
           - Nginx SSL Directory: {{ nginx_ssl_dir }}
-          - Files deployed: {{ ssl_files.results | map(attribute='stat.exists') | list }}
-          - Status: {{ 'SUCCESS' if ssl_files.results | selectattr('stat.exists') | list | length == 4 else 'FAILED' }}
+          - Update Required: {{ 'YES' if certs_need_update else 'NO' }}
+          - Status: {{ 'UPDATED' if certs_need_update else 'UP TO DATE' }}

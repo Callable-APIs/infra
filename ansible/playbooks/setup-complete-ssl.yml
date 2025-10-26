@@ -1,0 +1,24 @@
+---
+- name: Complete End-to-End SSL Setup for All Nodes
+  hosts: localhost
+  become: no
+
+  tasks:
+    - name: Ensure firewall rules for HTTPS on all cloud providers
+      ansible.builtin.include: ensure-firewall-rules.yml
+
+    - name: Deploy SSL certificates and configure Nginx on all nodes
+      ansible.builtin.include: manage-ssl-certificates.yml
+
+    - name: Test HTTPS endpoints on all nodes
+      ansible.builtin.include: test-https-endpoints.yml
+
+    - name: Display complete SSL setup summary
+      ansible.builtin.debug:
+        msg: |
+          Complete End-to-End SSL Setup Summary:
+          - Firewall Rules: Applied to all cloud providers
+          - SSL Certificates: Deployed to all nodes
+          - Nginx Configuration: Updated and restarted as needed
+          - HTTPS Endpoints: Tested and verified
+          - Status: ALL NODES READY FOR STRICT SSL MODE

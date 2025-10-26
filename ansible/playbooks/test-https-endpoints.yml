@@ -1,0 +1,45 @@
+---
+- name: Test HTTPS Endpoints on All Nodes
+  hosts: onode1,onode2,gnode1,inode1
+  become: no
+  vars:
+    test_timeout: 10
+
+  tasks:
+    - name: Test HTTP redirect to HTTPS
+      ansible.builtin.uri:
+        url: "http://{{ inventory_hostname }}.callableapis.com/"
+        method: GET
+        follow_redirects: none
+        timeout: "{{ test_timeout }}"
+        status_code: 301
+      register: http_test
+      failed_when: false
+
+    - name: Test HTTPS endpoint
+      ansible.builtin.uri:
+        url: "https://{{ inventory_hostname }}.callableapis.com/"
+        method: GET
+        timeout: "{{ test_timeout }}"
+        status_code: 200
+      register: https_test
+      failed_when: false
+
+    - name: Test HTTPS with SSL verification
+      ansible.builtin.uri:
+        url: "https://{{ inventory_hostname }}.callableapis.com/"
+        method: GET
+        timeout: "{{ test_timeout }}"
+        status_code: 200
+        validate_certs: yes
+      register: https_ssl_test
+      failed_when: false
+
+    - name: Display HTTPS test results
+      ansible.builtin.debug:
+        msg: |
+          HTTPS Test Results for {{ inventory_hostname }}:
+          - HTTP Redirect (301): {{ 'PASSED' if http_test.status == 301 else 'FAILED' }}
+          - HTTPS Basic (200): {{ 'PASSED' if https_test.status == 200 else 'FAILED' }}
+          - HTTPS SSL Verified: {{ 'PASSED' if https_ssl_test.status == 200 else 'FAILED' }}
+          - Overall Status: {{ 'SUCCESS' if (http_test.status == 301 and https_test.status == 200 and https_ssl_test.status == 200) else 'ISSUES_DETECTED' }}

@@ -1,0 +1,27 @@
+---
+- name: Deploy All Applications Conditionally
+  hosts: all
+  become: yes
+  vars:
+    facts_dir: "/etc/ansible/facts.d"
+    port_mapping_file: "{{ facts_dir }}/application_ports.json"
+
+  tasks:
+    - name: Include port management
+      ansible.builtin.include_tasks: manage-application-ports.yml
+
+    - name: Deploy base container if configured
+      ansible.builtin.include_tasks: deploy-base-container-conditional.yml
+      when: base_port is defined
+
+    - name: Deploy services container if configured
+      ansible.builtin.include_tasks: deploy-services-container-conditional.yml
+      when: services_port is defined
+
+    - name: Deploy status container if configured
+      ansible.builtin.include_tasks: deploy-status-container-conditional.yml
+      when: status_port is defined
+
+    - name: Configure nginx routing
+      ansible.builtin.include_tasks: configure-dynamic-nginx.yml
+      when: base_port is defined or services_port is defined or status_port is defined

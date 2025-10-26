@@ -1,0 +1,45 @@
+---
+# Tasks for retrieving Cloudflare certificate
+- name: Get Cloudflare certificate from terraform
+  ansible.builtin.command: >
+    terraform output -raw origin_certificate
+  args:
+    chdir: "{{ terraform_dir }}"
+  register: cloudflare_cert_output
+  failed_when: false
+
+- name: Check if certificate retrieval was successful
+  ansible.builtin.set_fact:
+    cert_retrieval_success: "{{ cloudflare_cert_output.rc == 0 and cloudflare_cert_output.stdout | length > 100 }}"
+
+- name: Save Cloudflare certificate to artifacts
+  ansible.builtin.copy:
+    content: "{{ cloudflare_cert_output.stdout }}"
+    dest: "{{ ssl_artifacts_dir }}/cert.pem"
+    mode: "0644"
+  when: cert_retrieval_success
+
+- name: Create fullchain certificate
+  ansible.builtin.copy:
+    content: "{{ cloudflare_cert_output.stdout }}"
+    dest: "{{ ssl_artifacts_dir }}/fullchain.pem"
+    mode: "0644"
+  when: cert_retrieval_success
+
+- name: Create empty chain file (Cloudflare Origin Cert doesn't need chain)
+  ansible.builtin.copy:
+    content: ""
+    dest: "{{ ssl_artifacts_dir }}/chain.pem"
+    mode: "0644"
+  when: cert_retrieval_success
+
+- name: Display certificate retrieval results
+  ansible.builtin.debug:
+    msg: |
+      Certificate Retrieval: {{ 'SUCCESS' if cert_retrieval_success else 'FAILED' }}
+      {% if cert_retrieval_success %}
+      - Certificate saved to: {{ ssl_artifacts_dir }}/cert.pem
+      - Fullchain saved to: {{ ssl_artifacts_dir }}/fullchain.pem
+      {% else %}
+      - Error: {{ cloudflare_cert_output.stderr | default('Unknown error') }}
+      {% endif %}

@@ -4,6 +4,44 @@
 
 For isolating command line dependencies and execution of commands you will use a Docker container.  If one does not yet exist, create a Dockerfile and as dependencies or command line tools / libraries are needed add them to the docker container.   All execution of local command should happen in the Docker container where the project directory is shared as a volume.
 
+## Ansible Playbook Design Principles
+
+**CRITICAL: Design playbooks to be idempotent and self-healing**
+
+### Playbook Design Requirements
+1. **Idempotent Operations**: Playbooks should be safe to run multiple times
+2. **Self-Healing**: Automatically detect and fix blocking situations
+3. **Conditional Logic**: Only perform actions when needed
+4. **Comprehensive Coverage**: Handle all related tasks in a single playbook
+5. **No Manual Intervention**: Never require manual shell commands to fix issues
+
+### Prohibited Actions
+- ❌ Using `ansible shell` commands to solve problems
+- ❌ Creating multiple fragmented playbooks for related tasks
+- ❌ Manual cleanup between playbook runs
+- ❌ Playbooks that fail if run multiple times
+
+### Required Actions
+- ✅ Consolidate related functionality into single playbooks
+- ✅ Use conditional logic (`when`, `failed_when: false`, `ignore_errors`)
+- ✅ Check current state before making changes
+- ✅ Automatically clean up blocking situations
+- ✅ Design for "run anywhere, anytime" behavior
+
+### Example: SSL Certificate Management
+Instead of separate playbooks for:
+- Generate CSR
+- Create Cloudflare certificate
+- Deploy certificates
+- Verify certificates
+
+Create ONE playbook that:
+- Checks if valid certificate exists as artifact
+- Creates new certificate only if needed
+- Deploys to all nodes with proper permissions
+- Verifies and corrects any issues
+- Does nothing if everything is correct
+
 ## Command Execution and Timeouts
 
 **CRITICAL: Always use timeouts for external commands to prevent hanging**
@@ -332,6 +370,66 @@ ansible-playbook -i ansible/inventory/production ansible/playbooks/verify-contai
 # Test external access to endpoints
 ./test-container-endpoints.sh
 ```
+
+## Cloud Infrastructure Connectivity Testing
+
+**CRITICAL: Never use ping for cloud infrastructure testing**
+
+### Ping is Outdated for Cloud Infrastructure
+- **ICMP is often blocked** by cloud providers by default
+- **External networks** cannot reliably ping cloud instances
+- **Ping results are misleading** and don't reflect actual service availability
+- **Use proper connectivity tests** instead of ping
+
+### Proper Connectivity Testing Methods
+
+#### 1. SSH Connectivity (Primary Test)
+```bash
+# Test SSH connectivity to all nodes
+ansible all -i ansible/inventory/production -m ping
+
+# Test specific node
+ansible onode1 -i ansible/inventory/production -m ping
+```
+
+#### 2. Service Port Testing
+```bash
+# Test if services are listening on expected ports
+ansible all -i ansible/inventory/production -m shell -a "ss -tlnp | grep :443" --become
+
+# Test specific service
+ansible onode1 -i ansible/inventory/production -m shell -a "ss -tlnp | grep :8080" --become
+```
+
+#### 3. HTTP/HTTPS Endpoint Testing
+```bash
+# Test HTTP endpoints with proper timeouts
+curl --connect-timeout 5 --max-time 10 -s -o /dev/null -w "%{http_code}" https://onode1.callableapis.com/
+
+# Test with SSL verification disabled for troubleshooting
+curl --connect-timeout 5 --max-time 10 -k -s -o /dev/null -w "%{http_code}" https://192.9.154.97:443/
+```
+
+#### 4. Internal Service Testing (via Ansible)
+```bash
+# Test services from inside the node
+ansible onode1 -i ansible/inventory/production -m shell -a "curl -s http://localhost:8080/health" --become
+
+# Test Nginx configuration
+ansible onode1 -i ansible/inventory/production -m shell -a "nginx -t" --become
+```
+
+### Prohibited Actions
+- ❌ Using `ping` to test cloud instance connectivity
+- ❌ Relying on ICMP responses for troubleshooting
+- ❌ Assuming ping failure means service is down
+
+### Required Actions
+- ✅ Use SSH connectivity tests via Ansible
+- ✅ Test service ports and listening status
+- ✅ Use HTTP/HTTPS endpoint testing with proper timeouts
+- ✅ Test services from inside the node when external tests fail
+- ✅ Use Ansible for internal connectivity verification
 
 # Task Instruction
 All work and changes to the repository should be part of a task.  A task has a distinct starting point and measurable end goal.  If you feel like you are not presently in a task, ask for more detailed instructions or clarity on any underdeveloped parts of the problem.  Once the problem is well understood and appropriately broken down it will be tracked in a Github Issue.

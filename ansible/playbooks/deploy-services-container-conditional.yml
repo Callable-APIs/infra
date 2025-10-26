@@ -1,0 +1,99 @@
+---
+- name: Deploy Services Container Conditionally
+  vars:
+    container_name: "callableapis-services"
+    container_image: "docker.io/rl337/callableapis:services"
+    container_port: 8080
+    host_port: "{{ services_port | default(8080) }}"
+
+  tasks:
+    - name: Check if Docker is installed
+      ansible.builtin.command: which docker
+      register: docker_check
+      changed_when: false
+      ignore_errors: yes
+
+    - name: Fail if Docker is not installed
+      ansible.builtin.fail:
+        msg: "Docker is not installed on {{ inventory_hostname }}. Please run install-docker-standard.yml first."
+      when: docker_check.rc != 0
+
+    - name: Start Docker service
+      ansible.builtin.systemd:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Check if vault files exist on node
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      register: vault_files
+      loop:
+        - "/etc/vault-secrets/vault-password"
+        - "/etc/vault-secrets/secrets.vault"
+
+    - name: Fail if vault files are missing
+      ansible.builtin.fail:
+        msg: "Required vault files are missing. Please run deploy-secrets-simple.yml first to deploy vault files to the node."
+      when: not vault_files.results[0].stat.exists or not vault_files.results[1].stat.exists
+
+    - name: Pull services container image
+      ansible.builtin.docker_image:
+        name: "{{ container_image }}"
+        source: pull
+        force_source: yes
+      register: pull_result
+
+    - name: Stop existing services container if running
+      ansible.builtin.docker_container:
+        name: "{{ container_name }}"
+        state: stopped
+      ignore_errors: yes
+
+    - name: Remove existing services container if exists
+      ansible.builtin.docker_container:
+        name: "{{ container_name }}"
+        state: absent
+      ignore_errors: yes
+
+    - name: Deploy services container with vault parameters
+      ansible.builtin.docker_container:
+        name: "{{ container_name }}"
+        image: "{{ container_image }}"
+        state: started
+        restart_policy: "unless-stopped"
+        ports:
+          - "{{ host_port }}:{{ container_port }}"
+        volumes:
+          - "/etc/vault-secrets/vault-password:/app/vault-password/vault-password:ro"
+          - "/etc/vault-secrets/secrets.vault:/app/secrets/secrets.vault:ro"
+        env:
+          CONTAINER_VERSION: "{{ ansible_date_time.iso8601 }}"
+        labels:
+          app: "callableapis"
+          service: "services"
+          managed_by: "ansible"
+          deployed_at: "{{ ansible_date_time.iso8601 }}"
+      register: deploy_result
+
+    - name: Wait for services container to start
+      ansible.builtin.wait_for:
+        port: "{{ host_port }}"
+        host: localhost
+        timeout: 30
+
+    - name: Test services container health endpoint
+      ansible.builtin.uri:
+        url: "http://localhost:{{ host_port }}/health"
+        method: GET
+        status_code: 200
+      register: health_check_result
+      failed_when: false
+
+    - name: Display services container deployment results
+      ansible.builtin.debug:
+        msg: |
+          Services container deployed on {{ inventory_hostname }}
+          - Port: {{ host_port }}
+          - Health: {{ 'PASSED' if health_check_result.status == 200 else 'FAILED' }}
+          - URL: http://localhost:{{ host_port }}

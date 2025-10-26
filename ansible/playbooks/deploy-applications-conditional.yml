@@ -1,0 +1,79 @@
+---
+- name: Deploy Applications Based on Inventory Configuration
+  hosts: all
+  become: yes
+
+  tasks:
+    - name: Display current application configuration
+      ansible.builtin.debug:
+        msg: |
+          Application Configuration for {{ inventory_hostname }}:
+          {%- if base_port is defined %}
+          - Base: Port {{ base_port }}, Path {{ base_path | default('/') }}
+          {%- endif %}
+          {%- if services_port is defined %}
+          - Services: Port {{ services_port }}, Path {{ services_path | default('/api/v1/') }}
+          {%- endif %}
+          {%- if status_port is defined %}
+          - Status: Port {{ status_port }}, Path {{ status_path | default('/api/status') }}
+          {%- endif %}
+          {%- if not (base_port is defined or services_port is defined or status_port is defined) %}
+          - No applications configured
+          {%- endif %}
+
+    - name: Check for port conflicts
+      ansible.builtin.set_fact:
+        port_conflicts: |
+          {%- set conflicts = [] -%}
+          {%- set ports_used = {} -%}
+          {%- if base_port is defined -%}
+            {%- if base_port in ports_used -%}
+              {%- set _ = conflicts.append({'port': base_port, 'apps': [ports_used[base_port], 'base']}) -%}
+            {%- else -%}
+              {%- set _ = ports_used.update({base_port: 'base'}) -%}
+            {%- endif -%}
+          {%- endif -%}
+          {%- if services_port is defined -%}
+            {%- if services_port in ports_used -%}
+              {%- set _ = conflicts.append({'port': services_port, 'apps': [ports_used[services_port], 'services']}) -%}
+            {%- else -%}
+              {%- set _ = ports_used.update({services_port: 'services'}) -%}
+            {%- endif -%}
+          {%- endif -%}
+          {%- if status_port is defined -%}
+            {%- if status_port in ports_used -%}
+              {%- set _ = conflicts.append({'port': status_port, 'apps': [ports_used[status_port], 'status']}) -%}
+            {%- else -%}
+              {%- set _ = ports_used.update({status_port: 'status'}) -%}
+            {%- endif -%}
+          {%- endif -%}
+          {{ conflicts }}
+
+    - name: Fail if port conflicts detected
+      ansible.builtin.fail:
+        msg: |
+          Port conflicts detected on {{ inventory_hostname }}:
+          {%- for conflict in port_conflicts %}
+          - Port {{ conflict.port }}: {{ conflict.apps | join(' and ') }}
+          {%- endfor %}
+      when: port_conflicts | length > 0
+
+    - name: Deploy base container if configured
+      ansible.builtin.include_tasks:
+        file: deploy-base-container-conditional.yml
+      when: base_port is defined
+
+    - name: Deploy services container if configured
+      ansible.builtin.include_tasks:
+        file: deploy-services-container-conditional.yml
+      when: services_port is defined
+
+    - name: Deploy status container if configured
+      ansible.builtin.include_tasks:
+        file: deploy-status-container-conditional.yml
+      when: status_port is defined
+
+    - name: Configure nginx routing if any applications are running
+      ansible.builtin.include_tasks:
+        file: configure-dynamic-nginx-tasks.yml
+      when: base_port is defined or services_port is defined or status_port is defined
