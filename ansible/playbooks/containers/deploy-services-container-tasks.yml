@@ -1,0 +1,54 @@
+---
+- name: Deploy Services Container
+  hosts: "{{ inventory_hostname }}"
+  become: yes
+  vars:
+    container_name: "callableapis-services"
+    container_image: "callableapis/services:latest"
+    container_port: "{{ hostvars[inventory_hostname]['services_port'] | default('8080') }}"
+    container_path: "{{ hostvars[inventory_hostname]['services_path'] | default('/api/v1') }}"
+
+  tasks:
+    - name: Pull services container image
+      ansible.builtin.shell: docker pull {{ container_image }}
+      failed_when: false
+
+    - name: Stop existing services container
+      ansible.builtin.shell: |
+        docker stop {{ container_name }} 2>/dev/null || true
+        docker rm {{ container_name }} 2>/dev/null || true
+      failed_when: false
+
+    - name: Deploy services container with vault mount
+      ansible.builtin.shell: |
+        docker run -d \
+          --name {{ container_name }} \
+          --restart unless-stopped \
+          -p {{ container_port }}:8080 \
+          -v /home/ansible/.ansible/vault:/app/vault:ro \
+          {{ container_image }}
+      register: container_deploy
+      failed_when: false
+
+    - name: Wait for container to be ready
+      ansible.builtin.wait_for:
+        port: "{{ container_port }}"
+        host: "127.0.0.1"
+        timeout: 30
+      when: container_deploy.rc == 0
+
+    - name: Verify services container is running
+      ansible.builtin.shell: docker ps --filter name={{ container_name }} --format "table {{.Names}}\t{{.Status}}"
+      register: container_status
+
+    - name: Display services container status
+      ansible.builtin.debug:
+        msg: |
+          Services Container Deployment:
+          - Container: {{ container_name }}
+          - Image: {{ container_image }}
+          - Port: {{ container_port }}
+          - Path: {{ container_path }}
+          - Vault Mount: /home/ansible/.ansible/vault:/app/vault:ro
+          - Status: {{ 'RUNNING' if container_deploy.rc == 0 else 'FAILED' }}
+          - Details: {{ container_status.stdout }}

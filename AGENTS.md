@@ -42,6 +42,62 @@ Create ONE playbook that:
 - Verifies and corrects any issues
 - Does nothing if everything is correct
 
+## Playbook Structure Guidelines
+
+**CRITICAL: Use hierarchical playbook structure for maintainability**
+
+### Top-Level Playbooks (Orchestration)
+- **Minimal Logic**: Top-level playbooks should only orchestrate subdirectory playbooks
+- **No Implementation**: Top-level playbooks contain no complex logic or implementation details
+- **Clear Purpose**: Each top-level playbook has a single, clear purpose
+- **Aggressive Consolidation**: Combine related top-level playbooks whenever possible
+
+### Subdirectory Playbooks (Implementation)
+- **Specialized Logic**: Subdirectory playbooks contain specialized, self-healing, idempotent logic
+- **Task Per Subdirectory**: Organize playbooks by functional area (ssl/, containers/, nginx/, etc.)
+- **Minimal Count**: Keep subdirectory playbooks to a minimum
+- **Self-Contained**: Each subdirectory playbook should be self-contained and testable
+
+### Directory Structure
+```
+ansible/playbooks/
+├── setup-infrastructure.yml          # Top-level orchestration
+├── deploy-applications.yml            # Top-level orchestration
+├── manage-ssl.yml                     # Top-level orchestration
+├── ssl/                               # SSL implementation
+│   ├── manage-certificates.yml
+│   ├── generate-csr-tasks.yml
+│   └── deploy-ssl-to-nodes-tasks.yml
+├── containers/                        # Container implementation
+│   ├── deploy-containers.yml
+│   ├── deploy-base-container-tasks.yml
+│   └── deploy-services-container-tasks.yml
+├── nginx/                            # Nginx implementation
+│   ├── setup-nginx.yml
+│   └── configure-routing-tasks.yml
+├── firewall/                         # Firewall implementation
+│   └── ensure-firewall-rules.yml
+├── testing/                          # Testing implementation
+│   ├── test-endpoints.yml
+│   └── test-https-endpoints.yml
+└── secrets/                          # Secrets implementation
+    ├── build-secrets.yml
+    └── deploy-secrets-simple.yml
+```
+
+### Prohibited Actions
+- ❌ Creating top-level playbooks with complex implementation logic
+- ❌ Having too many top-level playbooks (aim for < 10)
+- ❌ Duplicating logic across subdirectory playbooks
+- ❌ Creating subdirectory playbooks that are too granular
+
+### Required Actions
+- ✅ Use top-level playbooks for orchestration only
+- ✅ Implement complex logic in subdirectory playbooks
+- ✅ Organize subdirectory playbooks by functional area
+- ✅ Keep subdirectory playbooks self-contained and testable
+- ✅ Maintain clear separation between orchestration and implementation
+
 ## Command Execution and Timeouts
 
 **CRITICAL: Always use timeouts for external commands to prevent hanging**

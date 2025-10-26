@@ -1,0 +1,30 @@
+---
+- name: Complete Infrastructure Setup
+  hosts: localhost
+  become: no
+  vars:
+    playbook_dir: "{{ playbook_dir }}"
+
+  tasks:
+    - name: Setup SSL certificates and firewall rules
+      ansible.builtin.include: ssl/setup-ssl-infrastructure.yml
+
+    - name: Deploy containers to all nodes
+      ansible.builtin.include: containers/deploy-containers.yml
+
+    - name: Configure Nginx routing
+      ansible.builtin.include: nginx/setup-nginx.yml
+
+    - name: Test all endpoints
+      ansible.builtin.include: testing/test-endpoints.yml
+
+    - name: Display setup completion
+      ansible.builtin.debug:
+        msg: |
+          Complete Infrastructure Setup Finished
+          - SSL certificates deployed
+          - Firewall rules configured
+          - Containers deployed
+          - Nginx configured
+          - Endpoints tested
+          Status: READY FOR PRODUCTION

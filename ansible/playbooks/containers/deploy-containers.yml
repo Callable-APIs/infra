@@ -1,0 +1,68 @@
+---
+- name: Deploy Containers Based on Inventory Groups
+  hosts: onode1,onode2,gnode1,inode1
+  become: yes
+  vars:
+    container_registry: "callableapis"
+    base_image: "{{ container_registry }}/base:latest"
+    status_image: "{{ container_registry }}/status:latest"
+    services_image: "{{ container_registry }}/services:latest"
+
+  tasks:
+    - name: Check if host should run base container
+      ansible.builtin.set_fact:
+        should_run_base: "{{
+          inventory_hostname in groups['base_container_hosts'] and
+          inventory_hostname not in groups['services_container_hosts'] and
+          inventory_hostname not in groups['status_container_hosts']
+        }}"
+
+    - name: Check if host should run status container
+      ansible.builtin.set_fact:
+        should_run_status: "{{ inventory_hostname in groups['status_container_hosts'] }}"
+
+    - name: Check if host should run services container
+      ansible.builtin.set_fact:
+        should_run_services: "{{ inventory_hostname in groups['services_container_hosts'] }}"
+
+    - name: Stop and remove base container if not supposed to run
+      ansible.builtin.shell: |
+        docker stop callableapis-base 2>/dev/null || true
+        docker rm callableapis-base 2>/dev/null || true
+      when: not should_run_base
+      failed_when: false
+
+    - name: Stop and remove status container if not supposed to run
+      ansible.builtin.shell: |
+        docker stop callableapis-status 2>/dev/null || true
+        docker rm callableapis-status 2>/dev/null || true
+      when: not should_run_status
+      failed_when: false
+
+    - name: Stop and remove services container if not supposed to run
+      ansible.builtin.shell: |
+        docker stop callableapis-services 2>/dev/null || true
+        docker rm callableapis-services 2>/dev/null || true
+      when: not should_run_services
+      failed_when: false
+
+    - name: Deploy base container
+      ansible.builtin.include_tasks: deploy-base-container-tasks.yml
+      when: should_run_base
+
+    - name: Deploy status container
+      ansible.builtin.include_tasks: deploy-status-container-tasks.yml
+      when: should_run_status
+
+    - name: Deploy services container
+      ansible.builtin.include_tasks: deploy-services-container-tasks.yml
+      when: should_run_services
+
+    - name: Display container deployment results
+      ansible.builtin.debug:
+        msg: |
+          Container Deployment Results for {{ inventory_hostname }}:
+          - Base Container: {{ 'RUNNING' if should_run_base else 'STOPPED' }}
+          - Status Container: {{ 'RUNNING' if should_run_status else 'STOPPED' }}
+          - Services Container: {{ 'RUNNING' if should_run_services else 'STOPPED' }}
+          - Status: {{ 'UPDATED' if (should_run_base or should_run_status or should_run_services) else 'NO CHANGES' }}

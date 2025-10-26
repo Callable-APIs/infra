@@ -1,0 +1,56 @@
+---
+- name: Setup Nginx Configuration
+  hosts: webapp_hosts
+  become: yes
+  vars:
+    nginx_ssl_dir: "/etc/nginx/ssl"
+    ssl_cert_dir: "/etc/ssl/callableapis"
+
+  tasks:
+    - name: Install Nginx
+      ansible.builtin.package:
+        name: nginx
+        state: present
+
+    - name: Create Nginx SSL directory
+      ansible.builtin.file:
+        path: "{{ nginx_ssl_dir }}"
+        state: directory
+        mode: "0755"
+        owner: root
+        group: root
+
+    - name: Create SSL certificate symlinks
+      ansible.builtin.file:
+        src: "{{ ssl_cert_dir }}/{{ item.src }}"
+        dest: "{{ nginx_ssl_dir }}/{{ item.dest }}"
+        state: link
+        force: yes
+      loop:
+        - { src: "privkey.pem", dest: "privkey.pem" }
+        - { src: "cert.pem", dest: "cert.pem" }
+        - { src: "fullchain.pem", dest: "fullchain.pem" }
+        - { src: "chain.pem", dest: "chain.pem" }
+
+    - name: Configure dynamic Nginx routing
+      ansible.builtin.include_tasks: configure-routing-tasks.yml
+
+    - name: Test Nginx configuration
+      ansible.builtin.command: nginx -t
+      register: nginx_test
+      failed_when: false
+
+    - name: Restart Nginx if configuration is valid
+      ansible.builtin.systemd:
+        name: nginx
+        state: restarted
+      when: nginx_test.rc == 0
+
+    - name: Display Nginx setup results
+      ansible.builtin.debug:
+        msg: |
+          Nginx Setup Results for {{ inventory_hostname }}:
+          - SSL Directory: {{ nginx_ssl_dir }}
+          - Configuration Test: {{ 'PASSED' if nginx_test.rc == 0 else 'FAILED' }}
+          - Service Status: {{ 'RESTARTED' if nginx_test.rc == 0 else 'NOT RESTARTED' }}
+          - Status: {{ 'SUCCESS' if nginx_test.rc == 0 else 'CONFIGURATION ERROR' }}

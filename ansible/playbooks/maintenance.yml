@@ -1,0 +1,25 @@
+---
+- name: Infrastructure Maintenance
+  hosts: localhost
+  become: no
+  vars:
+    playbook_dir: "{{ playbook_dir }}"
+
+  tasks:
+    - name: Update SSH keys
+      ansible.builtin.include: update-ssh-keys.yml
+
+    - name: Validate facts
+      ansible.builtin.include: validate-facts.yml
+
+    - name: Verify container endpoints
+      ansible.builtin.include: verify-container-endpoints.yml
+
+    - name: Display maintenance results
+      ansible.builtin.debug:
+        msg: |
+          Infrastructure Maintenance Complete
+          - SSH keys updated
+          - Facts validated
+          - Container endpoints verified
+          Status: MAINTENANCE COMPLETE

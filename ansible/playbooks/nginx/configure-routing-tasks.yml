@@ -1,0 +1,38 @@
+---
+- name: Configure Dynamic Nginx Routing
+  hosts: "{{ inventory_hostname }}"
+  become: yes
+  vars:
+    nginx_config_dir: "/etc/nginx/sites-available"
+    nginx_enabled_dir: "/etc/nginx/sites-enabled"
+
+  tasks:
+    - name: Generate dynamic Nginx configuration
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/../templates/dynamic-nginx.conf.j2"
+        dest: "{{ nginx_config_dir }}/callableapis"
+        mode: "0644"
+        owner: root
+        group: root
+        backup: yes
+
+    - name: Enable Nginx site
+      ansible.builtin.file:
+        src: "{{ nginx_config_dir }}/callableapis"
+        dest: "{{ nginx_enabled_dir }}/callableapis"
+        state: link
+        force: yes
+
+    - name: Remove default Nginx site
+      ansible.builtin.file:
+        path: "{{ nginx_enabled_dir }}/default"
+        state: absent
+
+    - name: Display routing configuration
+      ansible.builtin.debug:
+        msg: |
+          Dynamic Nginx Routing Configuration:
+          - Config File: {{ nginx_config_dir }}/callableapis
+          - Enabled Site: {{ nginx_enabled_dir }}/callableapis
+          - Default Site: REMOVED
+          - Status: CONFIGURED

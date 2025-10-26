@@ -1,0 +1,67 @@
+---
+- name: Generate and Deploy SSL Certificates
+  hosts: localhost
+  become: no
+  vars:
+    artifacts_dir: "{{ playbook_dir }}/../artifacts/ssl"
+    terraform_dir: "{{ playbook_dir }}/../../terraform"
+
+  tasks:
+    - name: Create artifacts directory
+      ansible.builtin.file:
+        path: "{{ artifacts_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: Check if valid SSL artifacts exist
+      ansible.builtin.stat:
+        path: "{{ artifacts_dir }}/{{ item }}"
+      register: current_certs
+      loop:
+        - privkey.pem
+        - cert.pem
+        - fullchain.pem
+        - chain.pem
+
+    - name: Check certificate file sizes
+      ansible.builtin.stat:
+        path: "{{ artifacts_dir }}/cert.pem"
+      register: cert_size_check
+      failed_when: false
+
+    - name: Determine if certificate generation is needed
+      ansible.builtin.set_fact:
+        cert_generation_needed: "{{
+          current_certs.results | selectattr('stat.exists', 'equalto', false) | list | length > 0 or
+          (cert_size_check.stat.exists and cert_size_check.stat.size < 1500)
+        }}"
+
+    - name: Generate CSR if needed
+      ansible.builtin.include_tasks: generate-csr-tasks.yml
+      when: cert_generation_needed
+
+    - name: Create Cloudflare Origin Certificate if needed
+      ansible.builtin.include_tasks: create-cloudflare-cert-tasks.yml
+      when: cert_generation_needed
+
+    - name: Retrieve Cloudflare Certificate if needed
+      ansible.builtin.include_tasks: retrieve-cloudflare-cert-tasks.yml
+      when: cert_generation_needed
+
+    - name: Verify SSL artifacts
+      ansible.builtin.include_tasks: verify-ssl-artifacts-tasks.yml
+
+    - name: Deploy SSL certificates to nodes
+      ansible.builtin.include_tasks: deploy-ssl-to-nodes-tasks.yml
+
+    - name: Verify SSL deployment
+      ansible.builtin.include_tasks: verify-ssl-deployment-tasks.yml
+
+    - name: Display SSL certificate management summary
+      ansible.builtin.debug:
+        msg: |
+          SSL Certificate Management Complete
+          - Artifacts Directory: {{ artifacts_dir }}
+          - Certificate Generation: {{ 'COMPLETED' if cert_generation_needed else 'SKIPPED (existing valid cert)' }}
+          - Status: SUCCESS
+          - Ready for deployment to nodes

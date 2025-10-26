@@ -1,0 +1,52 @@
+---
+- name: Deploy Base Container
+  hosts: "{{ inventory_hostname }}"
+  become: yes
+  vars:
+    container_name: "callableapis-base"
+    container_image: "callableapis/base:latest"
+    container_port: "{{ hostvars[inventory_hostname]['base_port'] | default('8080') }}"
+    container_path: "{{ hostvars[inventory_hostname]['base_path'] | default('/') }}"
+
+  tasks:
+    - name: Pull base container image
+      ansible.builtin.shell: docker pull {{ container_image }}
+      failed_when: false
+
+    - name: Stop existing base container
+      ansible.builtin.shell: |
+        docker stop {{ container_name }} 2>/dev/null || true
+        docker rm {{ container_name }} 2>/dev/null || true
+      failed_when: false
+
+    - name: Deploy base container
+      ansible.builtin.shell: |
+        docker run -d \
+          --name {{ container_name }} \
+          --restart unless-stopped \
+          -p {{ container_port }}:8080 \
+          {{ container_image }}
+      register: container_deploy
+      failed_when: false
+
+    - name: Wait for container to be ready
+      ansible.builtin.wait_for:
+        port: "{{ container_port }}"
+        host: "127.0.0.1"
+        timeout: 30
+      when: container_deploy.rc == 0
+
+    - name: Verify base container is running
+      ansible.builtin.shell: docker ps --filter name={{ container_name }} --format "table {{.Names}}\t{{.Status}}"
+      register: container_status
+
+    - name: Display base container status
+      ansible.builtin.debug:
+        msg: |
+          Base Container Deployment:
+          - Container: {{ container_name }}
+          - Image: {{ container_image }}
+          - Port: {{ container_port }}
+          - Path: {{ container_path }}
+          - Status: {{ 'RUNNING' if container_deploy.rc == 0 else 'FAILED' }}
+          - Details: {{ container_status.stdout }}

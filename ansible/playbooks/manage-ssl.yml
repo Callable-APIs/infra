@@ -1,0 +1,25 @@
+---
+- name: Manage SSL Infrastructure
+  hosts: localhost
+  become: no
+  vars:
+    playbook_dir: "{{ playbook_dir }}"
+
+  tasks:
+    - name: Generate and deploy SSL certificates
+      ansible.builtin.include: ssl/manage-certificates.yml
+
+    - name: Ensure firewall rules for HTTPS
+      ansible.builtin.include: firewall/ensure-firewall-rules.yml
+
+    - name: Test HTTPS endpoints
+      ansible.builtin.include: testing/test-https-endpoints.yml
+
+    - name: Display SSL management results
+      ansible.builtin.debug:
+        msg: |
+          SSL Infrastructure Management Complete
+          - Certificates generated and deployed
+          - Firewall rules configured
+          - HTTPS endpoints tested
+          Status: SSL INFRASTRUCTURE READY

@@ -1,0 +1,46 @@
+---
+- name: Test Container Endpoints
+  hosts: onode1,onode2,gnode1,inode1
+  become: no
+  vars:
+    test_timeout: 10
+
+  tasks:
+    - name: Test base container endpoint
+      ansible.builtin.uri:
+        url: "http://{{ inventory_hostname }}:{{ hostvars[inventory_hostname]['base_port'] | default('8080') }}/"
+        method: GET
+        timeout: "{{ test_timeout }}"
+        status_code: 200
+      register: base_test
+      failed_when: false
+      when: inventory_hostname in groups['base_container_hosts']
+
+    - name: Test status container endpoint
+      ansible.builtin.uri:
+        url: "http://{{ inventory_hostname }}:{{ hostvars[inventory_hostname]['status_port'] | default('8081') }}/"
+        method: GET
+        timeout: "{{ test_timeout }}"
+        status_code: 200
+      register: status_test
+      failed_when: false
+      when: inventory_hostname in groups['status_container_hosts']
+
+    - name: Test services container endpoint
+      ansible.builtin.uri:
+        url: "http://{{ inventory_hostname }}:{{ hostvars[inventory_hostname]['services_port'] | default('8080') }}/"
+        method: GET
+        timeout: "{{ test_timeout }}"
+        status_code: 200
+      register: services_test
+      failed_when: false
+      when: inventory_hostname in groups['services_container_hosts']
+
+    - name: Display container test results
+      ansible.builtin.debug:
+        msg: |
+          Container Test Results for {{ inventory_hostname }}:
+          - Base Container: {{ 'PASSED' if (base_test is defined and base_test.status == 200) else 'NOT RUNNING' }}
+          - Status Container: {{ 'PASSED' if (status_test is defined and status_test.status == 200) else 'NOT RUNNING' }}
+          - Services Container: {{ 'PASSED' if (services_test is defined and services_test.status == 200) else 'NOT RUNNING' }}
+          - Overall Status: {{ 'SUCCESS' if (base_test is defined and base_test.status == 200) or (status_test is defined and status_test.status == 200) or (services_test is defined and services_test.status == 200) else 'NO CONTAINERS RUNNING' }}
