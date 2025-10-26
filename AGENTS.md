@@ -335,23 +335,79 @@ done
 docker run --rm -v $(pwd):/app -w /app -e AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" -e AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" callableapis:infra terraform state list | awk -F'.' '{print $1"."$2}' | sort | uniq -c | sort -nr
 ```
 
-### Current Infrastructure State
-**Get the current infrastructure state from Terraform (single source of truth):**
+## Terraform State vs Configuration Mismatches
 
-```bash
-# Check current Terraform state
-docker run --rm -v $(pwd):/app -w /app -e AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" -e AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" callableapis:infra terraform state list
+**CRITICAL: When Terraform says "No changes" but the cloud resource is missing, check for commented-out sections**
 
-# Get detailed resource information
-docker run --rm -v $(pwd):/app -w /app -e AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" -e AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" callableapis:infra terraform state list | while read -r resource; do
-  echo "Resource: $resource"
-  docker run --rm -v $(pwd):/app -w /app -e AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" -e AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" callableapis:infra terraform state show "$resource"
-  echo "---"
-done
+### Common Issue: Commented-Out Resources
+Terraform may report "No changes. Your infrastructure matches the configuration" even when:
+- Resources are missing in the cloud
+- Configuration exists but is commented out
+- State and configuration appear aligned, but the actual resource doesn't exist
 
-# Get infrastructure summary by provider
-docker run --rm -v $(pwd):/app -w /app -e AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" -e AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" callableapis:infra terraform state list | awk -F'.' '{print $1"."$2}' | sort | uniq -c | sort -nr
-```
+### Troubleshooting Steps
+When encountering state/config mismatches:
+
+1. **Check for Commented-Out Sections**
+   ```bash
+   # Search for commented resources in main Terraform config
+   grep -n "# resource" terraform/main.tf
+   grep -n "# resource" terraform/*/main.tf
+   
+   # Look for specific resource types that might be commented
+   grep -A 10 "#.*443\|#.*https\|#.*firewall" terraform/main.tf
+   ```
+
+2. **Compare State with Actual Cloud Resources**
+   ```bash
+   # Check what's actually in the cloud (security group example)
+   # vs what Terraform state says exists
+   
+   # Oracle Cloud
+   docker run --rm -v $(pwd):/app -w /app -e OCI_... callableapis:infra terraform state show oci_core_security_list.callableapis_sl
+   
+   # IBM Cloud
+   docker run --rm -v $(pwd):/app -w /app -e IBMCLOUD_... callableapis:infra terraform state show ibm_is_security_group.callableapis_sg
+   ```
+
+3. **Uncomment and Apply**
+   If you find commented-out resources:
+   ```bash
+   # Uncomment the section in terraform/main.tf
+   # Then apply the resource
+   docker run --rm -v $(pwd):/app -w /app -e [ENV_VARS] callableapis:infra \
+     terraform apply -target=resource.type.resource_name -auto-approve
+   ```
+
+4. **Verify Changes Propagated**
+   ```bash
+   # Test that the resource is now accessible
+   curl --connect-timeout 5 --max-time 10 -k https://[IP]:[PORT]/
+   
+   # Check Terraform state shows the resource
+   docker run --rm -v $(pwd):/app -w /app -e [ENV_VARS] callableapis:infra \
+     terraform state show resource.type.resource_name
+   ```
+
+### Signs You May Have Commented-Out Resources
+- ❌ `terraform plan` shows no changes
+- ❌ Resource exists in Terraform config but missing in cloud
+- ❌ Resources show "disabled" or "SSL terminated at Cloudflare" in comments
+- ❌ Multiple Terraform config files (e.g., `main.tf` vs `cloud/main.tf`) with conflicting definitions
+
+### Real-World Example
+**Problem**: IBM Cloud security group missing port 443 inbound rule
+- **Symptom**: HTTPS timing out externally despite internal service working
+- **Root Cause**: `ibm_is_security_group_rule.callableapis_https` was commented out in `terraform/main.tf` with note "HTTPS disabled - SSL terminated at Cloudflare"
+- **Solution**: Uncommented the rule, ran `terraform apply -target=ibm_is_security_group_rule.callableapis_https`, verified connectivity
+- **Result**: All 4 nodes now fully operational with end-to-end HTTPS encryption
+
+### Required Actions
+- ✅ Search for commented `# resource` blocks when changes don't apply
+- ✅ Check for conflicting definitions across multiple config files
+- ✅ Uncomment and apply commented resources
+- ✅ Verify changes propagated to actual cloud infrastructure
+- ✅ Document why resources were previously commented out
 
 ### Node and Container Status Commands
 **Get current node connectivity and container status:**
