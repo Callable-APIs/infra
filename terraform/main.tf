@@ -715,12 +715,13 @@ resource "cloudflare_record" "status" {
 }
 
 # Cloudflare Worker for Status Dashboard
-module "status_worker" {
-  source = "./cloudflare-worker"
-
-  cloudflare_account_id = var.cloudflare_account_id
-  cloudflare_zone_id    = data.cloudflare_zone.callableapis.id
-}
+# Worker module removed - using full-tunnel SSL with Nginx instead
+# module "status_worker" {
+#   source = "./cloudflare-worker"
+#
+#   cloudflare_account_id = var.cloudflare_account_id
+#   cloudflare_zone_id    = data.cloudflare_zone.callableapis.id
+# }
 
 # Cloudflare zone settings
 resource "cloudflare_zone_settings_override" "caching" {
@@ -740,6 +741,6 @@ resource "cloudflare_zone_settings_override" "security" {
 resource "cloudflare_zone_settings_override" "ssl" {
   zone_id = data.cloudflare_zone.callableapis.id
   settings {
-    ssl = "strict"
+    ssl = "flexible"  # Use flexible for S3-backed website; strict mode can be applied per-route via page rules
   }
 }

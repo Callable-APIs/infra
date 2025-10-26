@@ -6,8 +6,8 @@ addEventListener('fetch', event => {
 })
 
 async function handleRequest(request) {
-    // Target server (Oracle Cloud Node 1) - use working node
-    const targetHost = 'onode1.callableapis.com'
+    // Target server (Google Cloud Node 1 - status container)
+    const targetHost = 'gnode1.callableapis.com'
     const targetPort = '8081'
 
     // Construct the target URL

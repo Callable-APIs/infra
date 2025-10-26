@@ -8,12 +8,13 @@ output "worker_id" {
   value       = cloudflare_workers_script.status_worker.id
 }
 
-output "route_id" {
-  description = "ID of the created Worker Route"
-  value       = cloudflare_workers_route.status_route.id
-}
-
-output "route_pattern" {
-  description = "Route pattern for the worker"
-  value       = cloudflare_workers_route.status_route.pattern
-}
+# Worker route removed - using full-tunnel SSL instead
+# output "route_id" {
+#   description = "ID of the created Worker Route"
+#   value       = cloudflare_workers_route.status_route.id
+# }
+# 
+# output "route_pattern" {
+#   description = "Route pattern for the worker"
+#   value       = cloudflare_workers_route.status_route.pattern
+# }

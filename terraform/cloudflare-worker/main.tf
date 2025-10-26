@@ -13,11 +13,12 @@ resource "cloudflare_workers_script" "status_worker" {
 }
 
 # Cloudflare Worker Route (using new resource name)
-resource "cloudflare_workers_route" "status_route" {
-  zone_id     = var.cloudflare_zone_id
-  pattern     = "status.callableapis.com/*"
-  script_name = cloudflare_workers_script.status_worker.name
-}
+# Worker route removed - using full-tunnel SSL with Nginx instead
+# resource "cloudflare_workers_route" "status_route" {
+#   zone_id     = var.cloudflare_zone_id
+#   pattern     = "status.callableapis.com/*"
+#   script_name = cloudflare_workers_script.status_worker.name
+# }
 
 # Optional: Worker Cron Trigger (for health checks)
 # Disabled for now - requires workers.dev subdomain
