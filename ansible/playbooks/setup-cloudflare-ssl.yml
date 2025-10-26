@@ -1,0 +1,63 @@
+---
+- name: Complete Cloudflare Origin Certificate Generation and Deployment
+  hosts: localhost
+  connection: local
+  vars:
+    artifacts_dir: "{{ playbook_dir }}/../ansible/artifacts"
+    terraform_dir: "{{ playbook_dir }}/../../terraform"
+
+  tasks:
+    - name: Generate Cloudflare Origin Certificate CSR
+      ansible.builtin.include_tasks: generate-cloudflare-origin-certificates.yml
+
+    - name: Apply Cloudflare Origin Certificate via Terraform
+      ansible.builtin.command: >
+        cd {{ terraform_dir }} && source ../env.sh && 
+        docker run --rm -v $(pwd):/app -w /app 
+        -e AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" 
+        -e AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" 
+        -e GOOGLE_APPLICATION_CREDENTIALS="/app/google-credentials.json" 
+        -e OCI_TENANCY_OCID="$OCI_TENANCY_OCID" 
+        -e OCI_USER_OCID="$OCI_USER_OCID" 
+        -e OCI_FINGERPRINT="$OCI_FINGERPRINT" 
+        -e OCI_PRIVATE_KEY_PATH="/app/oci-private-key.pem" 
+        -e OCI_COMPARTMENT_ID="$OCI_COMPARTMENT_ID" 
+        -e OCI_REGION="$OCI_REGION" 
+        -e IBMCLOUD_API_KEY="$IBMCLOUD_API_KEY" 
+        -e IBMCLOUD_REGION="$IBMCLOUD_REGION" 
+        callableapis:infra terraform apply -var-file=cloudflare-csr.tfvars 
+        -target=cloudflare_origin_ca_certificate.callableapis_origin_cert -auto-approve
+      register: terraform_result
+      changed_when: terraform_result.rc == 0
+
+    - name: Retrieve Cloudflare Origin Certificate
+      ansible.builtin.include_tasks: retrieve-cloudflare-certificate.yml
+
+    - name: Deploy certificates to all nodes
+      ansible.builtin.include_tasks: deploy-ssl-certificates.yml
+
+    - name: Restart Nginx on all nodes
+      ansible.builtin.command: >
+        ansible-playbook -i inventory/production playbooks/restart-nginx.yml
+      register: nginx_restart
+      changed_when: nginx_restart.rc == 0
+
+    - name: Display completion message
+      ansible.builtin.debug:
+        msg: |
+          🎉 Cloudflare Origin Certificate Generation and Deployment Complete!
+
+          ✅ Generated CSR and private key
+          ✅ Created Cloudflare Origin Certificate via Terraform
+          ✅ Retrieved certificate from Terraform state
+          ✅ Deployed certificates to all nodes
+          ✅ Restarted Nginx services
+
+          Your infrastructure now has end-to-end SSL encryption!
+
+          Test endpoints:
+          - https://onode1.callableapis.com/health
+          - https://onode2.callableapis.com/health
+          - https://gnode1.callableapis.com/health
+          - https://inode1.callableapis.com/health
+          - https://status.callableapis.com/api/status

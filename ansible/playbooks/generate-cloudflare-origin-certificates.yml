@@ -1,0 +1,111 @@
+---
+- name: Generate Cloudflare Origin Certificates
+  hosts: localhost
+  connection: local
+  vars:
+    artifacts_dir: "{{ playbook_dir }}/../ansible/artifacts"
+    cert_domain: "callableapis.com"
+    cert_subdomains:
+      - "onode1.callableapis.com"
+      - "onode2.callableapis.com"
+      - "gnode1.callableapis.com"
+      - "inode1.callableapis.com"
+    terraform_dir: "{{ playbook_dir }}/../../terraform"
+
+  tasks:
+    - name: Create artifacts directory
+      ansible.builtin.file:
+        path: "{{ artifacts_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: Create SSL certificates directory
+      ansible.builtin.file:
+        path: "{{ artifacts_dir }}/ssl"
+        state: directory
+        mode: "0755"
+
+    - name: Generate private key for Cloudflare Origin Certificate
+      ansible.builtin.command: >
+        openssl genrsa -out {{ artifacts_dir }}/ssl/privkey.pem 2048
+      register: key_result
+      changed_when: key_result.rc == 0
+
+    - name: Create SAN configuration file for Cloudflare Origin Certificate
+      ansible.builtin.copy:
+        content: |
+          [req]
+          distinguished_name = req_distinguished_name
+          req_extensions = v3_req
+          prompt = no
+
+          [req_distinguished_name]
+          C = US
+          ST = CA
+          L = San Francisco
+          O = CallableAPIs
+          CN = {{ cert_domain }}
+
+          [v3_req]
+          keyUsage = keyEncipherment, dataEncipherment
+          extendedKeyUsage = serverAuth
+          subjectAltName = @alt_names
+
+          [alt_names]
+          DNS.1 = {{ cert_domain }}
+          DNS.2 = *.{{ cert_domain }}
+          {% for subdomain in cert_subdomains %}
+          DNS.{{ loop.index + 2 }} = {{ subdomain }}
+          {% endfor %}
+        dest: "{{ artifacts_dir }}/ssl/san.conf"
+        mode: "0644"
+
+    - name: Generate certificate signing request for Cloudflare
+      ansible.builtin.command: >
+        openssl req -new -key {{ artifacts_dir }}/ssl/privkey.pem
+        -out {{ artifacts_dir }}/ssl/cert.csr
+        -config {{ artifacts_dir }}/ssl/san.conf
+      register: csr_result
+      changed_when: csr_result.rc == 0
+
+    - name: Convert CSR to single line with PEM headers for Terraform
+      ansible.builtin.shell: |
+        echo "-----BEGIN CERTIFICATE REQUEST-----" > {{ artifacts_dir }}/ssl/cert_single_line.csr
+        cat {{ artifacts_dir }}/ssl/cert.csr | grep -v "BEGIN CERTIFICATE REQUEST" | grep -v "END CERTIFICATE REQUEST" | tr -d '\n' >> {{ artifacts_dir }}/ssl/cert_single_line.csr
+        echo "" >> {{ artifacts_dir }}/ssl/cert_single_line.csr
+        echo "-----END CERTIFICATE REQUEST-----" >> {{ artifacts_dir }}/ssl/cert_single_line.csr
+        cat {{ artifacts_dir }}/ssl/cert_single_line.csr
+      register: csr_single_line
+      changed_when: true
+
+    - name: Save CSR to terraform variables file
+      ansible.builtin.copy:
+        content: |
+          # Cloudflare Origin Certificate CSR
+          # Generated on {{ ansible_date_time.iso8601 }}
+          cloudflare_csr = <<EOF
+          {{ csr_single_line.stdout }}
+          EOF
+        dest: "{{ terraform_dir }}/cloudflare-csr.tfvars"
+        mode: "0644"
+
+    - name: Create empty chain.pem file (Cloudflare Origin Certificates don't have intermediate certificates)
+      ansible.builtin.file:
+        path: "{{ artifacts_dir }}/ssl/chain.pem"
+        state: touch
+        mode: "0644"
+
+    - name: Display CSR for Cloudflare Origin Certificate
+      ansible.builtin.debug:
+        msg: |
+          Cloudflare Origin Certificate CSR Generated:
+          - Private Key: {{ artifacts_dir }}/ssl/privkey.pem
+          - CSR: {{ artifacts_dir }}/ssl/cert.csr
+          - Single Line CSR: {{ artifacts_dir }}/ssl/cert_single_line.csr
+          - Terraform Variables: {{ terraform_dir }}/cloudflare-csr.tfvars
+
+          Next steps:
+          1. Run: terraform apply -var-file=cloudflare-csr.tfvars -target=cloudflare_origin_ca_certificate.callableapis_origin_cert
+          2. Run: terraform output -raw origin_certificate > {{ artifacts_dir }}/ssl/cert.pem
+          3. Run: cp {{ artifacts_dir }}/ssl/cert.pem {{ artifacts_dir }}/ssl/fullchain.pem
+          4. Deploy certificates to nodes using deploy-cloudflare-certificates.yml

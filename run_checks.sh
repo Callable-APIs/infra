@@ -58,17 +58,47 @@ run_check() {
 }
 
 # Check if we're in the right directory
-if [ ! -f "pyproject.toml" ]; then
-    print_error "This script must be run from the project root directory (where pyproject.toml is located)"
+if [ ! -f "pyproject.toml" ] && [ ! -f "AGENTS.md" ]; then
+    print_error "This script must be run from the project root directory (where pyproject.toml or AGENTS.md is located)"
     exit 1
 fi
 
+# Determine project type
+if [ -f "AGENTS.md" ]; then
+    PROJECT_TYPE="infrastructure"
+    print_status "Detected infrastructure project"
+else
+    PROJECT_TYPE="python"
+    print_status "Detected Python project"
+fi
+
 print_status "Starting comprehensive validation checks..."
-print_status "Project: AWS Infrastructure Reporting Tool"
+if [ "$PROJECT_TYPE" = "infrastructure" ]; then
+    print_status "Project: CallableAPIs Infrastructure"
+else
+    print_status "Project: AWS Infrastructure Reporting Tool"
+fi
 print_status "Timestamp: $(date)"
 echo ""
 
-# Check if Poetry is installed
+# For infrastructure projects, run infrastructure-specific checks
+if [ "$PROJECT_TYPE" = "infrastructure" ]; then
+    print_status "Running infrastructure validation checks..."
+    if [ -f "run_infrastructure_checks.sh" ]; then
+        if bash run_infrastructure_checks.sh; then
+            print_success "Infrastructure validation completed successfully"
+            exit 0
+        else
+            print_error "Infrastructure validation failed"
+            exit 1
+        fi
+    else
+        print_error "run_infrastructure_checks.sh not found"
+        exit 1
+    fi
+fi
+
+# Check if Poetry is installed (for Python projects)
 if ! command_exists poetry; then
     print_error "Poetry is not installed. Please install Poetry first."
     print_status "Install Poetry: curl -sSL https://install.python-poetry.org | python3 -"

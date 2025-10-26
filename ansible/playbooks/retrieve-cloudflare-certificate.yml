@@ -1,0 +1,105 @@
+---
+- name: Retrieve Cloudflare Origin Certificate from Terraform
+  hosts: localhost
+  connection: local
+  vars:
+    artifacts_dir: "{{ playbook_dir }}/../ansible/artifacts"
+    terraform_dir: "{{ playbook_dir }}/../../terraform"
+
+  tasks:
+    - name: Check if Cloudflare Origin Certificate exists in Terraform state
+      ansible.builtin.command: >
+        cd {{ terraform_dir }} && source ../env.sh && 
+        docker run --rm -v $(pwd):/app -w /app 
+        -e AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" 
+        -e AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" 
+        -e GOOGLE_APPLICATION_CREDENTIALS="/app/google-credentials.json" 
+        -e OCI_TENANCY_OCID="$OCI_TENANCY_OCID" 
+        -e OCI_USER_OCID="$OCI_USER_OCID" 
+        -e OCI_FINGERPRINT="$OCI_FINGERPRINT" 
+        -e OCI_PRIVATE_KEY_PATH="/app/oci-private-key.pem" 
+        -e OCI_COMPARTMENT_ID="$OCI_COMPARTMENT_ID" 
+        -e OCI_REGION="$OCI_REGION" 
+        -e IBMCLOUD_API_KEY="$IBMCLOUD_API_KEY" 
+        -e IBMCLOUD_REGION="$IBMCLOUD_REGION" 
+        callableapis:infra terraform state list | grep cloudflare_origin_ca_certificate
+      register: cert_check
+      failed_when: false
+      changed_when: false
+
+    - name: Fail if Cloudflare Origin Certificate not found
+      ansible.builtin.fail:
+        msg: |
+          Cloudflare Origin Certificate not found in Terraform state!
+          Please run: terraform apply -var-file=cloudflare-csr.tfvars -target=cloudflare_origin_ca_certificate.callableapis_origin_cert
+      when: cert_check.rc != 0
+
+    - name: Retrieve Cloudflare Origin Certificate from Terraform
+      ansible.builtin.command: >
+        cd {{ terraform_dir }} && source ../env.sh && 
+        docker run --rm -v $(pwd):/app -w /app 
+        -e AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" 
+        -e AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" 
+        -e GOOGLE_APPLICATION_CREDENTIALS="/app/google-credentials.json" 
+        -e OCI_TENANCY_OCID="$OCI_TENANCY_OCID" 
+        -e OCI_USER_OCID="$OCI_USER_OCID" 
+        -e OCI_FINGERPRINT="$OCI_FINGERPRINT" 
+        -e OCI_PRIVATE_KEY_PATH="/app/oci-private-key.pem" 
+        -e OCI_COMPARTMENT_ID="$OCI_COMPARTMENT_ID" 
+        -e OCI_REGION="$OCI_REGION" 
+        -e IBMCLOUD_API_KEY="$IBMCLOUD_API_KEY" 
+        -e IBMCLOUD_REGION="$IBMCLOUD_REGION" 
+        callableapis:infra terraform output -raw origin_certificate
+      register: cert_content
+      changed_when: true
+
+    - name: Save Cloudflare Origin Certificate to artifacts
+      ansible.builtin.copy:
+        content: "{{ cert_content.stdout }}"
+        dest: "{{ artifacts_dir }}/ssl/cert.pem"
+        mode: "0644"
+
+    - name: Create fullchain.pem (same as cert.pem for Cloudflare Origin Certificates)
+      ansible.builtin.copy:
+        src: "{{ artifacts_dir }}/ssl/cert.pem"
+        dest: "{{ artifacts_dir }}/ssl/fullchain.pem"
+        mode: "0644"
+
+    - name: Verify certificate and private key match
+      ansible.builtin.command: >
+        openssl x509 -noout -modulus -in {{ artifacts_dir }}/ssl/cert.pem | openssl md5
+      register: cert_modulus
+      changed_when: false
+
+    - name: Get private key modulus
+      ansible.builtin.command: >
+        openssl rsa -noout -modulus -in {{ artifacts_dir }}/ssl/privkey.pem | openssl md5
+      register: key_modulus
+      changed_when: false
+
+    - name: Verify certificate and private key match
+      ansible.builtin.assert:
+        that:
+          - cert_modulus.stdout == key_modulus.stdout
+        fail_msg: "Certificate and private key do not match!"
+        success_msg: "Certificate and private key match successfully"
+
+    - name: Display certificate information
+      ansible.builtin.command: >
+        openssl x509 -in {{ artifacts_dir }}/ssl/cert.pem -text -noout | head -20
+      register: cert_info
+      changed_when: false
+
+    - name: Show certificate details
+      ansible.builtin.debug:
+        msg: |
+          Cloudflare Origin Certificate Retrieved:
+          - Certificate: {{ artifacts_dir }}/ssl/cert.pem
+          - Private Key: {{ artifacts_dir }}/ssl/privkey.pem
+          - Full Chain: {{ artifacts_dir }}/ssl/fullchain.pem
+          - Chain: {{ artifacts_dir }}/ssl/chain.pem
+
+          Certificate Details:
+          {{ cert_info.stdout }}
+
+          Ready for deployment to nodes!

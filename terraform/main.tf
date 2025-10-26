@@ -695,14 +695,14 @@ resource "cloudflare_record" "inode1" {
   comment = "IBM Cloud services node"
 }
 
-# Status Dashboard DNS Record (for Cloudflare Worker)
+# Status Dashboard DNS Record (direct to Oracle node)
 resource "cloudflare_record" "status" {
   zone_id = data.cloudflare_zone.callableapis.id
   name    = "status"
   type    = "A"
-  content = "192.0.2.1" # Dummy IP - Worker will handle routing
+  content = "192.9.154.97" # Oracle Cloud Node 1
   proxied = true
-  comment = "Status Dashboard - Cloudflare Worker Proxy"
+  comment = "Status Dashboard - Direct to Oracle Node"
 }
 
 # Cloudflare Worker for Status Dashboard
@@ -731,6 +731,6 @@ resource "cloudflare_zone_settings_override" "security" {
 resource "cloudflare_zone_settings_override" "ssl" {
   zone_id = data.cloudflare_zone.callableapis.id
   settings {
-    ssl = "flexible"
+    ssl = "strict"
   }
 }

@@ -1,12 +1,32 @@
 ---
-- name: Deploy SSL Certificates to Nodes
-  hosts: all  # Deploy to all nodes
+- name: Deploy Cloudflare Origin Certificates to Nodes
+  hosts: all # Deploy to all nodes
   become: yes
   vars:
     ssl_cert_dir: "/etc/ssl/callableapis"
     nginx_ssl_dir: "/etc/nginx/ssl"
+    artifacts_dir: "{{ playbook_dir }}/../ansible/artifacts"
 
   tasks:
+    - name: Check if SSL artifacts exist
+      ansible.builtin.stat:
+        path: "{{ artifacts_dir }}/ssl/{{ item }}"
+      register: artifact_check
+      loop:
+        - privkey.pem
+        - cert.pem
+        - fullchain.pem
+        - chain.pem
+
+    - name: Fail if required SSL artifacts are missing
+      ansible.builtin.fail:
+        msg: |
+          Required SSL artifacts are missing! Please run:
+          1. ansible-playbook generate-cloudflare-origin-certificates.yml
+          2. terraform apply -var-file=cloudflare-csr.tfvars -target=cloudflare_origin_ca_certificate.callableapis_origin_cert
+          3. ansible-playbook retrieve-cloudflare-certificate.yml
+      when: artifact_check.results | selectattr('stat.exists', 'equalto', false) | list | length > 0
+
     - name: Create SSL certificate directory
       ansible.builtin.file:
         path: "{{ ssl_cert_dir }}"
@@ -21,35 +41,39 @@
 
     - name: Copy private key from artifacts
       ansible.builtin.copy:
-        src: "{{ playbook_dir }}/../ansible/artifacts/ssl/privkey.pem"
+        src: "{{ artifacts_dir }}/ssl/privkey.pem"
         dest: "{{ ssl_cert_dir }}/privkey.pem"
         mode: "0600"
         owner: root
         group: root
+        backup: yes
 
     - name: Copy certificate from artifacts
       ansible.builtin.copy:
-        src: "{{ playbook_dir }}/../ansible/artifacts/ssl/cert.pem"
+        src: "{{ artifacts_dir }}/ssl/cert.pem"
         dest: "{{ ssl_cert_dir }}/cert.pem"
         mode: "0644"
         owner: root
         group: root
+        backup: yes
 
     - name: Copy fullchain from artifacts
       ansible.builtin.copy:
-        src: "{{ playbook_dir }}/../ansible/artifacts/ssl/fullchain.pem"
+        src: "{{ artifacts_dir }}/ssl/fullchain.pem"
         dest: "{{ ssl_cert_dir }}/fullchain.pem"
         mode: "0644"
         owner: root
         group: root
+        backup: yes
 
     - name: Copy chain from artifacts
       ansible.builtin.copy:
-        src: "{{ playbook_dir }}/../ansible/artifacts/ssl/chain.pem"
+        src: "{{ artifacts_dir }}/ssl/chain.pem"
         dest: "{{ ssl_cert_dir }}/chain.pem"
         mode: "0644"
         owner: root
         group: root
+        backup: yes
 
     - name: Create symlinks for Nginx
       ansible.builtin.file:

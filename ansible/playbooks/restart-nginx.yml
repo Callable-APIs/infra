@@ -1,0 +1,23 @@
+---
+- name: Restart Nginx on All Nodes
+  hosts: all
+  become: yes
+
+  tasks:
+    - name: Restart Nginx service
+      ansible.builtin.systemd:
+        name: nginx
+        state: restarted
+        enabled: yes
+
+    - name: Check Nginx status
+      ansible.builtin.systemd:
+        name: nginx
+      register: nginx_status
+
+    - name: Display Nginx status
+      ansible.builtin.debug:
+        msg: |
+          Nginx Status on {{ inventory_hostname }}:
+          - State: {{ nginx_status.status.ActiveState }}
+          - Status: {{ 'RUNNING' if nginx_status.status.ActiveState == 'active' else 'FAILED' }}

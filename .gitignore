@@ -160,6 +160,7 @@ codedeploy-*.sh
 # SSH keys
 *.pub
 *.pem
+*.key
 id_rsa*
 
 # Terraform working files (but keep the configs)

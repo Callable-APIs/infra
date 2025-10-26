@@ -115,6 +115,30 @@ resource "oci_core_security_list" "callableapis_sl" {
     }
   }
 
+  # HTTP (port 80)
+  ingress_security_rules {
+    protocol  = "6"
+    source    = "0.0.0.0/0"
+    stateless = false
+
+    tcp_options {
+      min = 80
+      max = 80
+    }
+  }
+
+  # HTTPS (port 443)
+  ingress_security_rules {
+    protocol  = "6"
+    source    = "0.0.0.0/0"
+    stateless = false
+
+    tcp_options {
+      min = 443
+      max = 443
+    }
+  }
+
   # Container Services (port 8080)
   ingress_security_rules {
     protocol  = "6"
@@ -124,6 +148,18 @@ resource "oci_core_security_list" "callableapis_sl" {
     tcp_options {
       min = 8080
       max = 8080
+    }
+  }
+
+  # Status Container (port 8081)
+  ingress_security_rules {
+    protocol  = "6"
+    source    = "0.0.0.0/0"
+    stateless = false
+
+    tcp_options {
+      min = 8081
+      max = 8081
     }
   }
 

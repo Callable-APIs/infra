@@ -1,0 +1,101 @@
+---
+- name: Add New Node to Cloudflare Origin Certificate
+  hosts: localhost
+  connection: local
+  vars:
+    artifacts_dir: "{{ playbook_dir }}/../ansible/artifacts"
+    terraform_dir: "{{ playbook_dir }}/../../terraform"
+    new_node_hostname: "{{ node_hostname | default('') }}"
+    new_node_ip: "{{ node_ip | default('') }}"
+
+  tasks:
+    - name: Validate required variables
+      ansible.builtin.fail:
+        msg: |
+          Required variables missing! Usage:
+          ansible-playbook add-node-to-certificate.yml -e "node_hostname=new-node.callableapis.com" -e "node_ip=1.2.3.4"
+      when: new_node_hostname == '' or new_node_ip == ''
+
+    - name: Check if current certificate exists
+      ansible.builtin.stat:
+        path: "{{ artifacts_dir }}/ssl/cert.pem"
+      register: cert_exists
+
+    - name: Fail if certificate doesn't exist
+      ansible.builtin.fail:
+        msg: |
+          No existing certificate found! Please run:
+          ansible-playbook setup-cloudflare-ssl.yml
+      when: not cert_exists.stat.exists
+
+    - name: Display current certificate information
+      ansible.builtin.command: >
+        openssl x509 -in {{ artifacts_dir }}/ssl/cert.pem -text -noout | grep -A 10 "Subject Alternative Name"
+      register: current_sans
+      changed_when: false
+
+    - name: Show current SANs
+      ansible.builtin.debug:
+        msg: |
+          Current certificate includes these hostnames:
+          {{ current_sans.stdout }}
+
+    - name: Update Terraform configuration with new hostname
+      ansible.builtin.lineinfile:
+        path: "{{ terraform_dir }}/cloudflare-origin-cert.tf"
+        regexp: 'hostnames = \['
+        line: "  hostnames = ["
+        insertafter: 'hostnames = \['
+        insertbefore: '\]'
+        state: present
+
+    - name: Add new hostname to Terraform configuration
+      ansible.builtin.lineinfile:
+        path: "{{ terraform_dir }}/cloudflare-origin-cert.tf"
+        regexp: '^\s*"{{ new_node_hostname }}"'
+        line: '    "{{ new_node_hostname }}",'
+        insertafter: 'hostnames = \['
+        state: present
+
+    - name: Apply updated certificate via Terraform
+      ansible.builtin.command: >
+        cd {{ terraform_dir }} && source ../env.sh && 
+        docker run --rm -v $(pwd):/app -w /app 
+        -e AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" 
+        -e AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" 
+        -e GOOGLE_APPLICATION_CREDENTIALS="/app/google-credentials.json" 
+        -e OCI_TENANCY_OCID="$OCI_TENANCY_OCID" 
+        -e OCI_USER_OCID="$OCI_USER_OCID" 
+        -e OCI_FINGERPRINT="$OCI_FINGERPRINT" 
+        -e OCI_PRIVATE_KEY_PATH="/app/oci-private-key.pem" 
+        -e OCI_COMPARTMENT_ID="$OCI_COMPARTMENT_ID" 
+        -e OCI_REGION="$OCI_REGION" 
+        -e IBMCLOUD_API_KEY="$IBMCLOUD_API_KEY" 
+        -e IBMCLOUD_REGION="$IBMCLOUD_REGION" 
+        callableapis:infra terraform apply -target=cloudflare_origin_ca_certificate.callableapis_origin_cert -auto-approve
+      register: terraform_result
+      changed_when: terraform_result.rc == 0
+
+    - name: Retrieve updated certificate
+      ansible.builtin.include_tasks: retrieve-cloudflare-certificate.yml
+
+    - name: Deploy updated certificate to all nodes
+      ansible.builtin.include_tasks: deploy-ssl-certificates.yml
+
+    - name: Restart Nginx on all nodes
+      ansible.builtin.command: >
+        ansible-playbook -i inventory/production playbooks/restart-nginx.yml
+      register: nginx_restart
+      changed_when: nginx_restart.rc == 0
+
+    - name: Display completion message
+      ansible.builtin.debug:
+        msg: |
+          🎉 New Node Added to Cloudflare Origin Certificate!
+
+          ✅ Added {{ new_node_hostname }} to certificate
+          ✅ Updated certificate via Terraform
+          ✅ Deployed updated certificate to all nodes
+          ✅ Restarted Nginx services
+
+          The new node {{ new_node_hostname }} ({{ new_node_ip }}) is now included in the SSL certificate!

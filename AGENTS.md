@@ -4,6 +4,48 @@
 
 For isolating command line dependencies and execution of commands you will use a Docker container.  If one does not yet exist, create a Dockerfile and as dependencies or command line tools / libraries are needed add them to the docker container.   All execution of local command should happen in the Docker container where the project directory is shared as a volume.
 
+## Command Execution and Timeouts
+
+**CRITICAL: Always use timeouts for external commands to prevent hanging**
+
+### Timeout Requirements
+1. **All external commands MUST have timeouts** to prevent indefinite hanging
+2. **Use appropriate timeout values** based on command type:
+   - Network requests: 5-10 seconds
+   - File operations: 30 seconds
+   - System commands: 60 seconds
+   - Long-running processes: 300+ seconds
+
+### Timeout Implementation
+```bash
+# curl commands - use both connect and max timeouts
+curl --connect-timeout 5 --max-time 10 -s -o /dev/null -w "%{http_code}" https://example.com
+
+# ansible commands - use timeout parameter
+ansible-playbook -i inventory playbook.yml --timeout=30
+
+# docker commands - use timeout wrapper
+timeout 60 docker run --rm image:tag command
+
+# system commands - use timeout wrapper
+timeout 30 systemctl status service
+
+# ssh commands - use ConnectTimeout
+ssh -o ConnectTimeout=10 user@host command
+```
+
+### Prohibited Actions
+- ❌ Running commands without timeouts
+- ❌ Using indefinite waits in scripts
+- ❌ Blocking operations without timeout controls
+- ❌ Network requests without connection timeouts
+
+### Required Actions
+- ✅ Always specify timeouts for external commands
+- ✅ Use appropriate timeout values for command type
+- ✅ Test timeout behavior in development
+- ✅ Document timeout values in scripts
+
 ## Testing and Coverage
 
 When adding or removing code it is essential that every functional edit to the codebase have corresponding tests. These tests, when possible should use the testing frameworks of the platform, for example in python it should be pytest.  

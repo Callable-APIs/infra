@@ -66,7 +66,6 @@ AuthorizedKeysFile .ssh/authorized_keys
 X11Forwarding no
 PrintMotd no
 AcceptEnv LANG LC_*
-Subsystem sftp /usr/lib/openssh/sftp-server
 EOF
 
 # Restart SSH service
