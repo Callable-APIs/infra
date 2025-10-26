@@ -535,16 +535,16 @@ resource "ibm_is_security_group_rule" "callableapis_http" {
   }
 }
 
-# HTTPS disabled - SSL terminated at Cloudflare
-# resource "ibm_is_security_group_rule" "callableapis_https" {
-#   group     = ibm_is_security_group.callableapis_sg.id
-#   direction = "inbound"
-#   remote    = "0.0.0.0/0"
-#   tcp {
-#     port_min = 443
-#     port_max = 443
-#   }
-# }
+# HTTPS access
+resource "ibm_is_security_group_rule" "callableapis_https" {
+  group     = ibm_is_security_group.callableapis_sg.id
+  direction = "inbound"
+  remote    = "0.0.0.0/0"
+  tcp {
+    port_min = 443
+    port_max = 443
+  }
+}
 
 resource "ibm_is_security_group_rule" "callableapis_8080" {
   group     = ibm_is_security_group.callableapis_sg.id

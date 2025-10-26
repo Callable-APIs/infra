@@ -3,7 +3,7 @@
   hosts: localhost
   become: no
   vars:
-    terraform_dir: "{{ playbook_dir }}/../../terraform"
+    terraform_dir: "/Users/rlee/dev/infra/terraform"
 
   tasks:
     - name: Check Google Cloud HTTPS firewall rule
@@ -95,6 +95,9 @@
         chdir: "{{ terraform_dir }}"
       when: "'443' not in ibm_https_check.stdout"
 
+    - name: Ensure iptables rules on all nodes
+      ansible.builtin.import_playbook: ensure-iptables-rules.yml
+
     - name: Display firewall rule status
       ansible.builtin.debug:
         msg: |
@@ -102,3 +105,4 @@
           - Google Cloud HTTPS: {{ 'EXISTS' if gcp_https_firewall.stdout != '' else 'CREATED' }}
           - Oracle Cloud HTTPS: {{ 'EXISTS' if '443' in oci_https_check.stdout else 'UPDATED' }}
           - IBM Cloud HTTPS: {{ 'EXISTS' if '443' in ibm_https_check.stdout else 'UPDATED' }}
+          - iptables Rules: UPDATED on all nodes

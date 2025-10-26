@@ -1,0 +1,35 @@
+---
+- name: Ensure iptables HTTPS Rules on All Nodes
+  hosts: webapp_hosts
+  become: yes
+
+  tasks:
+    - name: Check if port 443 is already allowed in iptables
+      ansible.builtin.shell: |
+        iptables -C INPUT -p tcp --dport 443 -j ACCEPT
+      register: iptables_443_check
+      failed_when: false
+
+    - name: Add iptables rule to allow port 443
+      ansible.builtin.shell: |
+        iptables -I INPUT -p tcp --dport 443 -j ACCEPT
+      when: iptables_443_check.rc != 0
+
+    - name: Save iptables rules
+      ansible.builtin.shell: |
+        netfilter-persistent save
+      failed_when: false
+
+    - name: Display iptables configuration for port 443
+      ansible.builtin.shell: |
+        iptables -L INPUT -n | grep 443
+      register: iptables_443_status
+      failed_when: false
+
+    - name: Display iptables results
+      ansible.builtin.debug:
+        msg: |
+          iptables Configuration for {{ inventory_hostname }}:
+          - Port 443 Rule: {{ 'ADDED' if iptables_443_check.rc != 0 else 'ALREADY EXISTS' }}
+          - Current Rules: {{ iptables_443_status.stdout }}
+          - Status: {{ 'UPDATED' if iptables_443_check.rc != 0 else 'NO CHANGES' }}
