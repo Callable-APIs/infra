@@ -82,8 +82,8 @@ provider "time" {}
 
 # GoDaddy Provider Configuration
 provider "godaddy" {
-  api_key    = var.godaddy_api_key != "" ? var.godaddy_api_key : ""
-  api_secret = var.godaddy_api_secret != "" ? var.godaddy_api_secret : ""
+  key    = var.godaddy_api_key
+  secret = var.godaddy_api_secret
 }
 
 # Cloudflare zone data source
