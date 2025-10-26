@@ -161,15 +161,17 @@ variable "ssh_public_key" {
   sensitive   = true
 }
 
-# GoDaddy Configuration
+# GoDaddy Configuration (not currently in use due to API access issues)
 variable "godaddy_api_key" {
   description = "GoDaddy API key"
   type        = string
   sensitive   = true
+  default     = ""
 }
 
 variable "godaddy_api_secret" {
   description = "GoDaddy API secret"
   type        = string
   sensitive   = true
+  default     = ""
 }
