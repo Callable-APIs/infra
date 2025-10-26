@@ -103,7 +103,8 @@ resource "oci_core_security_list" "callableapis_sl" {
   vcn_id         = oci_core_vcn.callableapis_vcn.id
   display_name   = "callableapis-sl"
 
-  # SSH access only - all other ports blocked for security
+  # Essential ports only - all other ports blocked for security
+  # SSH (22), HTTP (80), HTTPS (443), Container Direct Access (8080)
   ingress_security_rules {
     protocol  = "6"
     source    = "0.0.0.0/0"
@@ -139,7 +140,7 @@ resource "oci_core_security_list" "callableapis_sl" {
     }
   }
 
-  # Container Services (port 8080)
+  # Container Services (port 8080) - Direct container access
   ingress_security_rules {
     protocol  = "6"
     source    = "0.0.0.0/0"
@@ -151,17 +152,8 @@ resource "oci_core_security_list" "callableapis_sl" {
     }
   }
 
-  # Status Container (port 8081)
-  ingress_security_rules {
-    protocol  = "6"
-    source    = "0.0.0.0/0"
-    stateless = false
-
-    tcp_options {
-      min = 8081
-      max = 8081
-    }
-  }
+  # Note: Port 8081 (Status Container) is not exposed externally
+  # All routing is handled by Nginx on ports 80/443
 
   # All outbound traffic
   egress_security_rules {
