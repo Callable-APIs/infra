@@ -7,13 +7,13 @@
 
   tasks:
     - name: Update SSH keys
-      ansible.builtin.include: update-ssh-keys.yml
+      ansible.builtin.import_playbook: update-ssh-keys.yml
 
     - name: Validate facts
-      ansible.builtin.include: validate-facts.yml
+      ansible.builtin.import_playbook: validate-facts.yml
 
     - name: Verify container endpoints
-      ansible.builtin.include: verify-container-endpoints.yml
+      ansible.builtin.import_playbook: verify-container-endpoints.yml
 
     - name: Display maintenance results
       ansible.builtin.debug:

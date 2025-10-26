@@ -7,13 +7,13 @@
 
   tasks:
     - name: Deploy containers based on inventory groups
-      ansible.builtin.include: containers/deploy-containers.yml
+      ansible.builtin.import_playbook: containers/deploy-containers.yml
 
     - name: Configure dynamic Nginx routing
-      ansible.builtin.include: nginx/configure-routing.yml
+      ansible.builtin.import_playbook: nginx/setup-nginx.yml
 
     - name: Test application endpoints
-      ansible.builtin.include: testing/test-endpoints.yml
+      ansible.builtin.import_playbook: testing/test-endpoints.yml
 
     - name: Display deployment results
       ansible.builtin.debug:
