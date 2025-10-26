@@ -32,6 +32,10 @@ terraform {
       source  = "hashicorp/time"
       version = "~> 0.9"
     }
+    godaddy = {
+      source  = "n3integration/godaddy"
+      version = "~> 1.9"
+    }
   }
 }
 
@@ -75,6 +79,12 @@ provider "local" {}
 
 # Time Provider Configuration
 provider "time" {}
+
+# GoDaddy Provider Configuration
+provider "godaddy" {
+  api_key    = var.godaddy_api_key != "" ? var.godaddy_api_key : ""
+  api_secret = var.godaddy_api_secret != "" ? var.godaddy_api_secret : ""
+}
 
 # Cloudflare zone data source
 data "cloudflare_zone" "callableapis" {

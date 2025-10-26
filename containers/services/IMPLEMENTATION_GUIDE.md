@@ -4,6 +4,16 @@
 
 This guide provides instructions for implementing a services container that extends the `rl337/callableapis:base` container and overrides the Flask app with a Java webapp running on Tomcat.
 
+## ⚠️ **CRITICAL: Health Endpoint**
+
+The services container **MUST** implement `/health` (not `/api/health`). This is required for:
+- Status monitoring dashboard
+- Docker health checks
+- Load balancer health checks
+- Consistent monitoring across all containers
+
+The current implementation incorrectly exposes `/api/health`. **This must be fixed to use `/health`**.
+
 ## 🏗️ **Container Architecture**
 
 ```
