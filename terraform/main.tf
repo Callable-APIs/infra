@@ -751,6 +751,6 @@ resource "cloudflare_zone_settings_override" "security" {
 resource "cloudflare_zone_settings_override" "ssl" {
   zone_id = data.cloudflare_zone.callableapis.id
   settings {
-    ssl = "flexible"  # Use flexible for S3-backed website; strict mode can be applied per-route via page rules
+    ssl = "flexible" # Use flexible for S3-backed website; strict mode can be applied per-route via page rules
   }
 }

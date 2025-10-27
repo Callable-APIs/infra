@@ -28,12 +28,12 @@ resource "cloudflare_record" "tokyo3_mx" {
     "5" = { priority = 10, exchange = "ALT4.ASPMX.L.GOOGLE.COM" }
   }
 
-  zone_id = data.cloudflare_zone.godaddy_zones["tokyo3"].id
-  name    = "tokyo3.com"
-  type    = "MX"
-  content = "${each.value.exchange}"
+  zone_id  = data.cloudflare_zone.godaddy_zones["tokyo3"].id
+  name     = "tokyo3.com"
+  type     = "MX"
+  content  = each.value.exchange
   priority = each.value.priority
-  ttl     = 3600
+  ttl      = 3600
 }
 
 # Tokyo3.com - SPF record for email authentication
@@ -76,56 +76,56 @@ locals {
 resource "cloudflare_record" "domain_mx" {
   for_each = local.domains_needing_email
 
-  zone_id = data.cloudflare_zone.godaddy_zones[each.key].id
-  name    = each.value
-  type    = "MX"
-  content = "ASPMX.L.GOOGLE.COM"
+  zone_id  = data.cloudflare_zone.godaddy_zones[each.key].id
+  name     = each.value
+  type     = "MX"
+  content  = "ASPMX.L.GOOGLE.COM"
   priority = 1
-  ttl     = 3600
+  ttl      = 3600
 }
 
 resource "cloudflare_record" "domain_mx_alt1" {
   for_each = local.domains_needing_email
 
-  zone_id = data.cloudflare_zone.godaddy_zones[each.key].id
-  name    = each.value
-  type    = "MX"
-  content = "ALT1.ASPMX.L.GOOGLE.COM"
+  zone_id  = data.cloudflare_zone.godaddy_zones[each.key].id
+  name     = each.value
+  type     = "MX"
+  content  = "ALT1.ASPMX.L.GOOGLE.COM"
   priority = 5
-  ttl     = 3600
+  ttl      = 3600
 }
 
 resource "cloudflare_record" "domain_mx_alt2" {
   for_each = local.domains_needing_email
 
-  zone_id = data.cloudflare_zone.godaddy_zones[each.key].id
-  name    = each.value
-  type    = "MX"
-  content = "ALT2.ASPMX.L.GOOGLE.COM"
+  zone_id  = data.cloudflare_zone.godaddy_zones[each.key].id
+  name     = each.value
+  type     = "MX"
+  content  = "ALT2.ASPMX.L.GOOGLE.COM"
   priority = 5
-  ttl     = 3600
+  ttl      = 3600
 }
 
 resource "cloudflare_record" "domain_mx_alt3" {
   for_each = local.domains_needing_email
 
-  zone_id = data.cloudflare_zone.godaddy_zones[each.key].id
-  name    = each.value
-  type    = "MX"
-  content = "ALT3.ASPMX.L.GOOGLE.COM"
+  zone_id  = data.cloudflare_zone.godaddy_zones[each.key].id
+  name     = each.value
+  type     = "MX"
+  content  = "ALT3.ASPMX.L.GOOGLE.COM"
   priority = 10
-  ttl     = 3600
+  ttl      = 3600
 }
 
 resource "cloudflare_record" "domain_mx_alt4" {
   for_each = local.domains_needing_email
 
-  zone_id = data.cloudflare_zone.godaddy_zones[each.key].id
-  name    = each.value
-  type    = "MX"
-  content = "ALT4.ASPMX.L.GOOGLE.COM"
+  zone_id  = data.cloudflare_zone.godaddy_zones[each.key].id
+  name     = each.value
+  type     = "MX"
+  content  = "ALT4.ASPMX.L.GOOGLE.COM"
   priority = 10
-  ttl     = 3600
+  ttl      = 3600
 }
 
 # SPF records for all domains

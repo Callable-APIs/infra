@@ -33,8 +33,8 @@ data "cloudflare_zone" "godaddy_domain_data" {
     taicho        = "taicho.com"
     tokyo3        = "tokyo3.com"
   }
-  
-  name = each.value
+
+  name       = each.value
   depends_on = [cloudflare_zone.godaddy_domains]
 }
 
