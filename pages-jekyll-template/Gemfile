@@ -1,0 +1,8 @@
+source "https://rubygems.org"
+
+gem "jekyll", "~> 4.3"
+gem "jekyll-feed", "~> 0.17"  # RSS feed support
+gem "jekyll-sitemap", "~> 1.5"  # Sitemap generation
+gem "jekyll-seo-tag", "~> 2.8"  # SEO tags
+gem "github-pages", group: :jekyll_plugins
+
