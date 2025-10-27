@@ -4,7 +4,6 @@
 # Shared variables for all Pages projects
 locals {
   godaddy_domain_mapping = {
-    lingtian      = "lingtian.com"
     cocoonspamini = "cocoonspamini.com"
     glassbubble   = "glassbubble.net"
     iheartdinos   = "iheartdinos.com"
