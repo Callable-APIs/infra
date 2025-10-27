@@ -35,6 +35,12 @@ ENV PATH="/root/bin:${PATH}"
 RUN curl -fsSL https://clis.cloud.ibm.com/install/linux | sh
 ENV PATH="/root/.bluemix/bin:${PATH}"
 
+# Install Node.js and Wrangler CLI for Cloudflare Pages
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs \
+    && npm install -g wrangler \
+    && rm -rf /var/lib/apt/lists/*
+
 # Install Terraform visualization tools
 RUN curl -sSLo terraform-docs https://github.com/terraform-docs/terraform-docs/releases/download/v0.16.0/terraform-docs-v0.16.0-linux-amd64 \
     && chmod +x terraform-docs \
@@ -105,6 +111,9 @@ elif [ "$1" = "rover" ]; then\n\
 elif [ "$1" = "dot" ]; then\n\
     shift\n\
     exec dot "$@"\n\
+elif [ "$1" = "wrangler" ]; then\n\
+    shift\n\
+    exec wrangler "$@"\n\
 elif [ "$1" = "bash" ] || [ "$1" = "sh" ]; then\n\
     exec "$@"\n\
 else\n\
