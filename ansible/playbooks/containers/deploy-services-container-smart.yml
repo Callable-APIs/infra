@@ -3,35 +3,12 @@
   hosts: services_container_hosts
   become: yes
   tasks:
-    - name: Check if local services image exists
-      ansible.builtin.command: docker images rl337/callableapis:services -q
-      register: local_image_check
-      changed_when: false
-      failed_when: false
-
-    - name: Get local container image creation time
+    - name: Get local container image ID
       ansible.builtin.shell: |
-        docker inspect rl337/callableapis:services 2>/dev/null | grep -o '"Created": "[^"]*"' | head -1
-      register: local_image_created
+        docker images rl337/callableapis:services -q 2>/dev/null || echo ""
+      register: local_image_id
       changed_when: false
       failed_when: false
-      when: local_image_check.rc == 0
-
-    - name: Fetch latest image info from Docker Hub
-      ansible.builtin.uri:
-        url: "https://hub.docker.com/v2/repositories/rl337/callableapis/tags/services"
-        method: GET
-        return_content: yes
-        headers:
-          Accept: "application/json"
-      register: hub_image_info
-      changed_when: false
-      failed_when: false
-
-    - name: Parse Docker Hub image info
-      ansible.builtin.set_fact:
-        hub_last_updated: "{{ hub_image_info.json.last_updated | default('') }}"
-      when: hub_image_info.json is defined
 
     - name: Pull latest services container image
       ansible.builtin.command: docker pull rl337/callableapis:services
@@ -39,23 +16,23 @@
       failed_when: false
       changed_when: "'Downloaded newer image' in pull_result.stdout or 'Pulling from' in pull_result.stdout"
 
-    - name: Get new container creation time
+    - name: Get new container image ID
       ansible.builtin.shell: |
-        docker inspect rl337/callableapis:services 2>/dev/null | grep -o '"Created": "[^"]*"' | head -1
-      register: new_image_created
+        docker images rl337/callableapis:services -q
+      register: new_image_id
       when: pull_result.changed
       changed_when: false
 
     - name: Check if image actually changed
       ansible.builtin.set_fact:
-        image_changed: "{{ new_image_created.stdout != local_image_created.stdout }}"
-      when: pull_result.changed and local_image_check.rc == 0
+        image_changed: "{{ new_image_id.stdout != local_image_id.stdout }}"
+      when: pull_result.changed and local_image_id.stdout != ""
       failed_when: false
 
     - name: Set default image_changed to true if no local image exists
       ansible.builtin.set_fact:
         image_changed: true
-      when: local_image_check.rc != 0
+      when: local_image_id.stdout == ""
 
     - name: Check if container is running
       ansible.builtin.shell: docker ps --filter name=callableapis-services -q
@@ -99,7 +76,8 @@
       ansible.builtin.debug:
         msg: |
           Services Container Status:
-          - Local Image Exists: {{ local_image_check.rc == 0 }}
-          - Docker Hub Updated: {{ hub_last_updated | default('Unknown') }}
+          - Local Image ID: {{ local_image_id.stdout | default('None') }}
+          - New Image ID: {{ new_image_id.stdout | default('None') }}
           - Image Changed: {{ image_changed | default(false) }}
           - Container Deployed: {{ container_deploy.changed | default(false) if container_deploy is defined else False }}
+          - Pull Result: {{ pull_result.stdout_lines[-1] if pull_result.stdout_lines else 'No output' }}
