@@ -661,11 +661,11 @@ resource "cloudflare_record" "website_www" {
 resource "cloudflare_record" "api" {
   zone_id         = data.cloudflare_zone.callableapis.id
   name            = "api"
-  type            = "CNAME"
-  content         = "callableapis-java-env.eba-s6cewupj.us-west-2.elasticbeanstalk.com"
+  type            = "A"
+  content         = ibm_is_floating_ip.callableapis_fip.address
   proxied         = true
   allow_overwrite = true
-  comment         = "Elastic Beanstalk API endpoint"
+  comment         = "API endpoint - IBM Cloud services container"
 }
 
 resource "cloudflare_record" "gnode1" {
