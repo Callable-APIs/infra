@@ -1,54 +1,43 @@
----
-- name: Deploy Services Container
-  hosts: "{{ inventory_hostname }}"
-  become: yes
-  vars:
-    container_name: "callableapis-services"
-    container_image: "callableapis/services:latest"
-    container_port: "{{ hostvars[inventory_hostname]['services_port'] | default('8080') }}"
-    container_path: "{{ hostvars[inventory_hostname]['services_path'] | default('/api/v1') }}"
+- name: Pull services container image
+  ansible.builtin.shell: docker pull rl337/callableapis:services
+  failed_when: false
 
-  tasks:
-    - name: Pull services container image
-      ansible.builtin.shell: docker pull {{ container_image }}
-      failed_when: false
+- name: Stop existing services container
+  ansible.builtin.shell: |
+    docker stop callableapis-services 2>/dev/null || true
+    docker rm callableapis-services 2>/dev/null || true
+  failed_when: false
 
-    - name: Stop existing services container
-      ansible.builtin.shell: |
-        docker stop {{ container_name }} 2>/dev/null || true
-        docker rm {{ container_name }} 2>/dev/null || true
-      failed_when: false
+- name: Deploy services container with vault mount
+  ansible.builtin.shell: |
+    docker run -d \
+      --name callableapis-services \
+      --restart unless-stopped \
+      -p {{ hostvars[inventory_hostname]['services_port'] | default('8080') }}:8080 \
+      -v /home/ansible/.ansible/vault:/app/vault:ro \
+      rl337/callableapis:services
+  register: container_deploy
+  failed_when: false
 
-    - name: Deploy services container with vault mount
-      ansible.builtin.shell: |
-        docker run -d \
-          --name {{ container_name }} \
-          --restart unless-stopped \
-          -p {{ container_port }}:8080 \
-          -v /home/ansible/.ansible/vault:/app/vault:ro \
-          {{ container_image }}
-      register: container_deploy
-      failed_when: false
+- name: Wait for container to be ready
+  ansible.builtin.wait_for:
+    port: "{{ hostvars[inventory_hostname]['services_port'] | default('8080') }}"
+    host: "127.0.0.1"
+    timeout: 30
+  when: container_deploy.rc == 0
 
-    - name: Wait for container to be ready
-      ansible.builtin.wait_for:
-        port: "{{ container_port }}"
-        host: "127.0.0.1"
-        timeout: 30
-      when: container_deploy.rc == 0
+- name: Verify services container is running
+  ansible.builtin.shell: docker ps --filter name=callableapis-services
+  register: container_status
 
-    - name: Verify services container is running
-      ansible.builtin.shell: docker ps --filter name={{ container_name }} --format "table {{.Names}}\t{{.Status}}"
-      register: container_status
-
-    - name: Display services container status
-      ansible.builtin.debug:
-        msg: |
-          Services Container Deployment:
-          - Container: {{ container_name }}
-          - Image: {{ container_image }}
-          - Port: {{ container_port }}
-          - Path: {{ container_path }}
-          - Vault Mount: /home/ansible/.ansible/vault:/app/vault:ro
-          - Status: {{ 'RUNNING' if container_deploy.rc == 0 else 'FAILED' }}
-          - Details: {{ container_status.stdout }}
+- name: Display services container status
+  ansible.builtin.debug:
+    msg: |
+      Services Container Deployment:
+      - Container: callableapis-services
+      - Image: rl337/callableapis:services
+      - Port: {{ hostvars[inventory_hostname]['services_port'] | default('8080') }}
+      - Path: {{ hostvars[inventory_hostname]['services_path'] | default('/api/v1') }}
+      - Vault Mount: /home/ansible/.ansible/vault:/app/vault:ro
+      - Status: {{ 'RUNNING' if container_deploy.rc == 0 else 'FAILED' }}
+      - Container Output: {{ container_status.stdout }}
