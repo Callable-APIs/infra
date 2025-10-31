@@ -1,11 +1,11 @@
 # Enable required Google Cloud APIs
 resource "google_project_service" "compute_api" {
-  service = "compute.googleapis.com"
+  service            = "compute.googleapis.com"
   disable_on_destroy = false
 }
 
 resource "google_project_service" "oslogin_api" {
-  service = "oslogin.googleapis.com"
+  service            = "oslogin.googleapis.com"
   disable_on_destroy = false
 }
 

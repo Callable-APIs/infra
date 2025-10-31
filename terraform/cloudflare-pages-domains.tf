@@ -23,7 +23,7 @@ resource "cloudflare_pages_project" "godaddy_domains" {
   account_id        = var.cloudflare_account_id
   name              = each.key
   production_branch = "main"
-  
+
   # Simple configuration - deployment will be managed via GitHub integration
   # Pages projects require deployment from a GitHub repository
   # For now, we'll create the projects and configure custom domains
@@ -37,7 +37,7 @@ resource "cloudflare_pages_domain" "godaddy_domains" {
   account_id   = var.cloudflare_account_id
   project_name = cloudflare_pages_project.godaddy_domains[each.key].name
   domain       = each.value
-  
+
   depends_on = [cloudflare_pages_project.godaddy_domains]
 }
 
@@ -50,7 +50,7 @@ resource "cloudflare_record" "pages_root" {
   name    = "@" # Root domain
   type    = "CNAME"
   content = "${each.key}.pages.dev" # Default Pages subdomain
-  proxied = false  # Initially not proxied until Pages is configured
+  proxied = false                   # Initially not proxied until Pages is configured
   comment = "Cloudflare Pages deployment - update when Pages is active"
 }
 
@@ -61,7 +61,7 @@ resource "cloudflare_record" "pages_www" {
   name    = "www"
   type    = "CNAME"
   content = "${each.key}.pages.dev"
-  proxied = false  # Initially not proxied until Pages is configured
+  proxied = false # Initially not proxied until Pages is configured
   comment = "Cloudflare Pages www subdomain - update when Pages is active"
 }
 

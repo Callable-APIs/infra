@@ -13,11 +13,11 @@ terraform {
 
 # OCI Provider Configuration
 provider "oci" {
-  tenancy_ocid         = var.tenancy_ocid
-  user_ocid            = var.user_ocid
-  fingerprint          = var.fingerprint
-  private_key_path     = var.private_key_path
-  region               = var.region
+  tenancy_ocid     = var.tenancy_ocid
+  user_ocid        = var.user_ocid
+  fingerprint      = var.fingerprint
+  private_key_path = var.private_key_path
+  region           = var.region
 }
 
 # Data sources
@@ -29,8 +29,8 @@ data "oci_core_images" "amd_images" {
   compartment_id   = var.compartment_id
   operating_system = "Canonical Ubuntu"
   shape            = "VM.Standard.E5.Flex"
-  sort_by         = "TIMECREATED"
-  sort_order      = "DESC"
+  sort_by          = "TIMECREATED"
+  sort_order       = "DESC"
 }
 
 # VCN for OCI resources
@@ -82,13 +82,13 @@ resource "oci_core_route_table" "callableapis_rt" {
 
 # Subnet
 resource "oci_core_subnet" "callableapis_subnet" {
-  compartment_id      = var.compartment_id
-  vcn_id              = oci_core_vcn.callableapis_vcn.id
-  cidr_block          = "10.0.1.0/24"
-  display_name        = "callableapis-subnet"
-  dns_label           = "callableapis"
-  route_table_id      = oci_core_route_table.callableapis_rt.id
-  security_list_ids   = [oci_core_security_list.callableapis_sl.id]
+  compartment_id    = var.compartment_id
+  vcn_id            = oci_core_vcn.callableapis_vcn.id
+  cidr_block        = "10.0.1.0/24"
+  display_name      = "callableapis-subnet"
+  dns_label         = "callableapis"
+  route_table_id    = oci_core_route_table.callableapis_rt.id
+  security_list_ids = [oci_core_security_list.callableapis_sl.id]
 
   freeform_tags = {
     Name        = "callableapis-subnet"
@@ -195,7 +195,7 @@ resource "oci_core_instance" "callableapis_arm_1" {
 
   metadata = {
     ssh_authorized_keys = var.ssh_public_key
-    user_data = base64encode(file("${path.module}/user_data.sh"))
+    user_data           = base64encode(file("${path.module}/user_data.sh"))
   }
 
   freeform_tags = {

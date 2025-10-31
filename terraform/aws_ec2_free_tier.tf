@@ -92,7 +92,7 @@ resource "aws_key_pair" "callableapis_key" {
 resource "aws_instance" "general_purpose" {
 
   ami           = data.aws_ami.amazon_linux.id
-  instance_type = "t2.micro"  # x86_64 for container compatibility, always free tier
+  instance_type = "t2.micro" # x86_64 for container compatibility, always free tier
   subnet_id     = data.aws_subnets.default.ids[0]
 
   vpc_security_group_ids      = [aws_security_group.general_purpose_sg.id]

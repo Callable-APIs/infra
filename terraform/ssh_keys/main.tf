@@ -23,15 +23,15 @@ resource "tls_private_key" "callableapis_ssh" {
 
 # Save private key to file
 resource "local_file" "private_key" {
-  content  = tls_private_key.callableapis_ssh.private_key_pem
-  filename = "${path.module}/keys/callableapis_private_key"
+  content         = tls_private_key.callableapis_ssh.private_key_pem
+  filename        = "${path.module}/keys/callableapis_private_key"
   file_permission = "0600"
 }
 
 # Save public key to file
 resource "local_file" "public_key" {
-  content  = tls_private_key.callableapis_ssh.public_key_openssh
-  filename = "${path.module}/keys/callableapis_public_key"
+  content         = tls_private_key.callableapis_ssh.public_key_openssh
+  filename        = "${path.module}/keys/callableapis_public_key"
   file_permission = "0644"
 }
 
@@ -82,7 +82,7 @@ Host aws-eb
     UserKnownHostsFile /dev/null
 EOF
 
-  filename = "${path.module}/ssh_config"
+  filename        = "${path.module}/ssh_config"
   file_permission = "0644"
 }
 
@@ -110,7 +110,7 @@ ansible_ssh_private_key_file=${path.module}/keys/callableapis_private_key
 ansible_ssh_common_args='-o StrictHostKeyChecking=no'
 EOF
 
-  filename = "${path.module}/inventory"
+  filename        = "${path.module}/inventory"
   file_permission = "0644"
 }
 
