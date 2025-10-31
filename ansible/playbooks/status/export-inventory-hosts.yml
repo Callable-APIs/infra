@@ -1,0 +1,24 @@
+---
+- name: Export inventory hosts to JSON for status app
+  hosts: localhost
+  gather_facts: false
+  vars:
+    output_path: "{{ playbook_dir | dirname | dirname | dirname }}/reports/hosts.json"
+    groups_to_export:
+      - webapp_hosts
+      - base_container_hosts
+      - services_container_hosts
+      - status_container_hosts
+  tasks:
+    - name: Ensure reports directory exists
+      ansible.builtin.file:
+        path: "{{ playbook_dir | dirname | dirname | dirname }}/reports"
+        state: directory
+        mode: '0755'
+
+    - name: Render hosts.json from inventory
+      ansible.builtin.template:
+        src: templates/hosts.json.j2
+        dest: "{{ output_path }}"
+        mode: '0644'
+
