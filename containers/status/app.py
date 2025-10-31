@@ -122,7 +122,15 @@ async def fetch_node_status(session, node):
         async with session.get(status_url, timeout=5) as response:
             response.raise_for_status()
             status_data = await response.json()
-            api_status = status_data.get("status", "unhealthy")
+            # Handle different status formats: "running", "healthy", "UP", etc.
+            raw_status = status_data.get("status", "unhealthy")
+            # Normalize status values
+            if raw_status in ["healthy", "UP", "running"]:
+                api_status = "running"
+            elif raw_status in ["unhealthy", "DOWN", "error"]:
+                api_status = "unhealthy"
+            else:
+                api_status = raw_status.lower()
             uptime = status_data.get("uptime", "unknown")
         end_time = asyncio.get_event_loop().time()
         response_time = round(end_time - start_time, 6)
@@ -194,10 +202,16 @@ def api_status():
     overall_status = "healthy"
     healthy_nodes = 0
     for node in nodes_status:
-        if node["health_status"] != "healthy" or node["api_status"] != "running":
-            overall_status = "degraded"
-        else:
+        # Skip status-only nodes (gnode1) from health calculations
+        if node["health_status"] == "n/a" and node["api_status"] == "n/a":
+            continue
+        # Check if node is healthy
+        health_ok = node["health_status"] in ["healthy", "UP"]
+        api_ok = node["api_status"] in ["running", "healthy"]
+        if health_ok and api_ok:
             healthy_nodes += 1
+        else:
+            overall_status = "degraded"
     
     return jsonify({
         "service": "CallableAPIs Status Dashboard",
@@ -220,10 +234,11 @@ def dashboard():
     finally:
         loop.close()
     
-    # Calculate overall status
-    healthy_nodes = sum(1 for node in nodes_status if node["health_status"] == "healthy")
-    total_nodes = len(nodes_status)
-    overall_status = "healthy" if healthy_nodes == total_nodes else "degraded" if healthy_nodes > 0 else "down"
+    # Calculate overall status (exclude status-only nodes from calculations)
+    checkable_nodes = [n for n in nodes_status if not (n["health_status"] == "n/a" and n["api_status"] == "n/a")]
+    healthy_nodes = sum(1 for node in checkable_nodes if node["health_status"] in ["healthy", "UP"] and node["api_status"] in ["running", "healthy"])
+    total_nodes = len(checkable_nodes)
+    overall_status = "healthy" if healthy_nodes == total_nodes and total_nodes > 0 else "degraded" if healthy_nodes > 0 else "down"
     
     # Status color mapping
     status_colors = {
