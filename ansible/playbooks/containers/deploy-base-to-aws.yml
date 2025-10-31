@@ -1,0 +1,51 @@
+---
+- name: Deploy base container to AWS node
+  hosts: anode1
+  become: yes
+  vars:
+    container_name: "callableapis-base"
+    container_image: "rl337/callableapis:base"
+    container_port: "{{ hostvars[inventory_hostname]['base_port'] | default('8080') }}"
+  tasks:
+    - name: Pull base container image
+      ansible.builtin.shell: docker pull {{ container_image }}
+      failed_when: false
+
+    - name: Stop existing base container if present
+      ansible.builtin.shell: |
+        docker stop {{ container_name }} 2>/dev/null || true
+        docker rm {{ container_name }} 2>/dev/null || true
+      failed_when: false
+
+    - name: Run base container
+      ansible.builtin.shell: |
+        docker run -d \
+          --name {{ container_name }} \
+          --restart unless-stopped \
+          -p {{ container_port }}:8080 \
+          {{ container_image }}
+      register: container_deploy
+      failed_when: false
+
+    - name: Wait for base container to be ready
+      ansible.builtin.wait_for:
+        port: "{{ container_port }}"
+        host: "127.0.0.1"
+        timeout: 30
+      when: container_deploy.rc == 0
+
+    - name: Show base container status
+      ansible.builtin.shell: docker ps --filter name={{ container_name }}
+      register: container_status
+
+    - name: Display results
+      ansible.builtin.debug:
+        msg: |
+          Base Container Deployment:
+          - Container: {{ container_name }}
+          - Image: {{ container_image }}
+          - Port: {{ container_port }}
+          - Status: {{ 'RUNNING' if container_deploy.rc == 0 else 'FAILED' }}
+          - Details: {{ container_status.stdout }}
+
+
