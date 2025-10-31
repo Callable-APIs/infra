@@ -286,14 +286,30 @@ print_status "7. SECURITY CHECKS"
 echo "=========================================="
 
 # Check for sensitive files that shouldn't be committed
-sensitive_files=("env.sh" "terraform/terraform.tfvars" "*.pem" "*.key" "*.crt")
-for pattern in "${sensitive_files[@]}"; do
-    if find . -name "$pattern" -not -path "./ansible/artifacts/*" | grep -q .; then
-        print_warning "Sensitive files found matching pattern: $pattern"
-        print_warning "Ensure these are in .gitignore and not committed"
+# Only check if files are actually committed, not just if they exist locally
+sensitive_files=("env.sh" "terraform/terraform.tfvars")
+for file in "${sensitive_files[@]}"; do
+    if git ls-files --error-unmatch "$file" >/dev/null 2>&1; then
+        print_error "Sensitive file is committed to git: $file"
+        print_warning "Remove from git and ensure it's in .gitignore"
         overall_success=false
+    else
+        print_success "Sensitive file not committed: $file"
     fi
 done
+
+# Check for committed PEM/key/crt files (excluding artifacts directory)
+committed_certs=$(git ls-files "*.pem" "*.key" "*.crt" | grep -v "ansible/artifacts/" | grep -v "terraform/ssh_keys/" || true)
+if [ -n "$committed_certs" ]; then
+    print_error "Sensitive certificate files are committed to git:"
+    echo "$committed_certs" | while read -r cert_file; do
+        print_warning "  - $cert_file"
+    done
+    print_warning "Remove from git and ensure *.pem, *.key, *.crt are in .gitignore"
+    overall_success=false
+else
+    print_success "No certificate files committed to git"
+fi
 
 # Check .gitignore for sensitive patterns
 if [ -f ".gitignore" ]; then
