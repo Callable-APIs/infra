@@ -317,6 +317,25 @@ When adding new environment variables or Terraform variables:
 4. Verify all required variables are documented
 
 
+## Credential and Artifact Management (Do NOT store secrets in env.sh)
+
+To prevent on-disk check-ins of sensitive data, all runtime credentials and SSH keys must be managed as Ansible artifacts, not committed files:
+
+- Storage location (gitignored): `ansible/artifacts/`
+- Builders (idempotent): playbooks in `ansible/playbooks/secrets/`
+  - `secrets/build-ssh-key-artifact.yml` creates rotated SSH keypairs under `ansible/artifacts/ssh/`
+  - Add additional builders for cloud/API tokens as needed (write files under `ansible/artifacts/secrets/`)
+- Distribution: reference artifacts from playbooks (e.g., `update-ssh-keys.yml` uses the rotated public key artifact)
+- Never commit real credentials to `env.sh`; keep only non-secret toggles there. Put example values in `env.sh.in`
+- `.gitignore` must include `ansible/artifacts/` and any private key patterns
+
+Credential rotation workflow:
+1) Generate/rotate locally: run the builder (e.g., `ansible-playbook ansible/playbooks/secrets/build-ssh-key-artifact.yml`)
+2) Distribute to hosts: run the appropriate rotation playbook (e.g., `ansible/playbooks/update-ssh-keys.yml`)
+3) Update Terraform to consume artifact-based public keys (e.g., `aws_key_pair` reads from `ansible/artifacts/..._public_key`)
+4) Verify access (SSH/connectivity) and remove deprecated keys
+
+
 ### Current Infrastructure State
 **Get the current infrastructure state from Terraform (single source of truth):**
 

@@ -1,3 +1,8 @@
+# Ignore SSH key artifacts and private keys
+ansible/artifacts/ssh/
+terraform/ssh_keys/keys/
+*_*private_key
+*_private_key
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

@@ -28,7 +28,7 @@
 
     - name: Update SSH authorized keys for ansible user
       ansible.builtin.copy:
-        content: "{{ lookup('file', 'terraform/ssh_keys/keys/callableapis_public_key') }}"
+        content: "{{ lookup('file', ssh_public_key_path) }}"
         dest: /home/ansible/.ssh/authorized_keys
         owner: ansible
         group: ansible
@@ -43,17 +43,7 @@
         mode: '0440'
         validate: 'visudo -cf %s'
 
-    - name: Check if containers are running
-      ansible.builtin.command: "{{ container_runtime }} ps -f name=callableapis-base --format '{{.ID}}'"
-      register: container_check
-      changed_when: false
-      failed_when: false
-      vars:
-        container_runtime: "{{ 'nerdctl' if ansible_facts['nerdctl_exists'] else 'ctr' }}"
-
-    - name: Display container status
-      ansible.builtin.debug:
-        msg: "Container status: {{ 'Running' if container_check.stdout else 'Not running' }}"
+    # Container status check removed here; not needed for key rotation
 
   handlers:
     - name: restart ssh
@@ -62,4 +52,4 @@
         state: restarted
 
   vars:
-    container_runtime: "{{ 'nerdctl' if ansible_facts['nerdctl_exists'] else 'ctr' }}"
+    ssh_public_key_path: "{{ playbook_dir | dirname }}/artifacts/ssh/callableapis_rotated_public_key"
