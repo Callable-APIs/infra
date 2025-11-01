@@ -70,6 +70,7 @@ def load_nodes():
         {"id": "onode2", "display_name": "Oracle Cloud Node 2", "ip": "192.9.134.169", "provider": "Oracle Cloud", "role": "Secondary"},
         {"id": "gnode1", "display_name": "Google Cloud Node 1", "ip": "35.233.161.8", "provider": "Google Cloud", "role": "Monitoring"},
         {"id": "inode1", "display_name": "IBM Cloud Node 1", "ip": "52.116.135.43", "provider": "IBM Cloud", "role": "Services"},
+        {"id": "anode1", "display_name": "AWS Node 1", "ip": "52.24.57.37", "provider": "AWS", "role": "Secondary"},
     ]
 
 NODES = load_nodes()

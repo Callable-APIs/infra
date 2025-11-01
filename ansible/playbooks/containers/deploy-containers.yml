@@ -1,6 +1,6 @@
 ---
 - name: Deploy Containers Based on Inventory Groups
-  hosts: onode1,onode2,gnode1,inode1
+  hosts: onode1,onode2,gnode1,inode1,anode1
   become: yes
   vars:
     container_registry: "callableapis"
