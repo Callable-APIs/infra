@@ -625,6 +625,116 @@ Current assignment (from `ansible/inventory/production`):
 - ✅ Deploy containers based on inventory groups
 - ✅ Verify DNS records point to correct hosts for their assigned containers
 
+## Container Service Endpoint Compliance
+
+**CRITICAL: All containers must provide base container endpoints plus their own**
+
+When evaluating or creating a new service container, it MUST provide all the standard endpoints that the base container provides, in addition to any service-specific endpoints.
+
+### Base Container Endpoints (Required for All Containers)
+
+Every container in the infrastructure MUST implement these four standard endpoints:
+
+1. **`GET /`** - Root endpoint
+   - Returns JSON with service information
+   - Format: `{"service": "Container Name", "version": "...", "status": "running", "uptime": "...", "timestamp": "..."}`
+   - Should include list of available endpoints
+
+2. **`GET /health`** - Health check endpoint
+   - Returns JSON with health status
+   - Format: `{"status": "healthy", "timestamp": "...", "version": "..."}`
+   - Used by load balancers, monitoring, and Docker health checks
+
+3. **`GET /api/health`** - API health check endpoint
+   - Returns JSON with API status
+   - Format: `{"status": "ok", "timestamp": "...", "version": "..."}`
+   - Used for API-level health monitoring
+
+4. **`GET /api/status`** - Detailed status endpoint
+   - Returns JSON with comprehensive service status
+   - Format: `{"service": "...", "version": "...", "status": "running", "uptime": "...", "timestamp": "...", ...}`
+   - May include additional service-specific information
+
+### Service-Specific Endpoints
+
+Containers may add their own additional endpoints beyond the base requirements:
+- Status container: `/dashboard` (HTML dashboard)
+- Services container: `/api/v1/*`, `/api/v2/*` (versioned API endpoints)
+
+### Compliance Checklist
+
+When evaluating or creating a new service container:
+
+- ✅ **Root endpoint** (`/`): Returns JSON service info matching base container format
+- ✅ **Health endpoint** (`/health`): Returns health status matching base container format
+- ✅ **API health endpoint** (`/api/health`): Returns API status matching base container format
+- ✅ **Status endpoint** (`/api/status`): Returns detailed status matching base container format
+- ✅ **Service-specific endpoints**: May add additional endpoints beyond base requirements
+- ✅ **Response format**: All endpoints return JSON (except HTML endpoints like `/dashboard`)
+
+### Example: Base Container Implementation
+
+Reference implementation in `containers/base/app.py`:
+```python
+@app.route('/')
+def home():
+    return jsonify({
+        "service": "CallableAPIs Base Container",
+        "version": CONTAINER_VERSION,
+        "status": "running",
+        "uptime": str(datetime.now() - START_TIME),
+        "timestamp": datetime.now().isoformat()
+    })
+
+@app.route('/health')
+def health():
+    return jsonify({
+        "status": "healthy",
+        "timestamp": datetime.now().isoformat(),
+        "version": CONTAINER_VERSION
+    })
+
+@app.route('/api/health')
+def api_health():
+    return jsonify({
+        "status": "ok",
+        "timestamp": datetime.now().isoformat(),
+        "version": CONTAINER_VERSION
+    })
+
+@app.route('/api/status')
+def status():
+    # Returns detailed status with additional information
+    ...
+```
+
+### Verification
+
+Test all required endpoints after deployment:
+```bash
+# Test root endpoint
+curl http://localhost:8080/
+
+# Test health endpoint
+curl http://localhost:8080/health
+
+# Test API health endpoint
+curl http://localhost:8080/api/health
+
+# Test status endpoint
+curl http://localhost:8080/api/status
+```
+
+All endpoints should return JSON responses with appropriate status codes (200 for healthy services).
+
+### Non-Compliant Containers
+
+If a container does not provide all base endpoints:
+- ❌ It is non-compliant and must be fixed
+- ❌ Do not deploy non-compliant containers
+- ❌ Update container implementation to add missing endpoints
+- ❌ Verify compliance before deploying
+
 # Task Instruction
 All work and changes to the repository should be part of a task.  A task has a distinct starting point and measurable end goal.  If you feel like you are not presently in a task, ask for more detailed instructions or clarity on any underdeveloped parts of the problem.  Once the problem is well understood and appropriately broken down it will be tracked in a Github Issue.
 

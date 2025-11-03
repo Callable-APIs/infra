@@ -26,6 +26,8 @@ def load_nodes():
             # Extract webapp_hosts from the JSON structure
             nodes = []
             webapp_hosts = hosts_data.get('groups', {}).get('webapp_hosts', [])
+            # Get list of nodes that only run status containers
+            status_container_hosts = [h.get('name') for h in hosts_data.get('groups', {}).get('status_container_hosts', [])]
             
             # Provider name mapping
             provider_map = {
@@ -45,16 +47,25 @@ def load_nodes():
             }
             
             for host in webapp_hosts:
+                host_name = host.get('name')
+                # Check if this host only runs status container
+                is_status_only = host_name in status_container_hosts
+                
                 provider_name = provider_map.get(host.get('provider', '').lower(), host.get('provider', 'Unknown'))
-                role_name = role_map.get(host.get('role', '').lower(), host.get('role', 'Unknown'))
-                display_name = f"{provider_name} {host['name'].replace('node', 'Node ')}"
+                # If it's a status-only node, override role to Monitoring
+                if is_status_only:
+                    role_name = 'Monitoring'
+                else:
+                    role_name = role_map.get(host.get('role', '').lower(), host.get('role', 'Unknown'))
+                display_name = f"{provider_name} {host_name.replace('node', 'Node ')}"
                 
                 nodes.append({
-                    "id": host['name'],
+                    "id": host_name,
                     "display_name": display_name,
                     "ip": host['host'],
                     "provider": provider_name,
-                    "role": role_name
+                    "role": role_name,
+                    "is_status_only": is_status_only
                 })
             
             logger.info(f"Loaded {len(nodes)} nodes from {HOSTS_JSON_PATH}")
@@ -83,9 +94,10 @@ async def fetch_node_status(session, node):
     node_ip = node['ip']
     node_id = node['id']
     node_role = node.get('role', '').lower()
+    is_status_only = node.get('is_status_only', False)
     
     # Skip nodes that only run status containers (they don't have base containers to check)
-    if node_role in ['monitoring', 'status']:
+    if is_status_only or node_role in ['monitoring', 'status']:
         return {
             "node_id": node_id,
             "display_name": node['display_name'],
@@ -176,17 +188,32 @@ async def get_all_nodes_status():
 
 @app.route('/')
 def root():
-    """Root endpoint - redirect to dashboard."""
-    from flask import redirect, url_for
-    return redirect('/dashboard')
+    """Root endpoint - provides service info like base container."""
+    return jsonify({
+        "service": "CallableAPIs Status Container",
+        "version": CONTAINER_VERSION,
+        "status": "running",
+        "uptime": str(datetime.now() - START_TIME),
+        "timestamp": datetime.now().isoformat(),
+        "endpoints": ["/", "/health", "/api/health", "/api/status", "/dashboard"]
+    })
 
 @app.route('/health')
 def health():
-    """Health check endpoint for the status dashboard itself."""
+    """Health check endpoint - compatible with base container."""
     return jsonify({
-        "service": "status-dashboard",
         "status": "healthy",
-        "timestamp": datetime.now().isoformat()
+        "timestamp": datetime.now().isoformat(),
+        "version": CONTAINER_VERSION
+    })
+
+@app.route('/api/health')
+def api_health():
+    """API health check endpoint - compatible with base container."""
+    return jsonify({
+        "status": "ok",
+        "timestamp": datetime.now().isoformat(),
+        "version": CONTAINER_VERSION
     })
 
 @app.route('/api/status')
