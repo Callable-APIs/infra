@@ -96,25 +96,15 @@ async def fetch_node_status(session, node):
     node_role = node.get('role', '').lower()
     is_status_only = node.get('is_status_only', False)
     
-    # Skip nodes that only run status containers (they don't have base containers to check)
+    # For status-only nodes, check the status container (port 8081) instead of base container
     if is_status_only or node_role in ['monitoring', 'status']:
-        return {
-            "node_id": node_id,
-            "display_name": node['display_name'],
-            "ip": node_ip,
-            "provider": node['provider'],
-            "role": node['role'],
-            "health_status": "n/a",
-            "api_status": "n/a",
-            "version": "n/a",
-            "uptime": "n/a",
-            "error_message": "Status-only node (no base container to check)",
-            "response_time": None,
-            "last_check": datetime.now().isoformat()
-        }
-    
-    health_url = f"http://{node_ip}:8080/health"
-    status_url = f"http://{node_ip}:8080/api/status"
+        # Check status container endpoints on this node
+        health_url = f"http://{node_ip}:8081/health"
+        status_url = f"http://{node_ip}:8081/api/status"
+    else:
+        # Check base container endpoints on this node
+        health_url = f"http://{node_ip}:8080/health"
+        status_url = f"http://{node_ip}:8080/api/status"
     
     health_status = "unknown"
     api_status = "unknown"
