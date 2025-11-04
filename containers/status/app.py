@@ -188,15 +188,11 @@ async def get_all_nodes_status():
 
 @app.route('/')
 def root():
-    """Root endpoint - provides service info like base container."""
-    return jsonify({
-        "service": "CallableAPIs Status Container",
-        "version": CONTAINER_VERSION,
-        "status": "running",
-        "uptime": str(datetime.now() - START_TIME),
-        "timestamp": datetime.now().isoformat(),
-        "endpoints": ["/", "/health", "/api/health", "/api/status", "/dashboard"]
-    })
+    """Root endpoint - shows dashboard (primary use case for status page)."""
+    # For status container, root endpoint shows the dashboard
+    # This is the primary use case - users expect to see the status page
+    # JSON service info is available via /api/status endpoint
+    return dashboard()
 
 @app.route('/health')
 def health():
