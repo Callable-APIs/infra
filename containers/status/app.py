@@ -99,8 +99,18 @@ async def fetch_node_status(session, node):
     # For status-only nodes, check the status container (port 8081) instead of base container
     if is_status_only or node_role in ['monitoring', 'status']:
         # Check status container endpoints on this node
-        health_url = f"http://{node_ip}:8081/health"
-        status_url = f"http://{node_ip}:8081/api/status"
+        # Status container runs on port 8080 inside the container, mapped to 8081 externally
+        # For status container checking itself, use localhost:8080 (inside container)
+        # For checking other nodes' status containers, use external IP:8081
+        # Simple heuristic: if node_ip matches a local interface, use localhost
+        if node_ip in ['127.0.0.1', 'localhost', '35.233.161.8']:
+            # This is likely the node we're running on - check localhost
+            health_url = "http://localhost:8080/health"
+            status_url = "http://localhost:8080/api/status"
+        else:
+            # Check external status container port
+            health_url = f"http://{node_ip}:8081/health"
+            status_url = f"http://{node_ip}:8081/api/status"
     else:
         # Check base container endpoints on this node
         health_url = f"http://{node_ip}:8080/health"
