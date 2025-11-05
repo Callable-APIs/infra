@@ -4,25 +4,34 @@
   gather_facts: false
   become: yes
   tasks:
-    - name: Ensure package manager metadata is present (Amazon Linux)
+    - name: Install Python 3.10+ if not already installed (Amazon Linux 2)
       ansible.builtin.raw: |
         set -e
-        if command -v dnf >/dev/null 2>&1; then sudo dnf -y makecache; else sudo yum -y makecache; fi
-      changed_when: false
-
-    - name: Install Python 3 and prerequisites
-      ansible.builtin.raw: |
-        set -e
-        if command -v dnf >/dev/null 2>&1; then 
-          sudo dnf -y install python3 python3-pip python3-setuptools
-        else 
-          sudo yum -y install python3 python3-pip python3-setuptools
+        # Check if python3.10 already exists
+        if [ -f /usr/local/bin/python3.10 ] || [ -f /usr/bin/python3.10 ]; then
+          echo "Python 3.10 already installed"
+        elif command -v amazon-linux-extras >/dev/null 2>&1; then
+          sudo amazon-linux-extras install -y python3.10 || true
+        fi
+        # Verify python3.10 is available
+        if [ ! -f /usr/local/bin/python3.10 ] && [ ! -f /usr/bin/python3.10 ]; then
+          echo "ERROR: python3.10 not found"
+          exit 1
         fi
 
-    - name: Symlink python -> python3 if needed
+    - name: Symlink python -> python3.10 if needed
       ansible.builtin.raw: |
         set -e
-        if ! command -v python >/dev/null 2>&1; then sudo ln -s /usr/bin/python3 /usr/bin/python || true; fi
+        # Check both /usr/bin/python3.10 and /usr/local/bin/python3.10
+        if [ -f /usr/local/bin/python3.10 ]; then
+          sudo ln -sf /usr/local/bin/python3.10 /usr/bin/python3 || true
+          sudo ln -sf /usr/local/bin/python3.10 /usr/bin/python || true
+        elif [ -f /usr/bin/python3.10 ]; then
+          sudo ln -sf /usr/bin/python3.10 /usr/bin/python3 || true
+          sudo ln -sf /usr/bin/python3.10 /usr/bin/python || true
+        elif command -v python3 >/dev/null 2>&1; then
+          sudo ln -sf /usr/bin/python3 /usr/bin/python || true
+        fi
       changed_when: false
 
     - name: Verify Python is available

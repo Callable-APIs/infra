@@ -1,0 +1,39 @@
+---
+- name: Install Docker on AWS Amazon Linux
+  hosts: aws
+  become: yes
+  tasks:
+    - name: Install Docker using amazon-linux-extras
+      ansible.builtin.shell: |
+        sudo amazon-linux-extras install -y docker || true
+        # If that fails, try the official script
+        if ! command -v docker >/dev/null 2>&1; then
+          curl -fsSL https://get.docker.com -o get-docker.sh
+          sudo sh get-docker.sh
+          rm -f get-docker.sh
+        fi
+      args:
+        executable: /bin/bash
+
+    - name: Enable and start Docker service
+      ansible.builtin.shell: |
+        sudo systemctl enable docker || sudo chkconfig docker on
+        sudo systemctl start docker || sudo service docker start
+      args:
+        executable: /bin/bash
+
+    - name: Add ec2-user to docker group
+      ansible.builtin.user:
+        name: ec2-user
+        groups: docker
+        append: yes
+
+    - name: Verify Docker installation
+      ansible.builtin.command: docker --version
+      register: docker_version
+      changed_when: false
+
+    - name: Display Docker version
+      ansible.builtin.debug:
+        msg: "Docker installed: {{ docker_version.stdout }}"
+
