@@ -86,7 +86,16 @@ def load_nodes():
 
 NODES = load_nodes()
 
-CONTAINER_VERSION = os.environ.get('CONTAINER_VERSION', 'unknown')
+# Load container version
+def load_container_version():
+    """Load container version from /etc/CONTAINER_VERSION"""
+    try:
+        with open('/etc/CONTAINER_VERSION', 'r') as f:
+            return f.read().strip()
+    except FileNotFoundError:
+        return "unknown"
+
+CONTAINER_VERSION = load_container_version()
 START_TIME = datetime.now()
 
 async def fetch_node_status(session, node):
