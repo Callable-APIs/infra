@@ -105,12 +105,13 @@ async def fetch_node_status(session, node):
         # Simple heuristic: if node_ip matches a local interface, use localhost
         if node_ip in ['127.0.0.1', 'localhost', '35.233.161.8']:
             # This is likely the node we're running on - check localhost
+            # Use /api/health instead of /api/status to avoid recursive aggregation
             health_url = "http://localhost:8080/health"
-            status_url = "http://localhost:8080/api/status"
+            status_url = "http://localhost:8080/api/health"  # Use /api/health to avoid recursion
         else:
             # Check external status container port
             health_url = f"http://{node_ip}:8081/health"
-            status_url = f"http://{node_ip}:8081/api/status"
+            status_url = f"http://{node_ip}:8081/api/health"  # Use /api/health to avoid recursion
     else:
         # Check base container endpoints on this node
         health_url = f"http://{node_ip}:8080/health"
@@ -135,16 +136,17 @@ async def fetch_node_status(session, node):
         async with session.get(status_url, timeout=5) as response:
             response.raise_for_status()
             status_data = await response.json()
-            # Handle different status formats: "running", "healthy", "UP", etc.
+            # Handle different status formats: "running", "healthy", "UP", "ok", etc.
             raw_status = status_data.get("status", "unhealthy")
             # Normalize status values
-            if raw_status in ["healthy", "UP", "running"]:
+            if raw_status in ["healthy", "UP", "running", "ok"]:
                 api_status = "running"
             elif raw_status in ["unhealthy", "DOWN", "error"]:
                 api_status = "unhealthy"
             else:
                 api_status = raw_status.lower()
-            uptime = status_data.get("uptime", "unknown")
+            # For /api/health endpoint, uptime might not be available, use timestamp
+            uptime = status_data.get("uptime", status_data.get("timestamp", "unknown"))
         end_time = asyncio.get_event_loop().time()
         response_time = round(end_time - start_time, 6)
 
