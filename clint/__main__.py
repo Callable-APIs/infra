@@ -220,6 +220,32 @@ Examples:
         description="CallableAPIs status dashboard aggregating health from all nodes",
     )
 
+    # Domain management commands
+    domains_parser = subparsers.add_parser(
+        "domains",
+        help="Domain management utilities",
+        description="Get domain information and nameservers for CallableAPIs infrastructure",
+    )
+    domains_subparsers = domains_parser.add_subparsers(dest="domains_command")
+    
+    list_parser = domains_subparsers.add_parser(
+        "list",
+        help="List all domains",
+        description="List all GoDaddy domains migrated to Cloudflare",
+    )
+    
+    nameservers_parser = domains_subparsers.add_parser(
+        "nameservers",
+        help="Get Cloudflare nameservers",
+        description="Get Cloudflare nameservers for all domains",
+    )
+    
+    mapping_parser = domains_subparsers.add_parser(
+        "mapping",
+        help="Get domain key mapping",
+        description="Get domain key-to-domain mapping used in Terraform",
+    )
+
     return parser
 
 
@@ -297,6 +323,37 @@ def run_oracle_check_capacity(args):
     
     sys.argv = ["check_oracle_arm_capacity.py"]
     capacity_main()
+
+
+def run_domains(args):
+    """Run domain management commands."""
+    from clint.domains.manager import DomainManager
+    
+    if args.domains_command == "list":
+        domains = DomainManager.get_domains()
+        print("GoDaddy Domains (migrated to Cloudflare):")
+        print("=" * 50)
+        for i, domain in enumerate(domains, 1):
+            print(f"{i:2}. {domain}")
+        print(f"\nTotal: {len(domains)} domains")
+    elif args.domains_command == "nameservers":
+        nameservers = DomainManager.get_nameservers()
+        print("Cloudflare Nameservers:")
+        print("=" * 50)
+        for i, ns in enumerate(nameservers, 1):
+            print(f"{i}. {ns}")
+        print("\nAll domains use these nameservers.")
+        print("Configure them in GoDaddy for DNS to be managed by Cloudflare.")
+    elif args.domains_command == "mapping":
+        mapping = DomainManager.get_domain_mapping()
+        print("Domain Key Mapping (for Terraform):")
+        print("=" * 50)
+        for key, domain in sorted(mapping.items()):
+            print(f"{key:15} -> {domain}")
+        print(f"\nTotal: {len(mapping)} domain mappings")
+    else:
+        print("Available commands: list, nameservers, mapping")
+        print("Use 'python -m clint domains --help' for more information")
 
 
 def run_terraform_discover(args):
@@ -388,6 +445,8 @@ def main():
                 status_main()
             else:
                 parser.parse_args(["container", "--help"])
+        elif args.command == "domains":
+            run_domains(args)
         else:
             parser.print_help()
             sys.exit(1)
