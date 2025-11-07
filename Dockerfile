@@ -68,11 +68,16 @@ RUN poetry config virtualenvs.create false
 
 # Copy application code first
 COPY src/ ./src/
+COPY clint/ ./clint/
 COPY config.yaml.example ./
 COPY README.md ./
 
 # Install Python dependencies
 RUN poetry install --only=main --no-root
+
+# Install IBM Platform Services SDK separately (has urllib3 dependency conflict)
+# This is optional - code will fall back to REST API if not available
+RUN pip install ibm-platform-services || echo "Warning: ibm-platform-services installation failed, will use REST API fallback"
 
 # Create directories for reports
 RUN mkdir -p reports internal_reports terraform_output

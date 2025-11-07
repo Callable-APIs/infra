@@ -61,6 +61,6 @@ docker run --rm -v $(pwd):/app -w /app --entrypoint python3 \
     -e OCI_REGION="$OCI_REGION" \
     -e IBMCLOUD_API_KEY="$IBMCLOUD_API_KEY" \
     -e IBMCLOUD_REGION="$IBMCLOUD_REGION" \
-    callableapis:infra src/unified_billing_app.py \
+    callableapis:infra -m clint billing \
     $DAILY $COMPARE "${ARGS[@]}"
 

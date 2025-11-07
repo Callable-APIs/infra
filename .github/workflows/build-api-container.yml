@@ -3,10 +3,14 @@ name: Build and Push Base Container
 on:
     push:
         branches: [main]
-        paths: ["containers/base/**"]
+        paths: 
+            - "containers/base/**"
+            - "clint/**"
     pull_request:
         branches: [main]
-        paths: ["containers/base/**"]
+        paths:
+            - "containers/base/**"
+            - "clint/**"
     workflow_dispatch:
 
 env:
@@ -52,14 +56,14 @@ jobs:
             - name: Build and push Docker image
               uses: docker/build-push-action@v5
               with:
-                  context: ./containers/base
+                  context: .
                   file: ./containers/base/Dockerfile
                   push: true
                   tags: ${{ steps.meta.outputs.tags }}
                   labels: ${{ steps.meta.outputs.labels }}
                   cache-from: type=gha
                   cache-to: type=gha,mode=max
-                  platforms: linux/amd64
+                  platforms: linux/amd64,linux/arm64
 
             - name: Generate deployment info
               run: |
@@ -74,8 +78,13 @@ jobs:
                   echo "- Ansible Vault secrets management" >> $GITHUB_STEP_SUMMARY
                   echo "- Health check endpoints (/health, /status)" >> $GITHUB_STEP_SUMMARY
                   echo "- Non-root user (appuser) for security" >> $GITHUB_STEP_SUMMARY
+                  echo "- **Multi-platform**: Supports linux/amd64 and linux/arm64" >> $GITHUB_STEP_SUMMARY
                   echo "" >> $GITHUB_STEP_SUMMARY
                   echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
                   echo "1. Use as base image for other services (agents, api, etc.)" >> $GITHUB_STEP_SUMMARY
                   echo "2. Deploy to nodes using Ansible" >> $GITHUB_STEP_SUMMARY
                   echo "3. Build service-specific containers on top of this base" >> $GITHUB_STEP_SUMMARY
+                  echo "" >> $GITHUB_STEP_SUMMARY
+                  echo "### Platform Support" >> $GITHUB_STEP_SUMMARY
+                  echo "- **AMD64**: AWS, Google Cloud, IBM Cloud (x86_64 instances)" >> $GITHUB_STEP_SUMMARY
+                  echo "- **ARM64**: Oracle Cloud free tier (VM.Standard.A1.Flex)" >> $GITHUB_STEP_SUMMARY

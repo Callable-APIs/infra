@@ -3,10 +3,14 @@ name: Build and Push Status Container
 on:
     push:
         branches: [main]
-        paths: ["containers/status/**"]
+        paths:
+            - "containers/status/**"
+            - "clint/**"
     pull_request:
         branches: [main]
-        paths: ["containers/status/**"]
+        paths:
+            - "containers/status/**"
+            - "clint/**"
     workflow_dispatch:
 
 env:
@@ -52,14 +56,14 @@ jobs:
             - name: Build and push Docker image
               uses: docker/build-push-action@v5
               with:
-                  context: ./containers/status
+                  context: .
                   file: ./containers/status/Dockerfile
                   push: true
                   tags: ${{ steps.meta.outputs.tags }}
                   labels: ${{ steps.meta.outputs.labels }}
                   cache-from: type=gha
                   cache-to: type=gha,mode=max
-                  platforms: linux/amd64
+                  platforms: linux/amd64,linux/arm64
 
             - name: Generate deployment info
               run: |

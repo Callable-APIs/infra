@@ -12,14 +12,14 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements and install Python dependencies
-COPY requirements.txt .
+COPY containers/status/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
-COPY app.py .
+# Copy clint module from repo root
+COPY clint/ ./clint/
 
 # Create container version file
-COPY CONTAINER_VERSION /etc/CONTAINER_VERSION
+COPY containers/status/CONTAINER_VERSION /etc/CONTAINER_VERSION
 
 # Create non-root user
 RUN useradd -m -u 1000 statususer && \
@@ -35,5 +35,5 @@ EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8080/health || exit 1
 
-# Run the application
-CMD ["python", "app.py"]
+# Run the application using clint
+CMD ["python", "-m", "clint", "container", "status"]

@@ -140,6 +140,100 @@ ssh -o ConnectTimeout=10 user@host command
 - ✅ Test timeout behavior in development
 - ✅ Document timeout values in scripts
 
+## Python Code Organization
+
+**CRITICAL: All Python code must be centralized in the clint module**
+
+### CLINT Module Requirements
+
+All Python code in this repository must be:
+1. **Located in the `clint/` module** - No scattered Python scripts
+2. **Accessible via CLI** - All functionality must be accessible through `python -m clint <command>`
+3. **Managed via Poetry** - Dependencies and package structure defined in `pyproject.toml`
+4. **Well-organized** - Use submodules for logical grouping (billing/, container/, secrets/, etc.)
+
+### Prohibited Actions
+- ❌ Creating standalone Python scripts in `src/` or root directory
+- ❌ Creating Python code in container directories (`containers/*/app.py`)
+- ❌ Duplicating functionality across multiple files
+- ❌ Creating Python tools that aren't accessible via `clint` CLI
+- ❌ Adding Python dependencies outside of `pyproject.toml`
+
+### Required Actions
+- ✅ All new Python functionality goes in `clint/` module
+- ✅ Add CLI commands to `clint/__main__.py` for new functionality
+- ✅ Use submodules for organization (e.g., `clint/billing/`, `clint/secrets/`)
+- ✅ Add dependencies to `pyproject.toml` using Poetry
+- ✅ Use strategy patterns for extensible functionality (e.g., secrets management)
+- ✅ Update Dockerfiles to copy `clint/` module, not individual scripts
+
+### CLINT Module Structure
+
+```
+clint/
+├── __init__.py              # Module initialization
+├── __main__.py              # Main CLI entry point
+├── billing/                 # Billing adapters (AWS, OCI, IBM)
+│   ├── __init__.py
+│   ├── base_adapter.py
+│   ├── aws_adapter.py
+│   ├── oci_adapter.py
+│   ├── ibm_adapter.py
+│   └── manager.py
+├── container/               # Container applications
+│   ├── __init__.py
+│   ├── base.py             # Base container Flask app
+│   └── status.py           # Status container Flask app
+└── secrets/                 # Secrets management strategies
+    ├── __init__.py
+    ├── base.py             # Base strategy interface
+    ├── ansible_vault.py    # Ansible Vault strategy
+    ├── hashicorp_vault.py  # HashiCorp Vault strategy
+    └── manager.py          # Strategy factory
+```
+
+### Adding New Functionality
+
+When adding new Python functionality:
+
+1. **Create appropriate submodule** in `clint/` (e.g., `clint/new_feature/`)
+2. **Add CLI command** to `clint/__main__.py`:
+   ```python
+   new_feature_parser = subparsers.add_parser("new-feature", ...)
+   ```
+3. **Add dependencies** to `pyproject.toml`:
+   ```toml
+   [tool.poetry.dependencies]
+   new-dependency = "^1.0.0"
+   ```
+4. **Update containers** if needed (copy `clint/` module in Dockerfile)
+5. **Test via CLI**: `python -m clint new-feature --help`
+
+### Migration from Scattered Code
+
+If you find Python code outside of `clint/`:
+1. Move it to appropriate `clint/` submodule
+2. Add CLI command to expose functionality
+3. Update any references to use `clint` CLI
+4. Remove old files
+5. Update Dockerfiles/scripts to use `clint` commands
+
+### Examples
+
+**Good**: All functionality in clint
+```bash
+python -m clint billing --daily
+python -m clint container base
+python -m clint terraform discover
+```
+
+**Bad**: Scattered scripts
+```bash
+python src/unified_billing_app.py  # ❌ Should be: clint billing
+python containers/base/app.py      # ❌ Should be: clint container base
+python scripts/some_tool.py        # ❌ Should be: clint some-tool
+```
+
 ## Testing and Coverage
 
 When adding or removing code it is essential that every functional edit to the codebase have corresponding tests. These tests, when possible should use the testing frameworks of the platform, for example in python it should be pytest.  
@@ -674,7 +768,7 @@ When evaluating or creating a new service container:
 
 ### Example: Base Container Implementation
 
-Reference implementation in `containers/base/app.py`:
+Reference implementation in `clint/container/base.py`:
 ```python
 @app.route('/')
 def home():

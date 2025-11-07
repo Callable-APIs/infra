@@ -12,13 +12,16 @@ show_help() {
     echo "Usage: docker run [OPTIONS] aws-infra-report [COMMAND] [ARGS]"
     echo ""
     echo "Commands:"
-    echo "  cost-report [OPTIONS]     Generate cost reports"
+    echo "  cost-report [OPTIONS]     Generate AWS cost reports"
     echo "  multicloud-report [OPTIONS] Generate multi-cloud cost reports"
+    echo "  billing [OPTIONS]         Unified multi-cloud billing reports"
     echo "  terraform-discover        Discover current AWS infrastructure"
     echo "  terraform-generate        Generate Terraform configuration"
     echo "  terraform-plan            Run terraform plan on generated config"
     echo "  full-analysis             Run complete analysis (cost + terraform)"
     echo "  help                      Show this help message"
+    echo ""
+    echo "  Or use 'python -m clint <command>' for direct CLI access"
     echo ""
     echo "Cost Report Options:"
     echo "  --internal                Generate internal detailed report"
@@ -62,25 +65,25 @@ check_aws_credentials() {
 # Function to generate cost reports
 generate_cost_report() {
     echo "📊 Generating cost reports..."
-    python -m src.main "$@"
+    python -m clint cost-report "$@"
 }
 
 # Function to generate multi-cloud cost reports
 generate_multicloud_report() {
     echo "🌐 Generating multi-cloud cost reports..."
-    python -m src.multicloud_main "$@"
+    python -m clint multicloud-report "$@"
 }
 
 # Function to discover AWS infrastructure
 discover_infrastructure() {
     echo "🔍 Discovering AWS infrastructure..."
-    python -m src.terraform_discovery
+    python -m clint terraform discover
 }
 
 # Function to generate Terraform configuration
 generate_terraform() {
     echo "🏗️  Generating Terraform configuration..."
-    python -m src.terraform_generator
+    python -m clint terraform generate
 }
 
 # Function to run terraform plan
@@ -97,31 +100,7 @@ terraform_plan() {
 # Function to run full analysis
 full_analysis() {
     echo "🚀 Running full infrastructure analysis..."
-    
-    # Generate cost reports
-    echo "Step 1: Generating cost reports..."
-    python -m src.main --internal --output internal_reports --days 30
-    python -m src.main --output reports --days 30
-    
-    # Discover infrastructure
-    echo "Step 2: Discovering infrastructure..."
-    python -m src.terraform_discovery
-    
-    # Generate Terraform
-    echo "Step 3: Generating Terraform configuration..."
-    python -m src.terraform_generator
-    
-    # Run terraform plan
-    echo "Step 4: Running Terraform plan..."
-    cd terraform
-    terraform init
-    terraform plan
-    
-    echo "✅ Full analysis complete!"
-    echo "📁 Reports available in:"
-    echo "   - reports/ (public cost report)"
-    echo "   - internal_reports/ (internal cost report)"
-    echo "   - terraform_output/ (Terraform configuration)"
+    python -m clint full-analysis
 }
 
 # Main script logic
@@ -135,6 +114,10 @@ case "${1:-help}" in
         check_aws_credentials
         shift
         generate_multicloud_report "$@"
+        ;;
+    "billing")
+        shift
+        python -m clint billing "$@"
         ;;
     "terraform-discover")
         check_aws_credentials
@@ -150,13 +133,20 @@ case "${1:-help}" in
         check_aws_credentials
         full_analysis
         ;;
+    "clint")
+        shift
+        python -m clint "$@"
+        ;;
     "help"|"--help"|"-h")
         show_help
         ;;
     *)
-        echo "❌ Unknown command: $1"
-        echo ""
-        show_help
-        exit 1
+        # If command not recognized, try passing to clint
+        python -m clint "$@" 2>/dev/null || {
+            echo "❌ Unknown command: $1"
+            echo ""
+            show_help
+            exit 1
+        }
         ;;
 esac
