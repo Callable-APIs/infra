@@ -249,10 +249,10 @@ data "oci_identity_availability_domains" "ads" {
   compartment_id = var.compartment_id
 }
 
-data "oci_core_images" "amd_images" {
+data "oci_core_images" "arm_images" {
   compartment_id   = var.compartment_id
   operating_system = "Canonical Ubuntu"
-  shape            = "VM.Standard.E5.Flex"
+  shape            = "VM.Standard.A1.Flex"
   sort_by          = "TIMECREATED"
   sort_order       = "DESC"
 }
@@ -388,21 +388,21 @@ resource "oci_core_subnet" "callableapis_subnet" {
   }
 }
 
-# ARM Instance 1 - Primary (node1)
+# ARM Instance 1 - Primary (onode1) - Free Tier
 resource "oci_core_instance" "callableapis_arm_1" {
   compartment_id      = var.compartment_id
   availability_domain = data.oci_identity_availability_domains.ads.availability_domains[0].name
-  display_name        = "node1"
-  shape               = "VM.Standard.E5.Flex"
+  display_name        = "onode1"
+  shape               = "VM.Standard.A1.Flex"
 
   shape_config {
-    ocpus         = 1
-    memory_in_gbs = 12
+    ocpus         = 4
+    memory_in_gbs = 24
   }
 
   source_details {
     source_type = "image"
-    source_id   = data.oci_core_images.amd_images.images[0].id
+    source_id   = data.oci_core_images.arm_images.images[0].id
   }
 
   create_vnic_details {
@@ -426,21 +426,21 @@ resource "oci_core_instance" "callableapis_arm_1" {
   }
 }
 
-# ARM Instance 2 - Secondary (node2)
+# ARM Instance 2 - Secondary (onode2) - Free Tier
 resource "oci_core_instance" "callableapis_arm_2" {
   compartment_id      = var.compartment_id
   availability_domain = data.oci_identity_availability_domains.ads.availability_domains[0].name
-  display_name        = "node2"
-  shape               = "VM.Standard.E5.Flex"
+  display_name        = "onode2"
+  shape               = "VM.Standard.A1.Flex"
 
   shape_config {
-    ocpus         = 1
-    memory_in_gbs = 12
+    ocpus         = 4
+    memory_in_gbs = 24
   }
 
   source_details {
     source_type = "image"
-    source_id   = data.oci_core_images.amd_images.images[0].id
+    source_id   = data.oci_core_images.arm_images.images[0].id
   }
 
   create_vnic_details {
@@ -611,7 +611,7 @@ resource "ibm_is_instance" "callableapis_vsi" {
   zone           = data.ibm_is_zones.zones.zones[0]
   keys           = [ibm_is_ssh_key.callableapis_key.id]
   image          = data.ibm_is_image.ubuntu.id
-  profile        = "bx2-2x8" # Free tier eligible profile
+  profile        = "cx2-2x4" # Free tier: 2 vCPU, 4GB RAM (smaller profile for free tier)
   resource_group = var.resource_group_id
 
   primary_network_interface {
