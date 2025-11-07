@@ -1,4 +1,8 @@
-"""AWS Infrastructure Discovery for Terraform Generation."""
+"""AWS Infrastructure Discovery for Terraform Generation.
+
+This module discovers AWS infrastructure resources and prepares data
+for Terraform configuration generation.
+"""
 
 import json
 import logging

@@ -1,4 +1,8 @@
-"""AWS Cost Explorer client wrapper."""
+"""AWS Cost Explorer client wrapper.
+
+This module provides a client for interacting with AWS Cost Explorer API.
+Note: For multi-cloud billing, use clint.billing.aws_adapter instead.
+"""
 import logging
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional

@@ -355,6 +355,8 @@ def run_billing(args):
 
 def _format_daily_costs_report(costs_data: dict) -> str:
     """Format daily costs as a readable report."""
+    from collections import defaultdict
+    
     lines = []
     lines.append("=" * 100)
     lines.append("DAILY COST BREAKDOWN")
@@ -499,7 +501,7 @@ def _format_monthly_comparison_report(comparison: dict) -> str:
 
 def run_cost_report(args):
     """Run AWS cost report."""
-    from src.main import main as cost_main
+    from clint.aws.cost_report import main as cost_main
     
     cost_args = []
     if args.internal:
@@ -509,31 +511,31 @@ def run_cost_report(args):
     cost_args.extend(["--days", str(args.days)])
     cost_args.extend(["--output", args.output])
     
-    sys.argv = ["main.py"] + cost_args
+    sys.argv = ["cost_report.py"] + cost_args
     cost_main()
 
 
 def run_multicloud_report(args):
     """Run multi-cloud cost report."""
-    from src.multicloud_main import main as multicloud_main
+    # Multi-cloud reporting is now handled by the billing command
+    # This is kept for backward compatibility but redirects to billing
+    logger.warning("multicloud-report is deprecated. Use 'clint billing' instead.")
+    from clint.billing.manager import BillingManager
+    from datetime import datetime, timedelta
     
-    multicloud_args = []
-    if args.internal:
-        multicloud_args.append("--internal")
-    if args.console_only:
-        multicloud_args.append("--console-only")
-    multicloud_args.extend(["--days", str(args.days)])
-    multicloud_args.extend(["--output", args.output])
+    manager = BillingManager()
+    end_date = datetime.now()
+    start_date = end_date - timedelta(days=args.days)
     
-    sys.argv = ["multicloud_main.py"] + multicloud_args
-    multicloud_main()
+    daily_costs = manager.get_daily_costs(start_date, end_date)
+    print(_format_daily_costs_report(daily_costs))
 
 
 def run_oracle_check_capacity(args):
     """Run Oracle Cloud capacity check."""
-    from src.check_oracle_arm_capacity import main as capacity_main
+    from clint.oracle.capacity import main as capacity_main
     
-    sys.argv = ["check_oracle_arm_capacity.py"]
+    sys.argv = ["capacity.py"]
     capacity_main()
 
 
@@ -588,17 +590,17 @@ def run_agent(args):
 
 def run_terraform_discover(args):
     """Run Terraform discovery."""
-    from src.terraform_discovery import main as discover_main
+    from clint.terraform.discovery import main as discover_main
     
-    sys.argv = ["terraform_discovery.py"]
+    sys.argv = ["discovery.py"]
     discover_main()
 
 
 def run_terraform_generate(args):
     """Run Terraform generation."""
-    from src.terraform_generator import main as generate_main
+    from clint.terraform.generator import main as generate_main
     
-    sys.argv = ["terraform_generator.py"]
+    sys.argv = ["generator.py"]
     generate_main()
 
 
@@ -610,23 +612,23 @@ def run_full_analysis(args):
     
     # Generate cost reports
     print("Step 1: Generating cost reports...")
-    from src.main import main as cost_main
-    sys.argv = ["main.py", "--internal", "--output", "internal_reports", "--days", "30"]
+    from clint.aws.cost_report import main as cost_main
+    sys.argv = ["cost_report.py", "--internal", "--output", "internal_reports", "--days", "30"]
     cost_main()
     
-    sys.argv = ["main.py", "--output", "reports", "--days", "30"]
+    sys.argv = ["cost_report.py", "--output", "reports", "--days", "30"]
     cost_main()
     
     # Discover infrastructure
     print("Step 2: Discovering infrastructure...")
-    from src.terraform_discovery import main as discover_main
-    sys.argv = ["terraform_discovery.py"]
+    from clint.terraform.discovery import main as discover_main
+    sys.argv = ["discovery.py"]
     discover_main()
     
     # Generate Terraform
     print("Step 3: Generating Terraform configuration...")
-    from src.terraform_generator import main as generate_main
-    sys.argv = ["terraform_generator.py"]
+    from clint.terraform.generator import main as generate_main
+    sys.argv = ["generator.py"]
     generate_main()
     
     print("✅ Full analysis complete!")

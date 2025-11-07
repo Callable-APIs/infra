@@ -1,4 +1,4 @@
-"""Main entry point for AWS infrastructure reporting tool."""
+"""AWS cost reporting functionality."""
 import argparse
 import logging
 import os
@@ -8,10 +8,10 @@ from typing import Any, Dict
 
 import yaml
 
-from src.cost_explorer import CostExplorerClient
-from src.internal_report_generator import InternalReportGenerator
-from src.report_generator import ReportGenerator
-from src.sanitizer import generate_summary_stats, mask_account_id
+from clint.aws.cost_explorer import CostExplorerClient
+from clint.aws.sanitizer import generate_summary_stats, mask_account_id
+from clint.reports.internal_generator import InternalReportGenerator
+from clint.reports.generator import ReportGenerator
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -204,3 +204,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
+

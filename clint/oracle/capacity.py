@@ -1,11 +1,6 @@
-#!/usr/bin/env python3
 """Check Oracle Cloud regions for ARM instance availability."""
-import os
-import sys
 import logging
 from typing import List, Dict
-
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 try:
     import oci
@@ -17,7 +12,6 @@ except ImportError:
     OCI_AVAILABLE = False
     logging.warning("OCI SDK not available. Install with: pip install oci")
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Common Oracle Cloud regions

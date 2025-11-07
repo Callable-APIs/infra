@@ -1,4 +1,7 @@
-"""Terraform Configuration Generator from Discovered AWS Resources."""
+"""Terraform Configuration Generator from Discovered AWS Resources.
+
+This module generates Terraform configurations from discovered AWS resources.
+"""
 
 import json
 import logging
