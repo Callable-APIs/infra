@@ -246,6 +246,34 @@ Examples:
         description="Get domain key-to-domain mapping used in Terraform",
     )
 
+    # Infrastructure agent commands
+    agent_parser = subparsers.add_parser(
+        "agent",
+        help="Infrastructure monitoring and management agent",
+        description="Run automated health checks, cost analysis, and maintenance tasks",
+    )
+    agent_parser.add_argument(
+        "--task",
+        choices=["all", "health", "cost", "maintenance"],
+        default="all",
+        help="Task to run (default: all)",
+    )
+    agent_parser.add_argument(
+        "--config",
+        type=str,
+        help="Path to configuration YAML file",
+    )
+    agent_parser.add_argument(
+        "--health-output",
+        type=str,
+        help="Path to save health check results (JSON)",
+    )
+    agent_parser.add_argument(
+        "--cost-output",
+        type=str,
+        help="Path to save cost report (text)",
+    )
+
     return parser
 
 
@@ -356,6 +384,24 @@ def run_domains(args):
         print("Use 'python -m clint domains --help' for more information")
 
 
+def run_agent(args):
+    """Run infrastructure agent."""
+    from clint.agent.manager import InfrastructureAgent
+    
+    # Configure logging
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    )
+    
+    agent = InfrastructureAgent(config_path=args.config)
+    agent.run(
+        task=args.task,
+        health_output=args.health_output,
+        cost_output=args.cost_output
+    )
+
+
 def run_terraform_discover(args):
     """Run Terraform discovery."""
     from src.terraform_discovery import main as discover_main
@@ -447,6 +493,8 @@ def main():
                 parser.parse_args(["container", "--help"])
         elif args.command == "domains":
             run_domains(args)
+        elif args.command == "agent":
+            run_agent(args)
         else:
             parser.print_help()
             sys.exit(1)
