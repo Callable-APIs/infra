@@ -5,7 +5,6 @@ description = "AWS Infrastructure Reporting and Management Tool"
 authors = ["Your Name <your.email@example.com>"]
 readme = "README.md"
 packages = [
-    {include = "src"},
     {include = "clint"}
 ]
 
@@ -35,7 +34,6 @@ types-PyYAML = "^6.0.12"
 boto3-stubs = "^1.28.0"
 
 [tool.poetry.scripts]
-aws-infra-report = "src.main:main"
 clint = "clint.__main__:main"
 
 [build-system]
@@ -95,7 +93,7 @@ python_functions = ["test_*"]
 addopts = [
     "--strict-markers",
     "--strict-config",
-    "--cov=src",
+    "--cov=clint",
     "--cov-report=term-missing",
     "--cov-report=html",
     "--cov-report=xml",
