@@ -5,8 +5,8 @@ from collections import defaultdict
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from src.billing.base_adapter import BillingAdapter
-from src.oci_billing_client import OCIBillingClient
+from clint.billing.base_adapter import BillingAdapter
+from clint.billing.oci_client import OCIBillingClient
 
 logger = logging.getLogger(__name__)
 

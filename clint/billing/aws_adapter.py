@@ -11,7 +11,7 @@ try:
 except ImportError:
     AWS_AVAILABLE = False
 
-from src.billing.base_adapter import BillingAdapter
+from clint.billing.base_adapter import BillingAdapter
 
 logger = logging.getLogger(__name__)
 

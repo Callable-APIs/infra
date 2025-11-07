@@ -4,10 +4,10 @@ from collections import defaultdict
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Set
 
-from src.billing.aws_adapter import AWSBillingAdapter
-from src.billing.base_adapter import BillingAdapter
-from src.billing.ibm_adapter import IBMBillingAdapter
-from src.billing.oci_adapter import OCIBillingAdapter
+from clint.billing.aws_adapter import AWSBillingAdapter
+from clint.billing.base_adapter import BillingAdapter
+from clint.billing.ibm_adapter import IBMBillingAdapter
+from clint.billing.oci_adapter import OCIBillingAdapter
 
 logger = logging.getLogger(__name__)
 
@@ -83,14 +83,15 @@ class BillingManager:
         return list(self.adapters.keys())
 
     def get_daily_costs(
-        self, start_date: datetime, end_date: datetime
+        self, start_date: datetime = None, end_date: datetime = None, days: int = None
     ) -> Dict[str, Any]:
         """
         Get daily costs from all configured adapters.
 
         Args:
-            start_date: Start date
-            end_date: End date
+            start_date: Start date (optional if days is provided)
+            end_date: End date (optional if days is provided)
+            days: Number of days to look back (convenience parameter)
 
         Returns:
             Dictionary with:
@@ -99,6 +100,21 @@ class BillingManager:
             - daily_totals: Dict mapping dates to total costs across all providers
             - errors: List of error messages
         """
+        from datetime import timedelta
+        
+        # Handle convenience parameter
+        if days is not None:
+            end_date = datetime.now()
+            start_date = end_date - timedelta(days=days)
+        elif start_date is None or end_date is None:
+            # Default to current month
+            now = datetime.now()
+            start_date = now.replace(day=1)
+            end_date = now
+        
+        # Ensure we have valid dates
+        if start_date is None or end_date is None:
+            raise ValueError("start_date and end_date are required if days is not provided")
         result = {
             "period": {
                 "start": start_date.isoformat(),

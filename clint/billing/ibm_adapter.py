@@ -5,8 +5,8 @@ from collections import defaultdict
 from datetime import datetime
 from typing import Any, Dict, List
 
-from src.billing.base_adapter import BillingAdapter
-from src.ibm_billing_client import IBMBillingClient
+from clint.billing.base_adapter import BillingAdapter
+from clint.billing.ibm_client import IBMBillingClient
 
 logger = logging.getLogger(__name__)
 

@@ -241,7 +241,8 @@ class InfrastructureAgent:
             manager = BillingManager()
             
             # Get daily costs for last 30 days
-            daily_costs = manager.get_daily_costs(days=30)
+            daily_costs_data = manager.get_daily_costs(days=30)
+            daily_costs = daily_costs_data.get("daily_totals", {})
             
             # Get month-over-month comparison
             now = datetime.now()
