@@ -258,6 +258,8 @@ terraform_output/
 
 # Generated reports
 multicloud_billing_report_*.md
+custom_reports/
+test-reports/
 
 # Ansible secrets artifacts
 ansible/artifacts/
