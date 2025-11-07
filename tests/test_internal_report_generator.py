@@ -5,11 +5,9 @@ import sys
 import tempfile
 from unittest.mock import patch
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
-
 import pytest
 
-from src.internal_report_generator import InternalReportGenerator
+from clint.reports.internal_generator import InternalReportGenerator
 
 
 class TestInternalReportGenerator:

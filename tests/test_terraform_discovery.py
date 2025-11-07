@@ -6,11 +6,9 @@ import sys
 import tempfile
 from unittest.mock import MagicMock, Mock, patch
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
-
 import pytest
 
-from src.terraform_discovery import TerraformDiscovery
+from clint.terraform.discovery import TerraformDiscovery
 
 
 class TestTerraformDiscovery:

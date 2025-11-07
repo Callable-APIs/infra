@@ -6,15 +6,20 @@ without requiring AWS credentials.
 """
 
 import os
-import sys
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
-
 import shutil
+import sys
 import tempfile
 
-from report_generator import ReportGenerator
-from sanitizer import generate_summary_stats, mask_account_id, sanitize_arn, sanitize_dict, sanitize_service_name
+import pytest
+
+from clint.aws.sanitizer import (
+    generate_summary_stats,
+    mask_account_id,
+    sanitize_arn,
+    sanitize_dict,
+    sanitize_service_name,
+)
+from clint.reports.generator import ReportGenerator
 
 
 def test_mask_account_id():

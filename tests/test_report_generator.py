@@ -6,11 +6,9 @@ import sys
 import tempfile
 from unittest.mock import patch
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
-
 import pytest
 
-from src.report_generator import ReportGenerator
+from clint.reports.generator import ReportGenerator
 
 
 class TestReportGenerator:
@@ -53,7 +51,7 @@ class TestReportGenerator:
                 {"service": "Amazon RDS", "cost": 20.0},
             ]
 
-            with patch("src.report_generator.datetime") as mock_datetime:
+            with patch("clint.reports.generator.datetime") as mock_datetime:
                 mock_datetime.now.return_value.strftime.side_effect = [
                     "2023-01-01 12:00:00 UTC",  # For generated_at
                     "20230101_120000",  # For filename timestamp
@@ -86,7 +84,7 @@ class TestReportGenerator:
 
             summary = {"total_cost": 0.0, "service_count": 0, "top_services": []}
 
-            with patch("src.report_generator.datetime") as mock_datetime:
+            with patch("clint.reports.generator.datetime") as mock_datetime:
                 mock_datetime.now.return_value.strftime.side_effect = [
                     "2023-01-01 12:00:00 UTC",
                     "20230101_120000",
@@ -122,7 +120,7 @@ class TestReportGenerator:
                 "top_services": [{"service": "Amazon EC2", "cost": 50.0, "percentage": 100.0}],
             }
 
-            with patch("src.report_generator.datetime") as mock_datetime:
+            with patch("clint.reports.generator.datetime") as mock_datetime:
                 mock_datetime.now.return_value.strftime.side_effect = [
                     "2023-01-01 12:00:00 UTC",
                     "20230101_120000",
@@ -152,7 +150,7 @@ class TestReportGenerator:
                 "top_services": [{"service": "Amazon EC2", "cost": 100.0, "percentage": 100.0}],
             }
 
-            with patch("src.report_generator.datetime") as mock_datetime:
+            with patch("clint.reports.generator.datetime") as mock_datetime:
                 mock_datetime.now.return_value.strftime.side_effect = [
                     "2023-01-01 12:00:00 UTC",
                     "20230101_120000",
@@ -196,7 +194,7 @@ class TestReportGenerator:
                 {"service": "Amazon S3", "cost": 25.5},
             ]
 
-            with patch("src.report_generator.datetime") as mock_datetime:
+            with patch("clint.reports.generator.datetime") as mock_datetime:
                 mock_datetime.now.return_value.strftime.side_effect = [
                     "2023-01-01 12:00:00 UTC",
                     "20230101_120000",
@@ -240,7 +238,7 @@ class TestReportGenerator:
 
             summary = {"total_cost": 0.0, "service_count": 0, "top_services": []}
 
-            with patch("src.report_generator.datetime") as mock_datetime:
+            with patch("clint.reports.generator.datetime") as mock_datetime:
                 mock_datetime.now.return_value.strftime.side_effect = [
                     "2023-01-01 12:00:00 UTC",
                     "20230101_120000",

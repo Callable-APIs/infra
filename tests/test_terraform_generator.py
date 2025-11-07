@@ -6,11 +6,9 @@ import sys
 import tempfile
 from unittest.mock import Mock, mock_open, patch
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
-
 import pytest
 
-from src.terraform_generator import TerraformGenerator
+from clint.terraform.generator import TerraformGenerator
 
 
 class TestTerraformGenerator:

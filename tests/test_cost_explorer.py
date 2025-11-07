@@ -4,11 +4,9 @@ import os
 import sys
 from unittest.mock import MagicMock, Mock, patch
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
-
 import pytest
 
-from src.cost_explorer import CostExplorerClient
+from clint.aws.cost_explorer import CostExplorerClient
 
 
 class TestCostExplorerClient:

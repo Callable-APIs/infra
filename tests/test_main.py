@@ -4,11 +4,9 @@ import os
 import sys
 from unittest.mock import Mock, mock_open, patch
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
-
 import pytest
 
-from src.main import load_config, main
+from clint.aws.cost_report import load_config, main
 
 
 class TestMainModule:
@@ -54,9 +52,9 @@ class TestMainModule:
 
                     assert config == {}
 
-    @patch("src.main.CostExplorerClient")
-    @patch("src.main.ReportGenerator")
-    @patch("src.main.load_config")
+    @patch("clint.aws.cost_report.CostExplorerClient")
+    @patch("clint.aws.cost_report.ReportGenerator")
+    @patch("clint.aws.cost_report.load_config")
     def test_main_public_report_success(self, mock_load_config, mock_report_generator, mock_cost_explorer):
         """Test successful public report generation."""
         # Setup mocks
@@ -81,7 +79,7 @@ class TestMainModule:
         mock_report_generator.return_value = mock_generator
 
         # Mock generate_summary_stats
-        with patch("src.main.generate_summary_stats") as mock_generate_summary:
+        with patch("clint.aws.cost_report.generate_summary_stats") as mock_generate_summary:
             mock_generate_summary.return_value = {
                 "total_cost": 100.0,
                 "service_count": 1,
@@ -89,7 +87,7 @@ class TestMainModule:
             }
 
             # Mock mask_account_id
-            with patch("src.main.mask_account_id", return_value="****-****-9012"):
+            with patch("clint.aws.cost_report.mask_account_id", return_value="****-****-9012"):
                 # Test with --no-internal flag (default behavior)
                 with patch("sys.argv", ["main.py"]):
                     result = main()
@@ -98,9 +96,9 @@ class TestMainModule:
                     mock_ce_client.get_services_cost_summary.assert_called_once_with(days_back=30)
                     mock_generator.generate_html_report.assert_called_once()
 
-    @patch("src.main.CostExplorerClient")
-    @patch("src.main.InternalReportGenerator")
-    @patch("src.main.load_config")
+    @patch("clint.aws.cost_report.CostExplorerClient")
+    @patch("clint.aws.cost_report.InternalReportGenerator")
+    @patch("clint.aws.cost_report.load_config")
     def test_main_internal_report_success(self, mock_load_config, mock_internal_generator, mock_cost_explorer):
         """Test successful internal report generation."""
         # Setup mocks
@@ -149,7 +147,7 @@ class TestMainModule:
         mock_internal_generator.return_value = mock_generator
 
         # Mock generate_summary_stats
-        with patch("src.main.generate_summary_stats") as mock_generate_summary:
+        with patch("clint.aws.cost_report.generate_summary_stats") as mock_generate_summary:
             mock_generate_summary.return_value = {
                 "total_cost": 100.0,
                 "service_count": 1,
@@ -166,9 +164,9 @@ class TestMainModule:
                 mock_ce_client.get_billing_cycle_info.assert_called_once()
                 mock_generator.generate_detailed_report.assert_called_once()
 
-    @patch("src.main.CostExplorerClient")
-    @patch("src.main.InternalReportGenerator")
-    @patch("src.main.load_config")
+    @patch("clint.aws.cost_report.CostExplorerClient")
+    @patch("clint.aws.cost_report.InternalReportGenerator")
+    @patch("clint.aws.cost_report.load_config")
     def test_main_internal_console_only(self, mock_load_config, mock_internal_generator, mock_cost_explorer):
         """Test internal report with console-only output."""
         # Setup mocks
@@ -202,7 +200,7 @@ class TestMainModule:
         mock_internal_generator.return_value = mock_generator
 
         # Mock generate_summary_stats
-        with patch("src.main.generate_summary_stats") as mock_generate_summary:
+        with patch("clint.aws.cost_report.generate_summary_stats") as mock_generate_summary:
             mock_generate_summary.return_value = {
                 "total_cost": 0.0,
                 "service_count": 0,
@@ -216,7 +214,7 @@ class TestMainModule:
                 assert result == 0
                 mock_generator.print_console_summary.assert_called_once()
 
-    @patch("src.main.load_config")
+    @patch("clint.aws.cost_report.load_config")
     def test_main_exception_handling(self, mock_load_config):
         """Test exception handling in main function."""
         mock_load_config.side_effect = Exception("Config error")
@@ -228,7 +226,7 @@ class TestMainModule:
 
     def test_main_with_command_line_args(self):
         """Test main function with command line arguments."""
-        with patch("src.main.load_config") as mock_load_config:
+        with patch("clint.aws.cost_report.load_config") as mock_load_config:
             mock_config = {
                 "aws": {"region": "us-east-1"},
                 "cost_explorer": {"days_back": 30},
@@ -240,25 +238,25 @@ class TestMainModule:
             }
             mock_load_config.return_value = mock_config
 
-            with patch("src.main.CostExplorerClient") as mock_ce_class:
+            with patch("clint.aws.cost_report.CostExplorerClient") as mock_ce_class:
                 mock_ce_client = Mock()
                 mock_ce_client.get_account_id.return_value = "123456789012"
                 mock_ce_client.get_services_cost_summary.return_value = []
                 mock_ce_class.return_value = mock_ce_client
 
-                with patch("src.main.ReportGenerator") as mock_report_class:
+                with patch("clint.aws.cost_report.ReportGenerator") as mock_report_class:
                     mock_generator = Mock()
                     mock_generator.generate_html_report.return_value = "reports/test.html"
                     mock_report_class.return_value = mock_generator
 
-                    with patch("src.main.generate_summary_stats") as mock_generate_summary:
+                    with patch("clint.aws.cost_report.generate_summary_stats") as mock_generate_summary:
                         mock_generate_summary.return_value = {
                             "total_cost": 0.0,
                             "service_count": 0,
                             "top_services": [],
                         }
 
-                        with patch("main.mask_account_id", return_value="****-****-9012"):
+                        with patch("clint.aws.cost_report.mask_account_id", return_value="****-****-9012"):
                             # Test with custom arguments
                             with patch(
                                 "sys.argv",
