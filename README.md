@@ -1,362 +1,367 @@
-# AWS Infrastructure Reporting Tool
+# CallableAPIs Multi-Cloud Infrastructure
 
-A comprehensive AWS-based infrastructure reporting and management tool that uses boto3 and AWS Cost Explorer to generate detailed cost and usage reports. Reports are automatically published to GitHub Pages with careful attention to data sanitization and privacy.
+A comprehensive multi-cloud infrastructure management platform using Terraform, Ansible, and Docker to deploy and manage services across AWS, Google Cloud, Oracle Cloud, and IBM Cloud using free-tier resources.
 
-## Features
+## 🎯 Overview
 
-- 📊 **Cost Analysis**: Retrieve and analyze AWS costs using Cost Explorer API
-- 🔒 **Privacy-First**: Automatically masks sensitive information (account IDs, ARNs)
-- 📈 **Visual Reports**: Beautiful HTML reports with charts and summaries
-- 🤖 **Automated**: GitHub Actions workflow for daily report generation
-- 🌐 **GitHub Pages**: Automatic deployment to GitHub Pages
-- ⚙️ **Configurable**: YAML-based configuration for customization
+This repository contains infrastructure-as-code for deploying and managing a multi-cloud infrastructure that maximizes free-tier resources while maintaining zero cost for compute instances. The platform includes:
 
-## Prerequisites
+- **Multi-cloud deployment** across AWS, Google Cloud, Oracle Cloud, and IBM Cloud
+- **Containerized services** using Docker
+- **Unified CLI tool** (`clint`) for infrastructure management
+- **Automated billing reporting** with multi-cloud cost analysis
+- **Infrastructure as Code** with Terraform
+- **Configuration management** with Ansible
 
-- Python 3.11 or higher
-- Poetry (for dependency management)
-- AWS account with Cost Explorer enabled
-- AWS credentials with appropriate permissions
-- GitHub repository with Pages enabled
+## 📊 Current Infrastructure
 
-## Required AWS Permissions
+### Free Tier Compliant Nodes
 
-The AWS credentials need the following permissions:
+| Provider | Node | Instance Type | vCPUs | RAM | Container | Status |
+|----------|------|---------------|-------|-----|-----------|--------|
+| AWS | anode1 | t2.micro | 1 | 1GB | Services | ✅ Active |
+| Google Cloud | gnode1 | e2-micro | 1 | 1GB | Status | ✅ Active |
 
-```json
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Action": [
-        "ce:GetCostAndUsage",
-        "ce:GetCostForecast",
-        "sts:GetCallerIdentity"
-      ],
-      "Resource": "*"
-    }
-  ]
-}
-```
+**Total Monthly Cost**: $0.00 (100% free tier compliant)
 
-## Installation
+### Container Services
 
-1. Clone the repository:
+- **Base Container**: Provides standard API endpoints (`/`, `/health`, `/api/health`, `/api/status`)
+- **Status Container**: Infrastructure monitoring dashboard at `https://status.callableapis.com`
+- **Services Container**: Application services and APIs
+
+## 🚀 Quick Start
+
+### Prerequisites
+
+- Docker (for running infrastructure tools)
+- Python 3.10+ (for local development)
+- Poetry (for Python dependency management)
+- Terraform (via Docker container)
+- Ansible (for configuration management)
+
+### Initial Setup
+
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/Callable-APIs/infra.git
+   cd infra
+   ```
+
+2. **Configure environment:**
+   ```bash
+   cp env.sh.in env.sh
+   # Edit env.sh with your cloud provider credentials
+   source env.sh
+   ```
+
+3. **Build the infrastructure Docker image:**
+   ```bash
+   docker build -t callableapis:infra .
+   ```
+
+4. **Deploy infrastructure:**
+   ```bash
+   cd terraform
+   docker run --rm -v $(pwd):/app -w /app \
+     -e AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" \
+     -e AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" \
+     # ... other env vars ...
+     callableapis:infra terraform init
+     callableapis:infra terraform plan
+     callableapis:infra terraform apply
+   ```
+
+5. **Deploy containers:**
+   ```bash
+   ansible-playbook -i ansible/inventory/production \
+     ansible/playbooks/containers/deploy-containers.yml
+   ```
+
+## 🛠️ CLINT - Command Line Infrastructure Tool
+
+All Python-based infrastructure tools are centralized in the `clint` module and accessible via a unified CLI.
+
+### Installation
+
+The `clint` module is automatically installed when you build the Docker image or install Poetry dependencies:
+
 ```bash
-git clone https://github.com/Callable-APIs/infra.git
-cd infra
-```
+# Via Docker (recommended)
+docker run --rm -v $(pwd):/app -w /app callableapis:infra python -m clint --help
 
-2. Install Poetry (if not already installed):
-```bash
-curl -sSL https://install.python-poetry.org | python3 -
-```
-
-3. Install dependencies:
-```bash
+# Via Poetry (local development)
 poetry install
+poetry run python -m clint --help
 ```
 
-4. Create configuration file:
-```bash
-cp config.yaml.example config.yaml
-```
+### Available Commands
 
-5. Edit `config.yaml` with your settings:
-```yaml
-aws:
-  region: us-east-1
-  profile: null  # or your AWS profile name
-
-cost_explorer:
-  days_back: 30
-  granularity: DAILY
-  metrics:
-    - UnblendedCost
-    - UsageQuantity
-
-report:
-  title: "AWS Cost and Usage Report"
-  output_dir: "reports"
-  mask_account_ids: true
-  include_service_breakdown: true
-```
-
-## Usage
-
-### Quick Demo (No AWS Required)
-
-Run the example script to see how the tool works without AWS credentials:
+#### Billing and Cost Reporting
 
 ```bash
-python example.py
+# Daily cost breakdown with month-over-month comparison
+python -m clint billing --daily --compare
+
+# Daily costs only
+python -m clint billing --daily
+
+# Month-over-month comparison only
+python -m clint billing --compare
+
+# Specific providers
+python -m clint billing --daily --providers aws oracle
+
+# Custom date range
+python -m clint billing --daily --start 2024-01-01 --end 2024-01-31
 ```
 
-This generates a demo report with mock data in the `demo_reports/` directory.
-
-### Local Execution
-
-Generate a report locally:
+#### Oracle Cloud Utilities
 
 ```bash
-poetry run aws-infra-report
+# Check ARM instance capacity across regions
+python -m clint oracle check-capacity
 ```
 
-Or using the module directly:
+#### Terraform Tools
 
 ```bash
-poetry run python -m src.main
+# Discover existing infrastructure
+python -m clint terraform discover
+
+# Generate Terraform configuration
+python -m clint terraform generate
 ```
 
-With custom options:
+#### Container Management
 
 ```bash
-poetry run aws-infra-report --days 60 --output my-reports
+# Run base container application
+python -m clint container base
+
+# Run status container application
+python -m clint container status
 ```
 
-### Report Types
+### Convenience Scripts
 
-The tool supports two different report types:
+Several shell scripts wrap `clint` commands for easier execution:
 
-#### 1. Public Report (Default)
 ```bash
-poetry run aws-infra-report --days 30
+# Billing reports
+./scripts/run-billing-report.sh --daily --compare
+
+# Oracle Cloud capacity search
+./scripts/find-oracle-arm-capacity.sh
 ```
-- **Sanitized data** (account ID masked)
-- **HTML format** for web viewing
-- **Safe for public sharing**
-- **GitHub Pages ready**
 
-#### 2. Internal Detailed Report
-```bash
-# Generate detailed internal report
-poetry run aws-infra-report --internal --days 30
-
-# Console-only summary
-poetry run aws-infra-report --internal --console-only --days 7
-```
-- **Full account details** (unmasked)
-- **Resource-level costs** (usage types, instance types)
-- **Granular breakdown** by service and usage type
-- **Text format** for analysis
-- **Contains sensitive information**
-
-### Command-line options:
-- `--config PATH`: Path to configuration file (default: config.yaml)
-- `--days N`: Number of days to look back (overrides config)
-- `--output DIR`: Output directory for reports (overrides config)
-- `--no-mask`: Do not mask account IDs (use with caution)
-- `--internal`: Generate internal detailed report with resource-level costs
-- `--console-only`: Print summary to console only (no file output)
-
-### GitHub Actions Automation
-
-The project includes automated GitHub Actions workflows for:
-
-1. **CI/CD Pipeline** (`.github/workflows/ci.yml`):
-   - Runs on every push and pull request
-   - Tests code quality, security, and functionality
-
-2. **Automated Report Publishing** (`.github/workflows/github-pages.yml`):
-   - Runs daily at 2 AM UTC
-   - Generates and publishes sanitized reports to GitHub Pages
-   - Can be triggered manually with custom parameters
-
-#### Setup Instructions:
-
-1. **Add AWS credentials as GitHub secrets:**
-   - Go to repository Settings → Secrets and variables → Actions
-   - Add `AWS_ACCESS_KEY_ID`
-   - Add `AWS_SECRET_ACCESS_KEY`
-
-2. **Enable GitHub Pages:**
-   - Go to Settings → Pages
-   - Set Source to "GitHub Actions"
-   - The workflow will automatically deploy to Pages
-
-3. **Manual Report Generation:**
-   - Go to Actions tab → "Deploy AWS Cost Report to GitHub Pages"
-   - Click "Run workflow"
-   - Optionally specify number of days to look back
-
-4. **Access Your Reports:**
-   - Public reports: `https://yourusername.github.io/infra`
-   - Reports are automatically updated daily
-
-## Security & Privacy
-
-This tool implements multiple security measures:
-
-- ✅ **Account ID Masking**: AWS account IDs are masked (e.g., `****-****-1234`)
-- ✅ **ARN Sanitization**: ARNs are sanitized to remove sensitive details
-- ✅ **Metadata Filtering**: Request IDs and metadata are removed from reports
-- ✅ **No Raw Data**: Only aggregated, sanitized data is included in reports
-- ✅ **Public Service Names**: Only standard AWS service names (public info) are displayed
-
-### What's Safe to Share
-
-- ✅ AWS service names (e.g., "Amazon EC2", "Amazon S3")
-- ✅ Cost amounts and percentages
-- ✅ Usage quantities
-- ✅ Time periods and dates
-
-### What's Protected
-
-- 🔒 Full AWS account IDs (only last 4 digits shown)
-- 🔒 ARNs and resource identifiers
-- 🔒 Request IDs and API metadata
-- 🔒 Custom tags (if enabled in config)
-
-## Project Structure
+## 📁 Project Structure
 
 ```
 infra/
-├── .github/
-│   └── workflows/
-│       └── ci.yml                 # GitHub Actions CI/CD workflow
-├── .pre-commit-config.yaml        # Pre-commit hooks configuration
-├── src/
-│   ├── main.py                    # Main entry point
-│   ├── cost_explorer.py           # AWS Cost Explorer client
-│   ├── sanitizer.py               # Data sanitization utilities
-│   └── report_generator.py        # HTML report generator
-├── tests/
-│   └── test_basic.py              # Test suite
-├── reports/                       # Generated reports (gitignored)
-├── config.yaml.example            # Example configuration
-├── config.yaml                    # Your configuration (gitignored)
-├── pyproject.toml                 # Poetry configuration and dependencies
-├── poetry.lock                    # Poetry lock file (auto-generated)
-├── .gitignore                     # Git ignore rules
-└── README.md                      # This file
+├── clint/                    # Unified CLI tool (all Python code)
+│   ├── __main__.py          # Main CLI entry point
+│   ├── billing/             # Billing adapters (AWS, OCI, IBM)
+│   ├── container/           # Container applications (base, status)
+│   └── secrets/             # Secrets management strategies
+├── ansible/                  # Ansible playbooks and configuration
+│   ├── inventory/          # Host inventory
+│   ├── playbooks/          # Deployment playbooks
+│   └── artifacts/          # Secrets and artifacts (gitignored)
+├── terraform/               # Terraform infrastructure definitions
+│   ├── main.tf             # Main multi-cloud configuration
+│   ├── providers.tf        # Cloud provider configurations
+│   └── variables.tf        # Variable definitions
+├── containers/              # Container definitions
+│   ├── base/               # Base container Dockerfile
+│   └── status/             # Status container Dockerfile
+├── scripts/                 # Utility shell scripts
+├── .github/workflows/      # CI/CD pipelines
+├── Dockerfile              # Main infrastructure tools image
+├── pyproject.toml          # Python dependencies (Poetry)
+└── README.md               # This file
 ```
 
-## Example Report
+## 🔧 Infrastructure Management
 
-The generated HTML reports include:
+### Terraform
 
-- **Summary Cards**: Total cost, active services, reporting period
-- **Top Services Table**: Services ranked by cost with visual bars
-- **Complete Service List**: All services with detailed costs
-- **Privacy Notice**: Clear indication that data is sanitized
+All infrastructure is managed through Terraform with S3-backed state:
 
-## Development
+- **State Backend**: S3 bucket `callableapis-terraform-state` in `us-west-2`
+- **Locking**: DynamoDB table `callableapis-terraform-locks`
+- **Multi-Cloud**: Single state file for all providers
 
-### Setup Development Environment
-
-1. Install development dependencies:
-```bash
-poetry install --with dev
-```
-
-2. Install pre-commit hooks:
-```bash
-poetry run pre-commit install
-```
-
-### Running Tests
+**Important**: Always use the Docker container for Terraform operations:
 
 ```bash
-# Run all tests
-poetry run pytest
-
-# Run tests with coverage
-poetry run pytest --cov=src --cov-report=html
-
-# Run specific test file
-poetry run pytest tests/test_basic.py
+docker run --rm -v $(pwd):/app -w /app \
+  -e AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" \
+  # ... other env vars ...
+  callableapis:infra terraform [command]
 ```
 
-### Code Quality
+### Ansible
 
-The project uses several tools to maintain code quality:
+Configuration management and container deployment:
 
 ```bash
-# Type checking
-poetry run mypy src/
+# Update SSH keys
+ansible-playbook -i ansible/inventory/production \
+  ansible/playbooks/update-ssh-keys.yml
 
-# Linting
-poetry run pylint src/
+# Deploy containers
+ansible-playbook -i ansible/inventory/production \
+  ansible/playbooks/containers/deploy-containers.yml
 
-# Code formatting
-poetry run black src/ tests/
-poetry run isort src/ tests/
-
-# Security scanning
-poetry run bandit -r src/
+# Verify endpoints
+ansible-playbook -i ansible/inventory/production \
+  ansible/playbooks/verify-container-endpoints.yml
 ```
 
-### Pre-commit Hooks
+### Container Deployment
 
-Pre-commit hooks are configured to run automatically on git commit:
+Containers are built via GitHub Actions and pushed to Docker Hub:
 
-- Black (code formatting)
-- isort (import sorting)
-- pylint (linting)
-- mypy (type checking)
-- bandit (security scanning)
-- Various git hooks (trailing whitespace, large files, etc.)
+- **Base Container**: `rl337/callableapis:base`
+- **Status Container**: `rl337/callableapis:status`
+- **Services Container**: `rl337/callableapis:services`
 
-### CI/CD Pipeline
+All containers support multi-platform builds (amd64 and arm64) for Oracle Cloud ARM instances.
 
-The project includes a comprehensive GitHub Actions workflow that runs on every push and pull request:
+## 🔐 Secrets Management
 
-**Test Job:**
-- Runs on Python 3.11 and 3.12
-- Installs dependencies with Poetry
-- Runs mypy for type checking
-- Runs pylint for code linting
-- Runs black and isort for code formatting checks
-- Runs pytest with coverage reporting
-- Uploads coverage reports to Codecov
+Secrets are managed using a strategy pattern with Ansible Vault as the default:
 
-**Security Job:**
-- Runs bandit for security vulnerability scanning
-- Uploads security reports as artifacts
+- **Storage**: Encrypted files in `ansible/artifacts/` (gitignored)
+- **Strategy**: Ansible Vault (extensible to HashiCorp Vault)
+- **Distribution**: Deployed to nodes via Ansible playbooks
+- **Runtime**: Mounted into containers at runtime
 
-The pipeline ensures code quality and security before merging changes.
+**Never commit secrets to git!** Use `env.sh.in` as a template and keep actual credentials in `env.sh` (gitignored).
 
-### Contributing
+## 📊 Billing and Cost Management
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Submit a pull request
+### Multi-Cloud Billing Reports
 
-## Troubleshooting
+Generate comprehensive billing reports across all cloud providers:
 
-### "Unable to locate credentials"
+```bash
+# Full report (daily + month-over-month)
+./scripts/run-billing-report.sh
 
-Make sure AWS credentials are configured:
-- For local: Use `aws configure` or set environment variables
-- For GitHub Actions: Add secrets `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`
+# Daily breakdown only
+./scripts/run-billing-report.sh --daily-only
 
-### "Cost Explorer is not enabled"
+# Specific providers
+./scripts/run-billing-report.sh --providers aws oracle
+```
 
-Enable Cost Explorer in your AWS account:
-1. Go to AWS Cost Management Console
-2. Enable Cost Explorer (may take 24 hours to activate)
+### Free Tier Compliance
 
-### Empty reports
+All active infrastructure is free tier compliant:
 
-- Ensure you have costs in the specified time period
-- Check that your AWS credentials have the required permissions
-- Verify Cost Explorer is enabled and has data
+- **AWS**: t2.micro (always free tier eligible)
+- **Google Cloud**: e2-micro (always free tier)
+- **Oracle Cloud**: VM.Standard.A1.Flex ARM instances (always free tier)
+- **IBM Cloud**: cx2-2x4 (free tier eligible)
 
-## License
+## 🧪 Testing and Validation
+
+### Run All Checks
+
+```bash
+./run_checks.sh
+```
+
+This runs:
+- Code formatting (Black, isort)
+- Type checking (mypy)
+- Security scanning (bandit)
+- Unit tests (pytest)
+- Docker build validation
+
+### Test Container Endpoints
+
+```bash
+./test-container-endpoints.sh
+```
+
+Tests all required endpoints (`/`, `/health`, `/api/health`, `/api/status`) across all nodes.
+
+## 📚 Documentation
+
+- **AGENTS.md**: Comprehensive development guidelines and design principles
+- **terraform/README.md**: Terraform-specific documentation
+- **ansible/SETUP_GUIDE.md**: Ansible setup and usage guide
+
+## 🔄 Development Workflow
+
+### Task Management
+
+All work should be tracked via GitHub Issues:
+
+1. Create a GitHub Issue for the task
+2. Create a branch: `00001-task-description` (5-digit issue ID + snake_case title)
+3. Make changes and commit frequently
+4. Run `./run_checks.sh` before committing
+5. Create a PR with "Closes #<issue_number>"
+6. Wait for GitHub Actions to pass
+7. Update the issue with completion status
+
+### Code Organization
+
+**CRITICAL**: All Python code must be in the `clint/` module:
+
+- ✅ **Good**: `clint/billing/aws_adapter.py`
+- ❌ **Bad**: `src/billing.py` or `scripts/billing.py`
+
+See `AGENTS.md` for detailed guidelines.
+
+## 🚨 Troubleshooting
+
+### Terraform State Issues
+
+If Terraform reports "No changes" but resources are missing:
+
+1. Check for commented-out resources in `terraform/main.tf`
+2. Compare state with actual cloud resources
+3. Uncomment and apply missing resources
+
+### Container Endpoint Issues
+
+If containers aren't responding:
+
+1. Check container status: `ansible all -i ansible/inventory/production -m shell -a "docker ps"`
+2. Verify inventory groups match container assignments
+3. Test endpoints: `./test-container-endpoints.sh`
+
+### Billing API Issues
+
+If billing reports fail:
+
+1. Verify credentials in `env.sh`
+2. Check API permissions for each provider
+3. Review error messages in the report output
+
+## 📝 License
 
 MIT License - See LICENSE file for details
 
-## Support
+## 🤝 Contributing
 
-For issues and questions:
-- Open an issue on GitHub
-- Check existing issues for solutions
-- Review AWS Cost Explorer documentation
+1. Fork the repository
+2. Create a feature branch (following task workflow above)
+3. Make your changes
+4. Run `./run_checks.sh` to validate
+5. Submit a pull request
 
-## Acknowledgments
+## 🔗 Links
 
-- Built with [boto3](https://boto3.amazonaws.com/v1/documentation/api/latest/index.html)
-- Templating by [Jinja2](https://jinja.palletsprojects.com/)
-- Automated with [GitHub Actions](https://github.com/features/actions)
+- **Status Dashboard**: https://status.callableapis.com
+- **GitHub Repository**: https://github.com/Callable-APIs/infra
+- **Issue Tracker**: https://github.com/Callable-APIs/infra/issues
+
+---
+
+**Note**: This infrastructure is designed to operate entirely within free-tier limits. All active nodes are free tier compliant, resulting in $0.00 monthly compute costs.
