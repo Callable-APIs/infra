@@ -2,7 +2,85 @@
 
 ## Use of Docker
 
-For isolating command line dependencies and execution of commands you will use a Docker container.  If one does not yet exist, create a Dockerfile and as dependencies or command line tools / libraries are needed add them to the docker container.   All execution of local command should happen in the Docker container where the project directory is shared as a volume.
+**CRITICAL: Always use the Docker container for all operations. Never install dependencies locally.**
+
+### Docker Container Requirements
+
+For isolating command line dependencies and execution of commands you will use a Docker container. If one does not yet exist, create a Dockerfile and as dependencies or command line tools / libraries are needed add them to the docker container. All execution of local commands should happen in the Docker container where the project directory is shared as a volume.
+
+### Dependency Management Rules
+
+1. **All Python dependencies MUST be installed in the Docker container**, not locally
+2. **When adding new dependencies**, update the Dockerfile (and `pyproject.toml` for Poetry), then rebuild the container
+3. **Never run `poetry install` or `pip install` locally** - these should only happen in the Docker container
+4. **All commands should run through the Docker container** using `docker run --rm -v $(pwd):/app -w /app callableapis:infra <command>`
+
+### Prohibited Actions
+- ❌ Installing Python packages locally using `poetry install`, `pip install`, or `poetry add`
+- ❌ Running Python commands directly (e.g., `python -m clint billing`)
+- ❌ Installing system dependencies locally
+- ❌ Modifying local Python environments
+
+### Required Actions
+- ✅ Always use the Docker container: `docker run --rm -v $(pwd):/app -w /app callableapis:infra <command>`
+- ✅ Add dependencies to `pyproject.toml` and update the Dockerfile if needed
+- ✅ Rebuild the Docker container after adding dependencies: `docker build -t callableapis:infra -f Dockerfile .`
+- ✅ Run all Python commands through the container: `docker run --rm -v $(pwd):/app -w /app callableapis:infra python -m clint <command>`
+- ✅ Run all Terraform commands through the container: `docker run --rm -v $(pwd):/app -w /app/terraform -e [ENV_VARS] callableapis:infra terraform <command>`
+
+### Docker Container Usage Examples
+
+```bash
+# Run Python CLI commands
+docker run --rm -v $(pwd):/app -w /app callableapis:infra python -m clint billing --daily
+
+# Run Terraform commands
+docker run --rm -v $(pwd):/app -w /app/terraform \
+  -e AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" \
+  -e AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" \
+  callableapis:infra terraform plan
+
+# Run cloud CLI commands
+docker run --rm -v $(pwd):/app -w /app callableapis:infra aws s3 ls
+docker run --rm -v $(pwd):/app -w /app callableapis:infra oci compute instance list
+docker run --rm -v $(pwd):/app -w /app callableapis:infra ibmcloud account list
+
+# Rebuild container after dependency changes
+docker build -t callableapis:infra -f Dockerfile .
+```
+
+### Adding New Dependencies
+
+When adding new Python dependencies:
+
+1. **Add to `pyproject.toml`** (for Poetry-managed dependencies):
+   ```toml
+   [tool.poetry.dependencies]
+   new-dependency = "^1.0.0"
+   ```
+
+2. **Update Dockerfile if needed** (for system packages or special installation):
+   ```dockerfile
+   # Install special dependency
+   RUN pip install special-package || echo "Warning: installation failed"
+   ```
+
+3. **Rebuild the Docker container**:
+   ```bash
+   docker build -t callableapis:infra -f Dockerfile .
+   ```
+
+4. **Test in the container**:
+   ```bash
+   docker run --rm -v $(pwd):/app -w /app callableapis:infra python -m clint <command>
+   ```
+
+### Container Image
+
+The primary Docker container is:
+- **Image name**: `callableapis:infra`
+- **Dockerfile**: `Dockerfile` (root of repository)
+- **Purpose**: Infrastructure management, Terraform, cloud CLIs, Python tools
 
 ## Ansible Playbook Design Principles
 
@@ -206,8 +284,9 @@ When adding new Python functionality:
    [tool.poetry.dependencies]
    new-dependency = "^1.0.0"
    ```
-4. **Update containers** if needed (copy `clint/` module in Dockerfile)
-5. **Test via CLI**: `python -m clint new-feature --help`
+4. **Update Dockerfile** if the dependency needs special installation (see "Use of Docker" section)
+5. **Rebuild Docker container**: `docker build -t callableapis:infra -f Dockerfile .`
+6. **Test via CLI in container**: `docker run --rm -v $(pwd):/app -w /app callableapis:infra python -m clint new-feature --help`
 
 ### Migration from Scattered Code
 
@@ -730,24 +809,32 @@ When evaluating or creating a new service container, it MUST provide all the sta
 Every container in the infrastructure MUST implement these four standard endpoints:
 
 1. **`GET /`** - Root endpoint
-   - Returns JSON with service information
-   - Format: `{"service": "Container Name", "version": "...", "status": "running", "uptime": "...", "timestamp": "..."}`
-   - Should include list of available endpoints
+   - **Flexible format**: Can return HTML (for user-facing containers like status dashboard) or JSON (for API services)
+   - **HTML format**: User-friendly interface (e.g., status dashboard, API documentation landing page)
+   - **JSON format**: `{"service": "Container Name", "version": "...", "status": "running", "uptime": "...", "timestamp": "..."}`
+   - **Note**: If root returns HTML, JSON service info must be available via `/api/status` endpoint
+   - **Examples**:
+     - Status container: Returns HTML dashboard (primary use case for browser access)
+     - Base container: Returns JSON service info
+     - Services container: Can return HTML landing page with API docs, or JSON service info
 
 2. **`GET /health`** - Health check endpoint
-   - Returns JSON with health status
+   - **MUST return JSON** with health status
    - Format: `{"status": "healthy", "timestamp": "...", "version": "..."}`
    - Used by load balancers, monitoring, and Docker health checks
+   - **Critical**: This endpoint is used by automated systems and must be JSON
 
 3. **`GET /api/health`** - API health check endpoint
-   - Returns JSON with API status
+   - **MUST return JSON** with API status
    - Format: `{"status": "ok", "timestamp": "...", "version": "..."}`
    - Used for API-level health monitoring
+   - **Critical**: This endpoint is used by automated systems and must be JSON
 
 4. **`GET /api/status`** - Detailed status endpoint
-   - Returns JSON with comprehensive service status
+   - **MUST return JSON** with comprehensive service status
    - Format: `{"service": "...", "version": "...", "status": "running", "uptime": "...", "timestamp": "...", ...}`
    - May include additional service-specific information
+   - **Critical**: This endpoint provides JSON service info when root endpoint returns HTML
 
 ### Service-Specific Endpoints
 
@@ -759,12 +846,14 @@ Containers may add their own additional endpoints beyond the base requirements:
 
 When evaluating or creating a new service container:
 
-- ✅ **Root endpoint** (`/`): Returns JSON service info matching base container format
-- ✅ **Health endpoint** (`/health`): Returns health status matching base container format
-- ✅ **API health endpoint** (`/api/health`): Returns API status matching base container format
-- ✅ **Status endpoint** (`/api/status`): Returns detailed status matching base container format
+- ✅ **Root endpoint** (`/`): Returns HTML (for user-facing) or JSON (for API services)
+  - If HTML: Must provide JSON alternative via `/api/status`
+  - If JSON: Should match base container format
+- ✅ **Health endpoint** (`/health`): **MUST return JSON** with format `{"status": "healthy", "timestamp": "...", "version": "..."}`
+- ✅ **API health endpoint** (`/api/health`): **MUST return JSON** with format `{"status": "ok", "timestamp": "...", "version": "..."}`
+- ✅ **Status endpoint** (`/api/status`): **MUST return JSON** with detailed status matching base container format
 - ✅ **Service-specific endpoints**: May add additional endpoints beyond base requirements
-- ✅ **Response format**: All endpoints return JSON (except HTML endpoints like `/dashboard`)
+- ✅ **Response format**: `/health`, `/api/health`, and `/api/status` MUST return JSON (root endpoint can be HTML or JSON)
 
 ### Example: Base Container Implementation
 

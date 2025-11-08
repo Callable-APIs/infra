@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 # Try to import IBM Platform Services SDK
 try:
-    from ibm_platform_services import UsageReportsV4
+    from ibm_platform_services.usage_reports_v4 import UsageReportsV4
     IBM_SDK_AVAILABLE = True
     logger.info("IBM Platform Services SDK imported successfully")
 except ImportError as e:

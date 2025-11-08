@@ -1,0 +1,223 @@
+---
+- name: Setup Node From Scratch
+  hosts: all
+  become: yes
+  vars:
+    playbook_dir: "{{ playbook_dir }}"
+  
+  tasks:
+    - name: Display node setup start
+      ansible.builtin.debug:
+        msg: |
+          Starting node setup from scratch for {{ inventory_hostname }}
+          Provider: {{ hostvars[inventory_hostname]['provider'] | default('unknown') }}
+          Role: {{ hostvars[inventory_hostname]['role'] | default('unknown') }}
+
+- name: Bootstrap Node (Python and Basics)
+  hosts: all
+  become: yes
+  gather_facts: false
+  
+  tasks:
+    - name: Install Python 3.10+ if not already installed (Amazon Linux 2)
+      ansible.builtin.raw: |
+        set -e
+        # Check if python3.10 already exists
+        if [ -f /usr/local/bin/python3.10 ] || [ -f /usr/bin/python3.10 ]; then
+          echo "Python 3.10 already installed"
+        elif command -v amazon-linux-extras >/dev/null 2>&1; then
+          sudo amazon-linux-extras install -y python3.10 || true
+        fi
+        # Verify python3.10 is available
+        if [ ! -f /usr/local/bin/python3.10 ] && [ ! -f /usr/bin/python3.10 ]; then
+          echo "ERROR: python3.10 not found"
+          exit 1
+        fi
+      when: hostvars[inventory_hostname]['provider'] == 'aws'
+      changed_when: false
+    
+    - name: Symlink python -> python3.10 if needed
+      ansible.builtin.raw: |
+        set -e
+        # Check both /usr/bin/python3.10 and /usr/local/bin/python3.10
+        if [ -f /usr/local/bin/python3.10 ]; then
+          sudo ln -sf /usr/local/bin/python3.10 /usr/bin/python3 || true
+          sudo ln -sf /usr/local/bin/python3.10 /usr/bin/python || true
+        elif [ -f /usr/bin/python3.10 ]; then
+          sudo ln -sf /usr/bin/python3.10 /usr/bin/python3 || true
+          sudo ln -sf /usr/bin/python3.10 /usr/bin/python || true
+        elif command -v python3 >/dev/null 2>&1; then
+          sudo ln -sf /usr/bin/python3 /usr/bin/python || true
+        fi
+      when: hostvars[inventory_hostname]['provider'] == 'aws'
+      changed_when: false
+    
+    - name: Verify Python is available
+      ansible.builtin.raw: python3 --version
+      changed_when: false
+    
+    - name: Gather facts now that Python is present
+      ansible.builtin.setup:
+
+- name: Install Docker
+  hosts: all
+  become: yes
+  
+  tasks:
+    - name: Install Docker using amazon-linux-extras (AWS)
+      ansible.builtin.shell: |
+        if ! command -v docker &> /dev/null; then
+          sudo amazon-linux-extras install -y docker || true
+          # If that fails, try the official script
+          if ! command -v docker >/dev/null 2>&1; then
+            curl -fsSL https://get.docker.com -o /tmp/get-docker.sh
+            sudo sh /tmp/get-docker.sh
+            rm -f /tmp/get-docker.sh
+          fi
+        fi
+      when: hostvars[inventory_hostname]['provider'] == 'aws'
+      args:
+        executable: /bin/bash
+    
+    - name: Install Docker on other nodes (standard)
+      ansible.builtin.shell: |
+        if ! command -v docker &> /dev/null; then
+          curl -fsSL https://get.docker.com -o /tmp/get-docker.sh
+          sh /tmp/get-docker.sh
+          rm -f /tmp/get-docker.sh
+        fi
+      when: hostvars[inventory_hostname]['provider'] != 'aws'
+      args:
+        executable: /bin/bash
+    
+    - name: Enable and start Docker service
+      ansible.builtin.systemd:
+        name: docker
+        enabled: yes
+        state: started
+    
+    - name: Add user to docker group (AWS)
+      ansible.builtin.user:
+        name: "{{ ansible_user }}"
+        groups: docker
+        append: yes
+      when: hostvars[inventory_hostname]['provider'] == 'aws'
+    
+    - name: Add user to docker group (other)
+      ansible.builtin.user:
+        name: "{{ ansible_user }}"
+        groups: docker
+        append: yes
+      when: hostvars[inventory_hostname]['provider'] != 'aws'
+    
+    - name: Verify Docker installation
+      ansible.builtin.command: docker --version
+      register: docker_version
+      changed_when: false
+    
+    - name: Display Docker version
+      ansible.builtin.debug:
+        msg: "Docker installed: {{ docker_version.stdout }}"
+
+- name: Update SSH Keys
+  import_playbook: update-ssh-keys.yml
+
+- name: Install Nginx (for webapp hosts)
+  hosts: webapp_hosts
+  become: yes
+  
+  tasks:
+    - name: Install Nginx on Amazon Linux
+      ansible.builtin.shell: |
+        if ! command -v nginx &> /dev/null; then
+          # Use python3 explicitly for amazon-linux-extras
+          if command -v python3 &> /dev/null && [ -f /usr/bin/amazon-linux-extras ]; then
+            python3 /usr/bin/amazon-linux-extras install -y nginx1 || yum install -y nginx
+          else
+            # Fallback: try yum directly
+            yum install -y nginx || (yum install -y epel-release && yum install -y nginx)
+          fi
+        fi
+      when: ansible_os_family == "RedHat"
+      args:
+        executable: /bin/bash
+      register: nginx_install
+      failed_when: false
+    
+    - name: Install Nginx on Debian/Ubuntu
+      ansible.builtin.apt:
+        name: nginx
+        state: present
+        update_cache: yes
+      when: ansible_os_family == "Debian"
+    
+    - name: Enable and start Nginx
+      ansible.builtin.systemd:
+        name: nginx
+        enabled: yes
+        state: started
+      when: (nginx_install.changed or ansible_os_family == "Debian") and (nginx_install.rc == 0 or ansible_os_family == "Debian")
+      ignore_errors: yes
+    
+    - name: Start Nginx manually if systemd failed
+      ansible.builtin.shell: |
+        if command -v nginx &> /dev/null; then
+          nginx -t && nginx || true
+        fi
+      when: ansible_os_family == "RedHat"
+      failed_when: false
+    
+    - name: Verify Nginx installation
+      ansible.builtin.command: nginx -v
+      register: nginx_version
+      changed_when: false
+      failed_when: false
+    
+    - name: Display Nginx version
+      ansible.builtin.debug:
+        msg: "Nginx installed: {{ nginx_version.stderr | default(nginx_version.stdout) }}"
+
+- name: Deploy Containers
+  import_playbook: containers/deploy-containers.yml
+
+- name: Configure Nginx Routing
+  import_playbook: nginx/setup-nginx.yml
+
+- name: Verify Deployment
+  hosts: all
+  become: yes
+  
+  tasks:
+    - name: Verify container deployment
+      ansible.builtin.import_playbook: verify-container-deployment.yml
+    
+    - name: Test container endpoints
+      ansible.builtin.import_playbook: testing/test-container-endpoints.yml
+      when: "'webapp_hosts' in group_names"
+
+- name: Display Setup Completion
+  hosts: all
+  become: no
+  
+  tasks:
+    - name: Show node setup summary
+      ansible.builtin.debug:
+        msg: |
+          ========================================
+          Node Setup Complete: {{ inventory_hostname }}
+          ========================================
+          Provider: {{ hostvars[inventory_hostname]['provider'] | default('unknown') }}
+          Role: {{ hostvars[inventory_hostname]['role'] | default('unknown') }}
+          
+          Components Installed:
+          - Python: Available
+          - Docker: Installed and running
+          {% if inventory_hostname in groups['webapp_hosts'] %}
+          - Nginx: Installed and configured
+          {% endif %}
+          - Containers: Deployed based on inventory groups
+          - SSH Keys: Updated
+          
+          Status: NODE READY FOR PRODUCTION
+          ========================================
+

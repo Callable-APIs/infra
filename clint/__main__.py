@@ -175,6 +175,19 @@ Examples:
         help="Check Oracle Cloud ARM instance capacity across regions",
     )
 
+    # IBM Cloud commands
+    ibm_parser = subparsers.add_parser(
+        "ibm",
+        help="IBM Cloud utilities",
+        description="IBM Cloud infrastructure management tools",
+    )
+    ibm_subparsers = ibm_parser.add_subparsers(dest="ibm_command")
+    
+    ibm_check_capacity_parser = ibm_subparsers.add_parser(
+        "check-capacity",
+        help="Check IBM Cloud free tier instance availability across regions",
+    )
+
     # Terraform commands
     terraform_parser = subparsers.add_parser(
         "terraform",
@@ -539,6 +552,14 @@ def run_oracle_check_capacity(args):
     capacity_main()
 
 
+def run_ibm_check_capacity(args):
+    """Run IBM Cloud capacity check."""
+    from clint.ibm.capacity import main as capacity_main
+    
+    sys.argv = ["capacity.py"]
+    capacity_main()
+
+
 def run_domains(args):
     """Run domain management commands."""
     from clint.domains.manager import DomainManager
@@ -659,6 +680,11 @@ def main():
                 run_oracle_check_capacity(args)
             else:
                 parser.parse_args(["oracle", "--help"])
+        elif args.command == "ibm":
+            if args.ibm_command == "check-capacity":
+                run_ibm_check_capacity(args)
+            else:
+                parser.parse_args(["ibm", "--help"])
         elif args.command == "terraform":
             if args.terraform_command == "discover":
                 run_terraform_discover(args)

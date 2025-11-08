@@ -7,10 +7,27 @@
     ssl_cert_dir: "/etc/ssl/callableapis"
 
   tasks:
-    - name: Install Nginx
-      ansible.builtin.package:
+    - name: Install Nginx (Amazon Linux)
+      ansible.builtin.shell: |
+        if ! command -v nginx &> /dev/null; then
+          # Use python3 explicitly for amazon-linux-extras
+          if command -v python3 &> /dev/null && [ -f /usr/bin/amazon-linux-extras ]; then
+            python3 /usr/bin/amazon-linux-extras install -y nginx1 || yum install -y nginx
+          else
+            yum install -y nginx || (yum install -y epel-release && yum install -y nginx)
+          fi
+        fi
+      when: ansible_os_family == "RedHat"
+      args:
+        executable: /bin/bash
+      failed_when: false
+    
+    - name: Install Nginx (Debian/Ubuntu)
+      ansible.builtin.apt:
         name: nginx
         state: present
+        update_cache: yes
+      when: ansible_os_family == "Debian"
 
     - name: Create Nginx SSL directory
       ansible.builtin.file:

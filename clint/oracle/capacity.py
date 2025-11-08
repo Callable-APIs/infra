@@ -1,5 +1,7 @@
 """Check Oracle Cloud regions for ARM instance availability."""
 import logging
+import os
+import sys
 from typing import List, Dict
 
 try:

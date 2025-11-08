@@ -66,8 +66,7 @@ RUN pip install poetry
 # Configure Poetry
 RUN poetry config virtualenvs.create false
 
-# Copy application code first
-COPY src/ ./src/
+# Copy application code
 COPY clint/ ./clint/
 COPY config.yaml.example ./
 COPY README.md ./

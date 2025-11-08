@@ -14,7 +14,7 @@
         name: ansible
         shell: /bin/bash
         createhome: yes
-        groups: sudo
+        groups: "{{ 'wheel' if ansible_os_family == 'RedHat' else 'sudo' }}"
         append: yes
       when: not ansible_user_check.changed
 
@@ -48,8 +48,9 @@
   handlers:
     - name: restart ssh
       ansible.builtin.service:
-        name: ssh
+        name: "{{ 'sshd' if ansible_os_family == 'RedHat' else 'ssh' }}"
         state: restarted
+      ignore_errors: yes
 
   vars:
     ssh_public_key_path: "{{ playbook_dir | dirname }}/artifacts/ssh/callableapis_rotated_public_key"

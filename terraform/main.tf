@@ -660,10 +660,10 @@ resource "cloudflare_record" "api" {
   zone_id         = data.cloudflare_zone.callableapis.id
   name            = "api"
   type            = "A"
-  content         = ibm_is_floating_ip.callableapis_fip.address
+  content         = "35.88.22.9"  # AWS instance anode1 - updated manually due to state sync issue
   proxied         = true
   allow_overwrite = true
-  comment         = "API endpoint - IBM Cloud services container"
+  comment         = "API endpoint - AWS services container (anode1)"
 }
 
 resource "cloudflare_record" "gnode1" {
@@ -720,6 +720,21 @@ resource "cloudflare_record" "status" {
 #   cloudflare_account_id = var.cloudflare_account_id
 #   cloudflare_zone_id    = data.cloudflare_zone.callableapis.id
 # }
+
+# Cloudflare Page Rule: Route /api/status from www to status endpoint
+resource "cloudflare_page_rule" "www_api_status_redirect" {
+  zone_id  = data.cloudflare_zone.callableapis.id
+  target   = "www.callableapis.com/api/status*"
+  priority = 1
+  status   = "active"
+
+  actions {
+    forwarding_url {
+      url         = "https://status.callableapis.com/api/status"
+      status_code = 301
+    }
+  }
+}
 
 # Cloudflare zone settings
 resource "cloudflare_zone_settings_override" "caching" {
