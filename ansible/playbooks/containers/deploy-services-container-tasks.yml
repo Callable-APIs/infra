@@ -18,7 +18,28 @@
     docker rm callableapis-services 2>/dev/null || true
   failed_when: false
 
-- name: Deploy services container with vault mount
+- name: Get AWS credentials from host environment
+  ansible.builtin.set_fact:
+    aws_access_key_id: "{{ lookup('env', 'AWS_ACCESS_KEY_ID') | default('', true) }}"
+    aws_secret_access_key: "{{ lookup('env', 'AWS_SECRET_ACCESS_KEY') | default('', true) }}"
+  when: hostvars[inventory_hostname]['provider'] == 'aws'
+  no_log: true
+
+- name: Deploy services container with vault mount and AWS credentials
+  ansible.builtin.shell: |
+    docker run -d \
+      --name callableapis-services \
+      --restart unless-stopped \
+      -p {{ hostvars[inventory_hostname]['services_port'] | default('8080') }}:8080 \
+      {% if vault_dir_stat.stat.exists %}-v {{ vault_dir }}:/app/vault:ro {% endif %}\
+      {% if hostvars[inventory_hostname]['provider'] == 'aws' and aws_access_key_id is defined and aws_access_key_id != '' %}-e AWS_ACCESS_KEY_ID="{{ aws_access_key_id }}" -e AWS_SECRET_ACCESS_KEY="{{ aws_secret_access_key }}" {% endif %}\
+      rl337/callableapis:services
+  register: container_deploy
+  failed_when: false
+  when: hostvars[inventory_hostname]['provider'] == 'aws'
+  no_log: true
+
+- name: Deploy services container with vault mount (non-AWS)
   ansible.builtin.shell: |
     docker run -d \
       --name callableapis-services \
@@ -28,13 +49,14 @@
       rl337/callableapis:services
   register: container_deploy
   failed_when: false
+  when: hostvars[inventory_hostname]['provider'] != 'aws'
 
 - name: Wait for container to be ready
   ansible.builtin.wait_for:
     port: "{{ hostvars[inventory_hostname]['services_port'] | default('8080') }}"
     host: "127.0.0.1"
     timeout: 30
-  when: container_deploy.rc == 0
+  when: container_deploy is defined and (container_deploy.rc is defined and container_deploy.rc == 0)
 
 - name: Verify services container is running
   ansible.builtin.shell: docker ps --filter name=callableapis-services
@@ -49,5 +71,6 @@
       - Port: {{ hostvars[inventory_hostname]['services_port'] | default('8080') }}
       - Path: {{ hostvars[inventory_hostname]['services_path'] | default('/api/v1') }}
       - Vault Mount: {{ vault_dir }}:/app/vault:ro ({{ 'MOUNTED' if vault_dir_stat.stat.exists else 'NOT AVAILABLE' }})
-      - Status: {{ 'RUNNING' if container_deploy.rc == 0 else 'FAILED' }}
-      - Container Output: {{ container_status.stdout }}
+      - AWS Credentials: {{ 'CONFIGURED' if (hostvars[inventory_hostname]['provider'] == 'aws' and aws_access_key_id is defined and aws_access_key_id != '') else 'NOT CONFIGURED' }}
+      - Status: {{ 'RUNNING' if (container_deploy is defined and container_deploy.rc is defined and container_deploy.rc == 0) or (container_deploy is defined and container_deploy.changed is defined) else 'UNKNOWN' }}
+      - Container Output: {{ container_status.stdout | default('N/A') }}
