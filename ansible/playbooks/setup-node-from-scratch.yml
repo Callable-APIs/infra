@@ -177,6 +177,10 @@
       ansible.builtin.debug:
         msg: "Nginx installed: {{ nginx_version.stderr | default(nginx_version.stdout) }}"
 
+- name: Deploy Secrets (for containers that need vault access)
+  import_playbook: secrets/deploy-secrets-simple.yml
+  when: inventory_hostname in groups['base_container_hosts'] or inventory_hostname in groups['services_container_hosts']
+
 - name: Deploy Containers
   import_playbook: containers/deploy-containers.yml
 

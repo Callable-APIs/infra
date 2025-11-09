@@ -5,45 +5,53 @@
     container_image: "rl337/callableapis:base"
     container_port: "{{ hostvars[inventory_hostname]['base_port'] | default('8080') }}"
     container_path: "{{ hostvars[inventory_hostname]['base_path'] | default('/') }}"
+    vault_dir: "/home/ansible/.ansible/vault"
 
-    - name: Pull base container image
-      ansible.builtin.shell: docker pull {{ container_image }}
-      failed_when: false
+- name: Check if vault directory exists
+  ansible.builtin.stat:
+    path: "{{ vault_dir }}"
+  register: vault_dir_stat
 
-    - name: Stop existing base container
-      ansible.builtin.shell: |
-        docker stop {{ container_name }} 2>/dev/null || true
-        docker rm {{ container_name }} 2>/dev/null || true
-      failed_when: false
+- name: Pull base container image
+  ansible.builtin.shell: docker pull {{ container_image }}
+  failed_when: false
 
-    - name: Deploy base container
-      ansible.builtin.shell: |
-        docker run -d \
-          --name {{ container_name }} \
-          --restart unless-stopped \
-          -p {{ container_port }}:8080 \
-          {{ container_image }}
-      register: container_deploy
-      failed_when: false
+- name: Stop existing base container
+  ansible.builtin.shell: |
+    docker stop {{ container_name }} 2>/dev/null || true
+    docker rm {{ container_name }} 2>/dev/null || true
+  failed_when: false
 
-    - name: Wait for container to be ready
-      ansible.builtin.wait_for:
-        port: "{{ container_port }}"
-        host: "127.0.0.1"
-        timeout: 30
-      when: container_deploy.rc == 0
+- name: Deploy base container with vault mount
+  ansible.builtin.shell: |
+    docker run -d \
+      --name {{ container_name }} \
+      --restart unless-stopped \
+      -p {{ container_port }}:8080 \
+      {% if vault_dir_stat.stat.exists %}-v {{ vault_dir }}:/app/vault:ro {% endif %}\
+      {{ container_image }}
+  register: container_deploy
+  failed_when: false
 
-    - name: Verify base container is running
+- name: Wait for container to be ready
+  ansible.builtin.wait_for:
+    port: "{{ container_port }}"
+    host: "127.0.0.1"
+    timeout: 30
+  when: container_deploy.rc == 0
+
+- name: Verify base container is running
   ansible.builtin.shell: docker ps --filter name={{ container_name }}
-      register: container_status
+  register: container_status
 
-    - name: Display base container status
-      ansible.builtin.debug:
-        msg: |
-          Base Container Deployment:
-          - Container: {{ container_name }}
-          - Image: {{ container_image }}
-          - Port: {{ container_port }}
-          - Path: {{ container_path }}
-          - Status: {{ 'RUNNING' if container_deploy.rc == 0 else 'FAILED' }}
-          - Details: {{ container_status.stdout }}
+- name: Display base container status
+  ansible.builtin.debug:
+    msg: |
+      Base Container Deployment:
+      - Container: {{ container_name }}
+      - Image: {{ container_image }}
+      - Port: {{ container_port }}
+      - Path: {{ container_path }}
+      - Vault Mount: {{ vault_dir }}:/app/vault:ro ({{ 'MOUNTED' if vault_dir_stat.stat.exists else 'NOT AVAILABLE' }})
+      - Status: {{ 'RUNNING' if container_deploy.rc == 0 else 'FAILED' }}
+      - Details: {{ container_status.stdout }}

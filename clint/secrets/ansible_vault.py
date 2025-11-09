@@ -13,8 +13,8 @@ class AnsibleVaultStrategy(SecretsStrategy):
 
     def __init__(
         self,
-        vault_password_file: str = "/app/vault-password",
-        secrets_file: str = "/app/secrets/all-secrets.env",
+        vault_password_file: str = "/app/vault/vault-password",
+        secrets_file: str = "/app/vault/secrets.yml",
     ):
         """
         Initialize Ansible Vault strategy.

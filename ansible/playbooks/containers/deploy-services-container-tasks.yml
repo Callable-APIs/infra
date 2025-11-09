@@ -1,3 +1,13 @@
+---
+- name: Set vault directory path
+  ansible.builtin.set_fact:
+    vault_dir: "/home/ansible/.ansible/vault"
+
+- name: Check if vault directory exists
+  ansible.builtin.stat:
+    path: "{{ vault_dir }}"
+  register: vault_dir_stat
+
 - name: Pull services container image
   ansible.builtin.shell: docker pull rl337/callableapis:services
   failed_when: false
@@ -14,7 +24,7 @@
       --name callableapis-services \
       --restart unless-stopped \
       -p {{ hostvars[inventory_hostname]['services_port'] | default('8080') }}:8080 \
-      -v /home/ansible/.ansible/vault:/app/vault:ro \
+      {% if vault_dir_stat.stat.exists %}-v {{ vault_dir }}:/app/vault:ro {% endif %}\
       rl337/callableapis:services
   register: container_deploy
   failed_when: false
@@ -38,6 +48,6 @@
       - Image: rl337/callableapis:services
       - Port: {{ hostvars[inventory_hostname]['services_port'] | default('8080') }}
       - Path: {{ hostvars[inventory_hostname]['services_path'] | default('/api/v1') }}
-      - Vault Mount: /home/ansible/.ansible/vault:/app/vault:ro
+      - Vault Mount: {{ vault_dir }}:/app/vault:ro ({{ 'MOUNTED' if vault_dir_stat.stat.exists else 'NOT AVAILABLE' }})
       - Status: {{ 'RUNNING' if container_deploy.rc == 0 else 'FAILED' }}
       - Container Output: {{ container_status.stdout }}
