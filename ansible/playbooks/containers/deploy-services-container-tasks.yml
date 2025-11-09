@@ -32,7 +32,7 @@
       --restart unless-stopped \
       -p {{ hostvars[inventory_hostname]['services_port'] | default('8080') }}:8080 \
       {% if vault_dir_stat.stat.exists %}-v {{ vault_dir }}:/app/vault:ro {% endif %}\
-      {% if hostvars[inventory_hostname]['provider'] == 'aws' and aws_access_key_id is defined and aws_access_key_id != '' %}-e AWS_ACCESS_KEY_ID="{{ aws_access_key_id }}" -e AWS_SECRET_ACCESS_KEY="{{ aws_secret_access_key }}" {% endif %}\
+      {% if hostvars[inventory_hostname]['provider'] == 'aws' and aws_access_key_id is defined and aws_access_key_id != '' %}-e AWS_ACCESS_KEY_ID="{{ aws_access_key_id }}" -e AWS_SECRET_ACCESS_KEY="{{ aws_secret_access_key }}" -e AWS_DEFAULT_REGION="us-west-2" {% endif %}\
       rl337/callableapis:services
   register: container_deploy
   failed_when: false
