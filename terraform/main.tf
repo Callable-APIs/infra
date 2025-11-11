@@ -604,7 +604,7 @@ resource "ibm_is_ssh_key" "callableapis_key" {
   tags           = ["callableapis", "production"]
 }
 
-# Virtual Server Instance (Free Tier)
+# Virtual Server Instance 1 (Free Tier)
 resource "ibm_is_instance" "callableapis_vsi" {
   name           = "callableapis-vsi"
   vpc            = ibm_is_vpc.callableapis_vpc.id
@@ -624,10 +624,38 @@ resource "ibm_is_instance" "callableapis_vsi" {
   tags = ["callableapis", "production", "terraform"]
 }
 
-# Floating IP
+# Virtual Server Instance 2 (Free Tier) - Additional node
+resource "ibm_is_instance" "callableapis_vsi_2" {
+  name           = "callableapis-vsi-2"
+  vpc            = ibm_is_vpc.callableapis_vpc.id
+  zone           = data.ibm_is_zones.zones.zones[0]
+  keys           = [ibm_is_ssh_key.callableapis_key.id]
+  image          = data.ibm_is_image.ubuntu.id
+  profile        = "cx2-2x4" # Free tier: 2 vCPU, 4GB RAM
+  resource_group = var.resource_group_id
+
+  primary_network_interface {
+    subnet          = ibm_is_subnet.callableapis_subnet.id
+    security_groups = [ibm_is_security_group.callableapis_sg.id]
+  }
+
+  user_data = file("${path.module}/ibm/user_data.sh")
+
+  tags = ["callableapis", "production", "terraform"]
+}
+
+# Floating IP for instance 1
 resource "ibm_is_floating_ip" "callableapis_fip" {
   name           = "callableapis-fip"
   target         = ibm_is_instance.callableapis_vsi.primary_network_interface[0].id
+  resource_group = var.resource_group_id
+  tags           = ["callableapis", "production"]
+}
+
+# Floating IP for instance 2
+resource "ibm_is_floating_ip" "callableapis_fip_2" {
+  name           = "callableapis-fip-2"
+  target         = ibm_is_instance.callableapis_vsi_2.primary_network_interface[0].id
   resource_group = var.resource_group_id
   tags           = ["callableapis", "production"]
 }
